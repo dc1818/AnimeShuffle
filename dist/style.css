@@ -843,6 +843,7 @@ footer button {
   flex-direction: column;
 }
 .saved-image {
+  flex-shrink: 0;
   aspect-ratio: 3/3.7;
   background: linear-gradient(130deg, #223d51, #352333);
   overflow: hidden;
@@ -1694,7 +1695,27 @@ main.wide-main {
 .saved-content small {
   display: block;
   color: #aebcc9;
-  margin: 8px 0;
+  margin: 0;
+}
+/* Keep links and actions aligned along the bottom of each watchlist row. */
+.saved-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.saved-footer .quiet {
+  margin: 4px auto 0;
+}
+.primary.danger-confirm {
+  display: flex;
+  margin-inline: auto;
+  background: #c93643;
+  color: #fff;
+}
+.primary.danger-confirm:hover:not(:disabled) {
+  background: #af2733;
 }
 @media (max-width: 560px) {
   .reaction-feedback {

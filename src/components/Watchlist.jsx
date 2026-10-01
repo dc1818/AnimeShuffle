@@ -358,41 +358,43 @@ export function Watchlist({ state, store, onDiscover }) {
                     {new Date(anime.listStatus.updated_at).toLocaleString()}
                   </small>
                 )}
-              <a
-                href={`https://myanimelist.net/anime/${anime.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on MAL ↗
-              </a>
-              <small>
-                {site && mal
-                  ? "Found on Anime Shuffle · MAL Plan to Watch"
-                  : mal
-                    ? "MAL Plan to Watch"
-                    : "Found on Anime Shuffle"}
-              </small>
-              <button
-                className="quiet"
-                disabled={state.busy}
-                onClick={() => (mal ? setRemoving(anime) : remove(anime))}
-              >
-                Remove
-              </button>
-              {site && (
-                <>
-                  {state.session.connected &&
-                    !state.list.some((a) => a.id === anime.id) && (
-                      <button
-                        className="outline"
-                        disabled={state.busy}
-                        onClick={() => store.saveToMal(anime)}
-                      >
-                        Add to MAL
-                      </button>
-                    )}
-                </>
-              )}
+              <div className="saved-footer">
+                <a
+                  href={`https://myanimelist.net/anime/${anime.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View on MAL ↗
+                </a>
+                <small>
+                  {site && mal
+                    ? "Found on Anime Shuffle · MAL Plan to Watch"
+                    : mal
+                      ? "MAL Plan to Watch"
+                      : "Found on Anime Shuffle"}
+                </small>
+                <button
+                  className="quiet"
+                  disabled={state.busy}
+                  onClick={() => (mal ? setRemoving(anime) : remove(anime))}
+                >
+                  Remove
+                </button>
+                {site && (
+                  <>
+                    {state.session.connected &&
+                      !state.list.some((a) => a.id === anime.id) && (
+                        <button
+                          className="outline"
+                          disabled={state.busy}
+                          onClick={() => store.saveToMal(anime)}
+                        >
+                          Add to MAL
+                        </button>
+                      )}
+                  </>
+                )}
+              </div>
             </div>
           </article>
         ))}
@@ -440,7 +442,11 @@ function RemoveWatchlistDialog({ anime, busy, onCancel, onConfirm }) {
         MyAnimeList Plan to Watch list. Any notes or other details saved with
         that MAL entry will also be deleted.
       </p>
-      <button className="primary" disabled={busy} onClick={onConfirm}>
+      <button
+        className="primary danger-confirm"
+        disabled={busy}
+        onClick={onConfirm}
+      >
         {busy ? "Removing…" : "Remove from both"}
       </button>
       <button className="quiet" disabled={busy} onClick={onCancel}>
