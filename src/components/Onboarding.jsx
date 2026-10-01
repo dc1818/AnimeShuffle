@@ -114,8 +114,8 @@ export function AccountForm({ mode, store, onNavigate, onComplete }) {
           : "Create an Anime Shuffle account"}
       </button>
       <p className="account-note">
-        Accounts belong to this local installation. Email-based password
-        recovery is not available yet.
+        Use the same account on each device to sync on the Cloudflare website.
+        Email-based password recovery is not available yet.
       </p>
     </>
   );

@@ -64,6 +64,17 @@ export function App({ store }) {
     document.addEventListener("keydown", keydown);
     return () => document.removeEventListener("keydown", keydown);
   }, [dialog, view, store]);
+  useEffect(() => {
+    const sync = () => {
+      if (document.visibilityState !== "hidden") store.syncAccount?.();
+    };
+    window.addEventListener("focus", sync);
+    window.addEventListener("online", sync);
+    return () => {
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("online", sync);
+    };
+  }, [store]);
   function closeDialog() {
     // Closing the welcome screen continues as a guest; it does not skip preferences.
     if (!store.getSnapshot().onboardingComplete) {
@@ -86,6 +97,18 @@ export function App({ store }) {
         <i />
         <i />
       </div>
+      {state.syncError && (
+        <div className="sync-warning" role="status">
+          {state.syncError}{" "}
+          <button
+            className="quiet"
+            disabled={state.busy}
+            onClick={store.syncAccount}
+          >
+            Retry sync
+          </button>
+        </div>
+      )}
       <header className="topbar">
         <a className="brand" href="./" aria-label="Anime Shuffle home">
           <img src="./assets/logo.png" alt="" width="92" height="62" />

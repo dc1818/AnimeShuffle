@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Anime Shuffle",
+  "short_name": "Anime Shuffle",
+  "description": "Find your next anime and keep your watchlist with you.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d151b",
+  "theme_color": "#0d151b",
+  "icons": [
+    {
+      "src": "./assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -13,7 +13,10 @@
     "build:pages": "node scripts/build.mjs --pages",
     "test": "node --test test/*.test.mjs",
     "check": "node --check server.mjs && node --check src/lib/store.js && node --check src/lib/recommend.js",
-    "format": "prettier --write src lib server.mjs scripts test public/index.html package.json"
+    "format": "prettier --write src lib server.mjs scripts test public/index.html package.json",
+    "dev:cloudflare": "npm run build && wrangler dev",
+    "deploy:cloudflare": "npm run build && wrangler deploy",
+    "check:cloudflare": "npm run build && wrangler deploy --dry-run"
   },
   "dependencies": {
     "react": "19.3.0",
@@ -22,6 +25,7 @@
   "devDependencies": {
     "esbuild": "0.28.2",
     "jsdom": "30.1.1",
-    "prettier": "3.9.9"
+    "prettier": "3.9.9",
+    "wrangler": "^4.145.0"
   }
 }

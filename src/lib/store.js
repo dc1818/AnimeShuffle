@@ -1,5 +1,6 @@
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import { parseWatchlistBackup, newWatchlistEntries } from "./watchlist.js";
+import { createCloudSync } from "./cloud-sync.js";
 import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
 import {
@@ -39,10 +40,12 @@ export function createAnimeStore({
     preferences: defaultPreferences(),
     onboardingComplete: false,
     settings: { autoAdd: false, dynamic: true },
+    syncError: "",
     message: "",
     error: "",
   };
   let profileKey = "guest";
+  let cloudSync = null;
   let pool = [],
     history = [],
     recent = [],
@@ -75,10 +78,14 @@ export function createAnimeStore({
       body: data === undefined ? undefined : JSON.stringify(data),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Request failed.");
+    if (!response.ok) {
+      const error = new Error(result.error || "Request failed.");
+      error.code = result.code;
+      throw error;
+    }
     return result;
   }
-  function persist() {
+  function persist(sync = true) {
     try {
       storage.setItem(
         "anime-shuffle:" + profileKey,
@@ -92,6 +99,7 @@ export function createAnimeStore({
     } catch {
       notify("Browser storage is full. Your latest changes may not be saved.");
     }
+    if (sync) cloudSync?.queue(state);
   }
   function loadLocal() {
     let stored = {};
@@ -322,6 +330,9 @@ export function createAnimeStore({
   }
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
+    cloudSync?.dispose();
+    cloudSync = null;
+    update({ syncError: "" });
     history = [];
     recent = [];
     skipped = new Set();
@@ -364,6 +375,33 @@ export function createAnimeStore({
         preferences: normalizePreferences(session.preferences),
         onboardingComplete: session.onboardingComplete === true,
       });
+    if (session.cloudSync && session.account) {
+      cloudSync = createCloudSync({
+        api,
+        storage,
+        key: "anime-shuffle:" + profileKey + ":pending-sync",
+        onRemote(remote) {
+          update({
+            reactions: remote.reactions,
+            settings: remote.settings,
+            preferences: normalizePreferences(remote.preferences),
+            onboardingComplete: remote.onboardingComplete,
+            recommendationPicks: [],
+            recommendationPool: [],
+            recommendationsReady: false,
+          });
+          persist(false);
+        },
+        onStatus(syncError) {
+          update({ syncError });
+        },
+      });
+      try {
+        await cloudSync.initialize();
+      } catch (error) {
+        update({ syncError: "Account sync is unavailable. " + error.message });
+      }
+    }
     pool = state.preview ? [...demo] : [];
     // Onboarding precedes discovery, including for authenticated first-time visitors.
     if (state.onboardingComplete) await next();
@@ -464,6 +502,19 @@ export function createAnimeStore({
     );
   }
   return {
+    async syncAccount() {
+      if (!cloudSync || state.busy) return;
+      update({ busy: true });
+      try {
+        await cloudSync.refresh();
+        update({ syncError: "" });
+        if (state.current && state.reactions[state.current.id]) await next();
+      } catch (error) {
+        update({ syncError: "Account sync is unavailable. " + error.message });
+      } finally {
+        update({ busy: false });
+      }
+    },
     loadRecommendations,
     async searchAnime(query) {
       const term = query.trim();
@@ -598,6 +649,7 @@ export function createAnimeStore({
     },
     async disconnect(malOnly = false) {
       try {
+        await cloudSync?.flush();
         await api(malOnly ? "/api/mal/disconnect" : "/api/logout", {});
         return true;
       } catch (error) {

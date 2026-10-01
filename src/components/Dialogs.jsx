@@ -144,12 +144,13 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           Your own reactions and saved anime are stored in this browser,
           separately for guests and each signed-in account. Imported MAL
           profiles and lists are held in memory. Clearing browser data removes
-          local reactions.
+          local guest reactions; synced account data stays on the server.
         </p>
         <p>
-          OAuth tokens stay in the app server’s memory and disappear when it
-          stops. The app contacts MyAnimeList for anime data and cover images.
-          It has no analytics.
+          Cloudflare stores encrypted MAL tokens and persistent sessions. The
+          local Node server keeps tokens in memory until it stops. The app
+          contacts MyAnimeList for anime data and cover images. It has no
+          analytics.
         </p>
         <p>
           Auto-add is optional. Good and Bad never change MAL statuses or
@@ -159,7 +160,8 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
         <p>
           Anime Shuffle usernames, salted password hashes and account viewing
           preferences are saved on this installation. Guest preferences stay in
-          this browser. Reactions do not sync between browsers.
+          this browser. On the Cloudflare deployment, signed-in reactions,
+          watchlists and settings sync to your account.
         </p>
         <p>Anime Shuffle is not affiliated with MyAnimeList.</p>
         <p>
@@ -177,7 +179,9 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           onClick={() => {
             if (
               confirm(
-                "Clear this profile’s local reactions and saved anime? Your MAL list will not change.",
+                state.session.cloudSync && state.session.account
+                  ? "Clear this account’s reactions and saved anime on all synced devices? Your MAL list will not change."
+                  : "Clear this profile’s local reactions and saved anime? Your MAL list will not change.",
               )
             ) {
               store.clearLocal();
@@ -185,7 +189,9 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
             }
           }}
         >
-          Clear this profile’s local reactions
+          {state.session.cloudSync && state.session.account
+            ? "Clear account reactions"
+            : "Clear this profile’s local reactions"}
         </button>
       </Dialog>
     );
@@ -193,6 +199,24 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
     <Dialog onClose={onClose}>
       <span className="eyebrow">Make it yours</span>
       <h2>Settings</h2>
+      {state.session.cloudSync && state.session.account && (
+        <div className="setting-row">
+          <div>
+            <strong>Account sync</strong>
+            <p>
+              Preferences and saved anime follow this account across devices.
+              Sign-in lasts up to 30 days.
+            </p>
+          </div>
+          <button
+            className="outline"
+            disabled={state.busy}
+            onClick={store.syncAccount}
+          >
+            Sync now
+          </button>
+        </div>
+      )}
       {state.session.account && (
         <p>
           Signed in as <strong>{state.session.account.name}</strong> ·{" "}

@@ -42,34 +42,12 @@
         Updated October 1, 2026. This describes the current Anime Shuffle app,
         including the GitHub Pages demo and the server version.
       </p>
-      <h2>What the app stores</h2>
-      <p>
-        Your reactions, saved anime, display settings and guest viewing
-        preferences are stored in your browser. Clearing site data removes them.
-        They do not sync between browsers.
-      </p>
-      <p>
-        If you create an Anime Shuffle account, the app server stores your
-        username, salted password hash and viewing preferences. It does not ask
-        for an email address. With MyAnimeList sign-in, the server stores your
-        MAL account identifier with your viewing preferences. Account records
-        remain until removed by the operator. Hosting backups may retain earlier
-        copies.
-      </p>
-      <h2>MyAnimeList access</h2>
-      <p>
-        Signing in redirects you to MyAnimeList for authorization. Anime Shuffle
-        never receives your MAL password. Access and refresh tokens, imported
-        profile and list data are held in server memory for your session.
-        Sessions expire after eight hours, and restarting the server signs users
-        out. Public anime metadata may be cached temporarily.
-      </p>
-      <p>
-        Currently watching and plan to watch entries, available ratings and your
-        reactions help rank suggestions. Ratings are optional. Adding shows to
-        MAL requires your action or enabling the optional auto-add setting. Good
-        and Bad do not change MAL ratings or viewing statuses.
-      </p>
+      <h2>Accounts and saved choices</h2>
+      <p>On the Cloudflare deployment, signed-in preferences, favorite genres and anime, reactions, settings, and watchlists are stored in a persistent database. They follow your account across devices. A browser cache and pending-sync queue help retain changes if a request fails. Clearing browser data before pending changes sync can lose those changes.</p>
+      <p>Guest data and the GitHub Pages demo stay in the current browser. The local Node version saves accounts and preferences on that installation; reactions stay in the browser. Passwords are stored as salted hashes, never plaintext. Password recovery is not available yet.</p>
+      <h2>MyAnimeList connection</h2>
+      <p>MAL login happens on MyAnimeList. Anime Shuffle receives authorization tokens, not your MAL password. Cloudflare encrypts tokens and session data with a server-only application key. Signed-in sessions last up to 30 days and survive deployments. The local Node version keeps tokens in memory and expires sessions after eight hours.</p>
+      <p>Currently watching, plan to watch, optional ratings, favorite genres and anime, and reactions help rank suggestions. Adding to MAL requires an explicit action or the optional auto-add setting. Good and Bad do not change MAL ratings or viewing statuses.</p>
       <h2>Cookies and third parties</h2>
       <p>
         The server version uses an essential session cookie. The app includes no
@@ -80,7 +58,7 @@
       </p>
       <h2>Your choices</h2>
       <p>
-        You can clear reactions from Privacy in the app, clear browser site
+        You can clear reactions from Privacy in the app (across devices for synced accounts), clear browser site
         data, sign out, and revoke app authorization on MyAnimeList. Signing out
         does not delete account records or undo changes to your MAL list. The
         prototype has no self-service account deletion or password recovery yet.

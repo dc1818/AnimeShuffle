@@ -1826,3 +1826,11 @@ main.wide-main {
 .watchlist-import button {
   margin-right: 10px;
 }
+.sync-warning {
+  position: relative;
+  z-index: 5;
+  padding: 12px 20px;
+  background: #563e22;
+  color: #fff3da;
+  text-align: center;
+}

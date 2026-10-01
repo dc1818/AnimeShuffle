@@ -8,7 +8,7 @@ Built with React, CSS, and Node.js. The full app runs locally; a guest demo can 
 
 ## GitHub Pages demo
 
-Once Pages is enabled, open [Anime Shuffle](https://dc1818.github.io/AnimeShuffle/). The demo includes seven sample anime, viewing preferences, all four reactions, details, Undo, and a browser-saved watchlist. Account creation, MAL sign-in, and live catalog access need the Node server and are unavailable on Pages.
+Once Pages is enabled, open [Anime Shuffle](https://dc1818.github.io/AnimeShuffle/). The demo includes seven sample anime, viewing preferences, all four reactions, details, Undo, and a browser-saved watchlist. Account creation, MAL sign-in, and live catalog access need the Node server or Cloudflare backend and are unavailable on Pages.
 
 To publish: open **Settings → Pages**, choose **Deploy from a branch**, select **main** and **/docs**, then save. GitHub publishes the checked-in `docs/` build.
 
@@ -26,6 +26,8 @@ After changing the interface, run `npm ci && npm run build && npm run build:page
 - Skip, Undo, and keyboard shortcuts.
 
 ## Public hosting
+
+For persistent accounts and cross-device watchlists on Cloudflare, follow [CLOUDFLARE.md](CLOUDFLARE.md). It includes deployment, migration backups, MAL redirects, and phone installation. Cloudflare stores signed-in data in SQLite and keeps encrypted connections across deployments. The local Node version and Pages demo remain available.
 
 See [HOSTING.md](HOSTING.md) for the Render deployment setup, private environment variables, persistent storage, and every MyAnimeList registration field. The full website and API run together; GitHub Pages remains a guest demo.
 
@@ -183,6 +185,8 @@ Edit files in `src/`, then run `npm run build` and refresh the browser. The buil
 
 ## Local data
 
+The following applies to the Node server. The [Cloudflare deployment](CLOUDFLARE.md) stores accounts, sessions, preferences, and reactions in durable SQL storage and syncs them across signed-in devices. Guest data stays in the browser.
+
 Reactions and saved picks are stored in your browser, separately for guests and each signed-in account. They do not sync between browsers. Imported MAL lists stay in memory.
 
 Anime Shuffle account records and signed-in viewing preferences are saved in `.data/accounts.json`. Passwords use scrypt with a unique random salt; plaintext passwords are not saved. The `.data/` directory is excluded from Git and is never served as a static file. Keep it when updating the app if you want to retain your accounts.
@@ -193,7 +197,7 @@ You can clear local reactions under **Privacy & local data** without changing yo
 
 ## Current limitations
 
-This is an early local build. The server listens on `127.0.0.1` and isn't configured for public hosting.
+The Node server defaults to local development. For public hosting with persistent account data, use the Cloudflare setup above.
 
 - Account, preference, and session tests run locally. MAL tests use mocked responses, and component tests use jsdom. Live OAuth and visual browser checks are still pending.
 - MAL lists refresh on connection or manually, not continuously.
@@ -219,7 +223,6 @@ Anime data and cover images come from MyAnimeList. Anime Shuffle is not affiliat
 Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Export entire list downloads every title in the active Saved here or MAL Plan to Watch tab, even if filters hide some titles. Search titles and use dropdowns to filter by genre, format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
 
 Reactions on Recommendations keep the current batch in place and grey out the chosen row with a confirmation label. Would watch saves the anime in Watchlist immediately. Undo re-enables the row; Refresh picks builds a new batch excluding all saved or reacted anime.
-
 
 ### Watchlist backups
 
