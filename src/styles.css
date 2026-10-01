@@ -1793,3 +1793,36 @@ main.wide-main {
 .favorite-selections span {
   flex: 1;
 }
+.backup-format {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #c4d8e3;
+}
+.backup-format select {
+  padding: 10px;
+  border-radius: 8px;
+  background: #12232e;
+  color: #e3eef5;
+  border: 1px solid #456171;
+}
+.watchlist-import {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #35566a;
+  border-radius: 10px;
+}
+.watchlist-import label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: #e3eef5;
+}
+.watchlist-import p {
+  font-size: 13px;
+  color: #afc5d1;
+}
+.watchlist-import button {
+  margin-right: 10px;
+}

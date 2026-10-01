@@ -68,3 +68,117 @@ export function watchlistText(entries, label = "Watchlist") {
     "\n"
   );
 }
+
+/** Versioned, account-free backup. JSON is the round-trip format; text is for reading. */
+export function watchlistBackup(entries) {
+  return JSON.stringify(
+    {
+      app: "anime-shuffle",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entries: entries.map(({ anime, addedAt }) => ({ anime, addedAt })),
+    },
+    null,
+    2,
+  );
+}
+
+/** Treat uploaded files as untrusted data. Reject malformed backups before changing state. */
+export function parseWatchlistBackup(text) {
+  if (typeof text !== "string" || text.length > 5 * 1024 * 1024)
+    throw new Error("Choose a JSON backup smaller than 5 MB.");
+  let file;
+  try {
+    file = JSON.parse(text);
+  } catch {
+    throw new Error(
+      "This is not a valid JSON backup. Choose an Anime Shuffle .json export.",
+    );
+  }
+  if (
+    file?.app !== "anime-shuffle" ||
+    file.version !== 1 ||
+    !Array.isArray(file.entries) ||
+    file.entries.length > 10000
+  )
+    throw new Error(
+      "Unsupported backup. Use an Anime Shuffle version 1 JSON export (up to 10,000 titles).",
+    );
+  return file.entries.map((entry) => {
+    const a = entry?.anime;
+    if (
+      !Number.isSafeInteger(a?.id) ||
+      a.id <= 0 ||
+      typeof a.title !== "string" ||
+      !a.title.trim()
+    )
+      throw new Error(
+        "The backup contains an invalid anime entry. Nothing was imported.",
+      );
+    const cleanText = (value, max) =>
+      typeof value === "string" ? value.slice(0, max) : "";
+    const positive = (value) =>
+      Number.isFinite(value) && value > 0 ? value : 0;
+    return {
+      addedAt:
+        Number.isFinite(entry.addedAt) &&
+        entry.addedAt > 0 &&
+        entry.addedAt <= Date.now()
+          ? entry.addedAt
+          : null,
+      anime: {
+        id: a.id,
+        title: a.title.trim().slice(0, 200),
+        genres: Array.isArray(a.genres)
+          ? a.genres
+              .filter((g) => typeof g === "string")
+              .slice(0, 20)
+              .map((g) => g.slice(0, 60))
+          : [],
+        image:
+          typeof a.image === "string" &&
+          /^https:\/\/(cdn|api-cdn)\.myanimelist\.net\/images\/anime\/[\w/.-]+\.(jpg|jpeg|png|webp)$/i.test(
+            a.image,
+          )
+            ? a.image
+            : "",
+        format: cleanText(a.format, 30),
+        status: [
+          "finished_airing",
+          "currently_airing",
+          "not_yet_aired",
+        ].includes(a.status)
+          ? a.status
+          : "",
+        duration: positive(a.duration),
+        episodes: Math.floor(positive(a.episodes)),
+        synopsis: cleanText(a.synopsis, 10000),
+        nsfw: ["white", "gray", "black"].includes(a.nsfw) ? a.nsfw : "",
+        score:
+          Number.isFinite(a.score) && a.score > 0 && a.score <= 10
+            ? a.score
+            : null,
+        ageRating: cleanText(a.ageRating, 20),
+        scoreVotes:
+          Number.isSafeInteger(a.scoreVotes) && a.scoreVotes > 0
+            ? a.scoreVotes
+            : null,
+      },
+    };
+  });
+}
+
+/** Keep current choices and MAL progress; importing never overwrites a reaction. */
+export function newWatchlistEntries(entries, reactions = {}, list = []) {
+  const known = new Set([
+    ...Object.keys(reactions).map(Number),
+    ...list
+      .filter((a) => a.listStatus?.status !== "plan_to_watch")
+      .map((a) => a.id),
+  ]);
+  return entries.filter(({ anime }) => {
+    if (known.has(anime.id)) return false;
+    known.add(anime.id);
+    return true;
+  });
+}

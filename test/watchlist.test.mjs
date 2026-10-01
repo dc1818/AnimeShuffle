@@ -81,3 +81,32 @@ test("text export includes titles, release, runtime, dates and MAL links", async
   assert.match(text, /Added: Unknown/);
   assert.match(text, /~4h 48m total/);
 });
+
+test("JSON backups round trip and reject invalid input without trusting image URLs", async () => {
+  const { watchlistBackup, parseWatchlistBackup, newWatchlistEntries } =
+    await import("../src/lib/watchlist.js");
+  const text = watchlistBackup([a, b, c, a]);
+  const entries = parseWatchlistBackup(text);
+  assert.equal(entries[0].anime.title, a.anime.title);
+  assert.equal(entries[0].addedAt, 100);
+  assert.equal(entries[2].addedAt, null);
+  assert.deepEqual(
+    newWatchlistEntries(entries, { 2: { action: "bad" } }).map(
+      (x) => x.anime.id,
+    ),
+    [1, 3],
+  );
+  assert.throws(() => parseWatchlistBackup("plain text"), /valid JSON/);
+  assert.throws(() => parseWatchlistBackup('{"version":2}'), /Unsupported/);
+  assert.throws(
+    () =>
+      parseWatchlistBackup(
+        watchlistBackup([{ anime: { id: -1, title: "bad" } }]),
+      ),
+    /invalid anime/,
+  );
+  const unsafe = parseWatchlistBackup(
+    watchlistBackup([{ anime: { ...a.anime, image: "javascript:alert(1)" } }]),
+  );
+  assert.equal(unsafe[0].anime.image, "");
+});

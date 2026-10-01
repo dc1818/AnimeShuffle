@@ -1,4 +1,5 @@
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
+import { parseWatchlistBackup, newWatchlistEntries } from "./watchlist.js";
 import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
 import {
@@ -533,6 +534,30 @@ export function createAnimeStore({
     setSettings(patch) {
       update({ settings: { ...state.settings, ...patch } });
       persist();
+    },
+    async importWatchlist(text) {
+      if (state.busy)
+        throw new Error("Please wait for the current action to finish.");
+      const entries = newWatchlistEntries(
+        parseWatchlistBackup(text),
+        state.reactions,
+        state.list,
+      );
+      const reactions = { ...state.reactions };
+      for (const { anime, addedAt } of entries)
+        reactions[anime.id] = { action: "watch", anime, at: addedAt };
+      // Backups restore this browser's saved list; they never write to MAL automatically.
+      history = [];
+      update({
+        reactions,
+        canUndo: false,
+        recommendationPicks: [],
+        recommendationPool: [],
+        recommendationsReady: false,
+      });
+      persist();
+      await next();
+      return entries.length;
     },
     removeSaved(id) {
       if (state.busy) return;

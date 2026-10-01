@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { orderWatchlist, watchlistText } from "../lib/watchlist.js";
+import {
+  orderWatchlist,
+  watchlistText,
+  watchlistBackup,
+  parseWatchlistBackup,
+  newWatchlistEntries,
+} from "../lib/watchlist.js";
 import {
   GENRES,
   defaultPreferences,
@@ -13,6 +19,10 @@ import { coverUrl } from "./AnimeCard.jsx";
 
 /** Local saved picks and imported MAL entries remain separate sources of truth. */
 export function Watchlist({ state, store, onDiscover }) {
+  const [exportFormat, setExportFormat] = useState("json");
+  const [pendingImport, setPendingImport] = useState(null);
+  const [importMessage, setImportMessage] = useState("");
+  const [importing, setImporting] = useState(false);
   const [tab, setTab] = useState("saved");
   const [sort, setSort] = useState("match");
   const [query, setQuery] = useState("");
@@ -180,6 +190,17 @@ export function Watchlist({ state, store, onDiscover }) {
         >
           Clear filters
         </button>
+        <label className="backup-format">
+          Export format
+          <select
+            aria-label="Export format"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value)}
+          >
+            <option value="json">JSON · Backup and import</option>
+            <option value="txt">Text · Readable list</option>
+          </select>
+        </label>
         <button
           className="outline"
           disabled={!source.length}
@@ -194,25 +215,109 @@ export function Watchlist({ state, store, onDiscover }) {
             const url = URL.createObjectURL(
               new Blob(
                 [
-                  watchlistText(
-                    entries,
-                    tab === "mal" ? "MAL Plan to Watch" : "Saved here",
-                  ),
+                  exportFormat === "json"
+                    ? watchlistBackup(entries)
+                    : watchlistText(
+                        entries,
+                        tab === "mal" ? "MAL Plan to Watch" : "Saved here",
+                      ),
                 ],
-                { type: "text/plain;charset=utf-8" },
+                {
+                  type:
+                    exportFormat === "json"
+                      ? "application/json"
+                      : "text/plain;charset=utf-8",
+                },
               ),
             );
             const link = document.createElement("a");
             link.href = url;
-            link.download = "anime-shuffle-watchlist.txt";
+            link.download = `anime-shuffle-watchlist.${exportFormat}`;
             document.body.append(link);
             link.click();
             link.remove();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
           }}
         >
-          Export entire list (.txt)
+          Export entire list
         </button>
+      </div>
+      <div className="watchlist-import">
+        <label>
+          Import watchlist backup (.json)
+          <input
+            type="file"
+            accept=".json,application/json"
+            disabled={state.busy || importing}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              setPendingImport(null);
+              setImportMessage("");
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) {
+                setImportMessage("Choose a JSON backup smaller than 5 MB.");
+                return;
+              }
+              try {
+                const text = await file.text();
+                const entries = parseWatchlistBackup(text);
+                const fresh = newWatchlistEntries(
+                  entries,
+                  state.reactions,
+                  state.list,
+                );
+                setPendingImport({
+                  text,
+                  count: fresh.length,
+                  skipped: entries.length - fresh.length,
+                });
+              } catch (error) {
+                setImportMessage(error.message);
+              }
+            }}
+          />
+        </label>
+        <p>
+          JSON backups restore into Saved here. Existing choices are kept.
+          Importing does not add shows to MyAnimeList. Text exports are for
+          reading.
+        </p>
+        {pendingImport && (
+          <div>
+            <p>
+              {pendingImport.count} new titles to add · {pendingImport.skipped}{" "}
+              duplicates or existing choices skipped.
+            </p>
+            <button
+              className="primary"
+              disabled={!pendingImport.count || state.busy || importing}
+              onClick={async () => {
+                setImporting(true);
+                try {
+                  const count = await store.importWatchlist(pendingImport.text);
+                  setTab("saved");
+                  setPendingImport(null);
+                  setImportMessage(`Imported ${count} titles into Saved here.`);
+                } catch (error) {
+                  setImportMessage(error.message);
+                } finally {
+                  setImporting(false);
+                }
+              }}
+            >
+              Import {pendingImport.count} titles
+            </button>
+            <button
+              className="quiet"
+              disabled={importing}
+              onClick={() => setPendingImport(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        <p role="status">{importMessage}</p>
       </div>
       <p className="watchlist-count">
         {items.length} of {source.length} saved titles

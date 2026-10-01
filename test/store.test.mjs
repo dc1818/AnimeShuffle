@@ -134,3 +134,24 @@ test("local sign-in restores account preferences without copying guest reactions
     "bad",
   );
 });
+
+test("import saves once, preserves reactions, excludes Discover and survives reload without MAL writes", async () => {
+  const { watchlistBackup } = await import("../src/lib/watchlist.js");
+  const storage = memory();
+  const store = createAnimeStore({ storage, staticMode: true });
+  await store.initialize();
+  await store.savePreferences({});
+  const candidate = store.getSnapshot().current;
+  const text = watchlistBackup([{ anime: candidate, addedAt: 123 }]);
+  store.setSettings({ autoAdd: true });
+  assert.equal(await store.importWatchlist(text), 1);
+  assert.equal(store.getSnapshot().reactions[candidate.id].action, "watch");
+  assert.notEqual(store.getSnapshot().current?.id, candidate.id);
+  assert.equal(await store.importWatchlist(text), 0);
+  const restored = createAnimeStore({ storage, staticMode: true });
+  await restored.initialize();
+  assert.equal(restored.getSnapshot().reactions[candidate.id].at, 123);
+  const before = restored.getSnapshot().reactions;
+  await assert.rejects(restored.importWatchlist("bad JSON"));
+  assert.deepEqual(restored.getSnapshot().reactions, before);
+});

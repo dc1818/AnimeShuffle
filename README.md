@@ -20,7 +20,7 @@ After changing the interface, run `npm ci && npm run build && npm run build:page
 - First-visit setup for favorite genres, three searchable favorite anime, format, series length, and finished shows. Favorites guide your taste; they are not shown again in Discover.
 - Four reactions that distinguish shows you've seen from shows you might watch.
 - Recommendations based on your reactions and, optionally, your MAL list.
-- A watchlist ordered by best match, with dropdowns for date added, runtime, genre, format, length, and release status. Export the entire active list as a text file.
+- A watchlist ordered by best match, with dropdowns for date added, runtime, genre, format, length, and release status. Export the entire active list as readable text or a JSON backup. Import JSON backups into Saved here with a preview and duplicate detection.
 - Optional additions to MAL Plan to Watch.
 - Expandable details with MAL community scores and age ratings when available, cover-based background colors, and a mobile layout.
 - Skip, Undo, and keyboard shortcuts.
@@ -219,3 +219,12 @@ Anime data and cover images come from MyAnimeList. Anime Shuffle is not affiliat
 Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Export entire list downloads every title in the active Saved here or MAL Plan to Watch tab, even if filters hide some titles. Search titles and use dropdowns to filter by genre, format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
 
 Reactions on Recommendations keep the current batch in place and grey out the chosen row with a confirmation label. Would watch saves the anime in Watchlist immediately. Undo re-enables the row; Refresh picks builds a new batch excluding all saved or reacted anime.
+
+
+### Watchlist backups
+
+In Watchlist, choose **JSON · Backup and import** and click **Export entire list**. Keep this file to restore the list on another browser or device. To restore it, choose the file under **Import watchlist backup**, review the number of new titles, then click **Import**.
+
+Imports keep existing reactions and MAL progress, skip duplicate titles, and add new entries to **Saved here**. They do not write to MAL, even when automatic MAL additions are enabled. Original saved dates are preserved when known. Imported shows are excluded from Discover and future recommendation batches.
+
+Choose **Text · Readable list** for a plain text list of titles, links, dates and runtimes. Text files are for reading; use JSON for importing. JSON imports accept Anime Shuffle version 1 backups up to 5 MB and 10,000 entries. Backups include anime information only, never login credentials or MAL tokens.
