@@ -1,0 +1,135 @@
+/** Sparse content model trained only from explicit choices and MAL history.
+ * Two regularized logistic heads estimate enjoyment and watch interest separately.
+ * Synopsis features are lexical TF-IDF, not neural embeddings or viewing-time signals.
+ */
+const stop = new Set(
+  "the and for that with this from they their them into when which about have has had was were are its his her she him who but not all can will one after before through also than then been being more most some such each other anime series story follows written source mal synopsis".split(
+    " ",
+  ),
+);
+export function terms(anime) {
+  return [
+    ...new Set(
+      (anime.synopsis || "")
+        .toLowerCase()
+        .replace(/\[[^\]]*\]/g, " ")
+        .match(/[a-z]{3,}/g) || [],
+    ),
+  ]
+    .filter((w) => !stop.has(w))
+    .slice(0, 120);
+}
+const dot = (weights, features) =>
+  features.reduce((n, [key, value]) => n + (weights.get(key) || 0) * value, 0);
+const sigmoid = (x) => 1 / (1 + Math.exp(-Math.max(-12, Math.min(12, x))));
+export function trainContentModel(records, favoriteGenres = [], corpus = []) {
+  // Prefer strong evidence; retain examples from both sides of each preference axis.
+  const sorted = [...records.values()].sort(
+    (a, b) =>
+      Math.max(Math.abs(b.enjoyment), Math.abs(b.interest)) -
+        Math.max(Math.abs(a.enjoyment), Math.abs(a.interest)) ||
+      a.anime.id - b.anime.id,
+  );
+  const buckets = [[], [], [], []];
+  for (const r of sorted)
+    buckets[
+      r.enjoyment < 0 || r.interest < 0
+        ? 1
+        : r.source === "reaction" || r.source === "favorite"
+          ? 0
+          : 2
+    ].push(r);
+  const examples = [];
+  for (let i = 0; examples.length < 400 && buckets.some((b) => b[i]); i++)
+    for (const b of buckets)
+      if (b[i] && examples.length < 400) examples.push(b[i]);
+  const docs = [
+    ...new Map(
+      [...examples.map((r) => r.anime), ...corpus].map((a) => [a.id, a]),
+    ).values(),
+  ];
+  const frequency = new Map();
+  for (const a of docs)
+    for (const t of terms(a)) frequency.set(t, (frequency.get(t) || 0) + 1);
+  const cache = new WeakMap();
+  function features(a) {
+    if (cache.has(a)) return cache.get(a);
+    const f = [];
+    for (const g of a.genres || [])
+      f.push(["genre:" + g, 1 / Math.sqrt(a.genres.length)]);
+    if (a.format && a.format !== "unknown") f.push(["format:" + a.format, 0.2]);
+    for (const studio of a.studios || [])
+      f.push(["studio:" + studio, 0.3 / Math.sqrt(a.studios.length)]);
+    const minutes = Number(a.duration) * Number(a.episodes);
+    if (minutes > 0)
+      f.push([
+        "length:" +
+          (minutes < 120
+            ? "short"
+            : minutes < 400
+              ? "single"
+              : minutes < 800
+                ? "double"
+                : "long"),
+        0.2,
+      ]);
+    const words = terms(a).map((t) => [
+      t,
+      1 + Math.log((docs.length + 1) / ((frequency.get(t) || 0) + 1)),
+    ]);
+    const norm = Math.hypot(...words.map(([, v]) => v)) || 1;
+    for (const [t, v] of words) f.push(["text:" + t, (0.9 * v) / norm]);
+    cache.set(a, f);
+    return f;
+  }
+  const enjoyment = new Map(),
+    interest = new Map();
+  const training = examples.map((r) => ({ ...r, features: features(r.anime) }));
+  for (const genre of favoriteGenres)
+    training.push({
+      features: [["genre:" + genre, 1]],
+      enjoyment: 0.4,
+      interest: 0.4,
+    });
+  // Fixed passes and bounded samples keep learning deterministic and inexpensive.
+  for (let epoch = 0; epoch < 16; epoch++) {
+    const rate = 0.22 / (1 + epoch * 0.1);
+    for (const r of training)
+      for (const [head, signal] of [
+        [enjoyment, r.enjoyment],
+        [interest, r.interest],
+      ]) {
+        if (!signal) continue; // Unknown evidence is not a negative label.
+        const error =
+          ((signal + 1) / 2 - sigmoid(dot(head, r.features))) *
+          Math.abs(signal);
+        for (const [key, value] of r.features)
+          head.set(
+            key,
+            (head.get(key) || 0) * (1 - rate * 0.025) + rate * error * value,
+          );
+      }
+  }
+  return {
+    score(a) {
+      const f = features(a);
+      const enjoymentScore = Math.tanh(dot(enjoyment, f) / 2);
+      const interestScore = Math.tanh(dot(interest, f) / 2);
+      return {
+        enjoyment: enjoymentScore,
+        interest: interestScore,
+        score: 0.65 * enjoymentScore + 0.35 * interestScore,
+      };
+    },
+    support(a) {
+      const f = features(a);
+      return (
+        f.reduce(
+          (n, [key, v]) =>
+            n + (enjoyment.has(key) || interest.has(key) ? v * v : 0),
+          0,
+        ) / (f.reduce((n, [, v]) => n + v * v, 0) || 1)
+      );
+    },
+  };
+}

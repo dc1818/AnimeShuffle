@@ -132,13 +132,15 @@ The third tab shows up to 25 tailored picks in a vertical leaderboard. Every car
 
 Cards show MAL release status. Good and Bad are disabled for Not yet aired titles, including keyboard actions. Unknown release statuses are labeled explicitly.
 
-Suggestions use genre and format preferences, with some variety mixed in to avoid repeating the same kinds of shows.
+The content model learns two separate signals: enjoyment from Good/Bad and personal MAL ratings, and viewing interest from Would watch/Won’t watch and MAL statuses. It trains a small regularized logistic model for each signal using synopsis terms (TF-IDF), genres, studios, format and runtime. Scores are combined for ranking, with a small diversity adjustment so the shortlist is not just variations of one show.
 
-When MAL is connected, **Currently Watching** and **Plan to Watch** entries help establish your interests. Completed shows provide a positive signal without needing a rating; dropped shows indicate less interest in similar titles. A previous Would watch choice does not override later completed or dropped progress. Unrated shows still count; a missing rating isn't treated as a dislike. If you do rate shows, scores are considered relative to your own average.
+Personal ratings use the full 1–10 scale. A low score stays negative even if it is the user's only rating; established rating habits make a limited adjustment. Zero means unrated. Completed and currently watching shows provide weaker evidence without scores. Dropped shows reduce viewing interest while retaining any explicit enjoyment rating. A previous Would watch does not override later completed or dropped progress.
 
-Direct reactions take priority over those inferred preferences. About 20% of later picks explore outside the usual ranking. Titles already on your MAL list or already reacted to are excluded from discovery. Direct sequels are filtered when their listed prequel isn't known as watched or currently watching.
+Discover includes evidence-aware exploration in about 20% of later selections. Recommendations favors the strongest matches. Known titles, saved shows and rejected titles remain excluded; direct sequels require a known prequel. No time spent viewing cards, dwell time, or passive attention measurements are used.
 
-Candidates are loaded in pages from MAL's popularity, ranking, and seasonal endpoints. The app doesn't need a local copy of the entire database.
+Candidates come from MAL ranking and seasonal pages plus a bounded number of recommendation links from positive taste examples. Public metadata is cached and reused. The first discovery card does not wait for these extra lookups; later discovery and recommendation batches can expand beyond the charts.
+
+This is a lightweight personal content model, not cross-user collaborative filtering or a neural text model. Synopsis matching depends on shared words, and scores are relative rankings rather than calibrated probabilities. The tests cover preference behavior and exclusions; real-world recommendation quality still needs evaluation with user feedback.
 
 ## Development
 
@@ -167,6 +169,7 @@ Edit files in `src/`, then run `npm run build` and refresh the browser. The buil
 | `src/App.jsx`            | Page layout, navigation, and keyboard handling                 |
 | `src/components/`        | Anime cards, details, watchlist, and dialogs                   |
 | `src/lib/store.js`       | Application state and API operations                           |
+| `src/lib/content-model.js` | Personal enjoyment and viewing-interest models                 |
 | `src/lib/recommend.js`   | Recommendation scoring and filtering                           |
 | `src/styles.css`         | Styles and responsive layouts                                  |
 | `server.mjs`             | Local server, OAuth, and API routes                            |

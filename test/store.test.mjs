@@ -360,3 +360,51 @@ test("duplicate autocomplete reads share one pending request and failed reads ca
   assert.deepEqual(await retry, [anime]);
   assert.equal(calls, 2);
 });
+
+test("recommendations retrieve off-chart MAL neighbors while enforcing known-show and prequel exclusions", async () => {
+  const seed = {
+    ...anime,
+    id: 90,
+    synopsis: "Detectives investigate murder clues and criminal suspects.",
+    listStatus: { status: "completed", score: 9 },
+  };
+  const neighbor = { ...anime, id: 900, synopsis: seed.synopsis };
+  const sequel = { ...anime, id: 901, prequels: [777] };
+  const seen = {
+    ...anime,
+    id: 902,
+    listStatus: { status: "completed", score: 8 },
+  };
+  const requested = [];
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      requested.push(url);
+      if (url === "/api/session")
+        return Response.json({ configured: true, connected: true });
+      if (url === "/api/profile") return Response.json({ id: 7 });
+      if (url.startsWith("/api/list"))
+        return Response.json({ data: [seed, seen], nextOffset: null });
+      if (url.startsWith("/api/catalog"))
+        return Response.json({ data: [anime], nextOffset: null });
+      const id = Number(url.split("/").pop());
+      if (id === 90)
+        return Response.json({ ...seed, recommendations: [900, 901, 902] });
+      return Response.json(
+        { 1: anime, 900: neighbor, 901: sequel, 902: seen }[id],
+      );
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({});
+  await store.loadRecommendations();
+  const ids = store.getSnapshot().recommendationPicks.map((p) => p.anime.id);
+  assert.ok(ids.includes(900), "finds a title never present on catalog pages");
+  assert.ok(!ids.includes(901), "unseen prequel remains excluded");
+  assert.ok(!ids.includes(902), "known anime never becomes a candidate");
+  assert.equal(
+    requested.filter((url) => url === "/api/anime/900").length,
+    1,
+    "retrieved neighbor details are reused during ranking",
+  );
+});

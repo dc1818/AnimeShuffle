@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   preferenceWeight,
+  preferenceSignals,
   buildTaste,
   isEligible,
   chooseNext,
@@ -94,11 +95,14 @@ test("unrated completed and dropped MAL shows shape taste and supersede old plan
     scoreAnime(anime(20, ["Romance"]), taste) >
       scoreAnime(anime(21, ["Action"]), taste),
   );
+  const ratedDrop = preferenceSignals({
+    ...dropped,
+    listStatus: { status: "dropped", score: 10 },
+  });
+  assert.ok(ratedDrop.enjoyment > 0, "a high rating still records enjoyment");
   assert.ok(
-    preferenceWeight({
-      ...dropped,
-      listStatus: { status: "dropped", score: 10 },
-    }) < 0,
+    ratedDrop.interest < 0,
+    "dropping separately records lack of viewing interest",
   );
   const explicit = buildTaste({ 12: { anime: dropped, action: "good" } }, [
     dropped,

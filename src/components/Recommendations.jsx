@@ -32,7 +32,7 @@ export function Recommendations({ state, store, onDiscover }) {
     store,
   ]);
   const taste = useMemo(
-    () => buildTaste(state.reactions, state.list, state.preferences),
+    () => buildTaste(state.reactions, state.list, state.preferences, [], false),
     [state.reactions, state.list, state.preferences],
   );
   const readiness = useMemo(

@@ -1,3 +1,4 @@
+import { trainContentModel, terms } from "./content-model.js";
 import { normalizePreferences, matchesPreferences } from "./preferences.js";
 /**
  * Pure recommendation functions: no network, React, or browser-storage dependencies.
@@ -5,94 +6,161 @@ import { normalizePreferences, matchesPreferences } from "./preferences.js";
  * Explicit reactions are stronger than signals inferred from MAL list statuses.
  */
 export const REACTIONS = ["good", "bad", "watch", "nope"];
-export const reactionWeight = { good: 3, bad: -3, watch: 1.8, nope: -1.3 };
-/** Convert optional MAL scores/statuses to weak preference evidence. */
-export function preferenceWeight(entry, meanScore = 7) {
-  const s = entry.listStatus || {},
-    score = Number(s.score) || 0;
-  const ratedWeight = Math.max(
-    -2.5,
-    Math.min(3, (score - meanScore) * 0.7 + 0.5),
-  );
-  // Dropping is negative interest even when an old numeric rating was positive.
-  if (s.status === "dropped")
-    return score > 0 ? Math.min(-0.8, ratedWeight) : -1;
-  if (score > 0) return ratedWeight;
-  return (
-    {
-      watching: 1.6,
-      plan_to_watch: 1.1,
-      completed: 1,
-      on_hold: 0,
-      dropped: -1,
-    }[s.status] || 0
-  );
+/** Preserve absolute score meaning while gently adjusting for established rating habits. */
+export function ratingSignal(score, mean = 7, count = 0) {
+  if (!Number.isInteger(score) || score < 1 || score > 10) return 0;
+  const absolute = (score - 5.5) / 4.5;
+  const adjustment =
+    (Math.max(-0.15, Math.min(0.15, ((score - mean) / 4.5) * 0.25)) * count) /
+    (count + 15);
+  return Math.max(-1, Math.min(1, absolute + adjustment));
 }
-/** Merge by anime ID so a direct reaction replaces, rather than doubles, MAL evidence. */
-export function buildTaste(reactions, list, preferences) {
+export function preferenceSignals(entry, mean = 7, count = 0) {
+  const status = entry.listStatus?.status;
+  const rating = ratingSignal(Number(entry.listStatus?.score), mean, count);
+  const rated =
+    Number(entry.listStatus?.score) >= 1 &&
+    Number(entry.listStatus?.score) <= 10;
+  return {
+    enjoyment: rated
+      ? rating
+      : { completed: 0.3, watching: 0.15, dropped: -0.15 }[status] || 0,
+    interest:
+      { watching: 0.55, plan_to_watch: 0.4, completed: 0.15, dropped: -0.8 }[
+        status
+      ] || 0,
+  };
+}
+export function preferenceWeight(entry, mean = 7, count = 0) {
+  const r = preferenceSignals(entry, mean, count);
+  return 0.65 * r.enjoyment + 0.35 * r.interest;
+}
+/** Merge by ID, then train enjoyment and viewing-interest heads without duplicate votes. */
+export function buildTaste(
+  reactions = {},
+  list = [],
+  preferences,
+  corpus = [],
+  train = true,
+) {
   const initial = normalizePreferences(preferences);
-  const genres = new Map(),
-    formats = new Map();
-  const rated = list.filter((a) => a.listStatus?.score > 0);
-  const mean = rated.length
-    ? rated.reduce((s, a) => s + a.listStatus.score, 0) / rated.length
-    : 7;
-  const statuses = new Map(
-    list.map((anime) => [anime.id, anime.listStatus?.status]),
+  const metadata = new Map(corpus.map((a) => [a.id, a]));
+  const enrich = (a) => ({
+    ...a,
+    ...(metadata.get(a.id) || {}),
+    listStatus: a.listStatus,
+  });
+  const rated = list.filter(
+    (a) => a.listStatus?.score >= 1 && a.listStatus?.score <= 10,
   );
+  const mean = rated.length
+    ? rated.reduce((n, a) => n + a.listStatus.score, 0) / rated.length
+    : 7;
   const records = new Map(
     list.map((a) => [
       a.id,
-      { anime: a, weight: preferenceWeight(a, mean), source: "list" },
+      {
+        anime: enrich(a),
+        ...preferenceSignals(a, mean, rated.length),
+        source: "list",
+      },
     ]),
   );
-  // A chosen favorite is explicit evidence, stronger than an unrated MAL status.
-  for (const anime of initial.favoriteAnime)
-    records.set(anime.id, { anime, weight: 3, source: "favorite" });
+  for (const a of initial.favoriteAnime)
+    records.set(a.id, {
+      anime: enrich(a),
+      enjoyment: 1,
+      interest: 0,
+      source: "favorite",
+    });
   for (const [id, r] of Object.entries(reactions)) {
-    // A past plan is superseded by subsequent MAL progress. Good/Bad stay authoritative.
-    const status = statuses.get(Number(id));
+    const old = records.get(Number(id));
+    const status = old?.anime.listStatus?.status;
     if (r.action === "watch" && ["completed", "dropped"].includes(status))
       continue;
+    const signals =
+      r.action === "good" || r.action === "bad"
+        ? { enjoyment: r.action === "good" ? 1 : -1, interest: 0 }
+        : {
+            enjoyment: old?.enjoyment || 0,
+            interest: r.action === "watch" ? 1 : -1,
+          };
     records.set(Number(id), {
-      anime: r.anime,
-      weight: reactionWeight[r.action] || 0,
+      anime: { ...old?.anime, ...enrich(r.anime) },
+      ...signals,
       source: "reaction",
     });
   }
-  for (const { anime, weight, source } of records.values()) {
-    const gs = anime.genres || [];
-    const w = weight / Math.sqrt(Math.max(1, gs.length));
-    for (const g of gs) {
-      const p = genres.get(g) || { sum: 0, count: 0, explicit: 0 };
-      p.sum += w;
-      p.count++;
-      if (source === "reaction") p.explicit++;
-      genres.set(g, p);
+  const genres = new Map(),
+    formats = new Map();
+  for (const r of records.values()) {
+    r.weight = 0.65 * r.enjoyment + 0.35 * r.interest;
+    for (const g of r.anime.genres || []) {
+      const value = genres.get(g) || { sum: 0, count: 0 };
+      value.sum += r.weight / Math.sqrt(r.anime.genres.length);
+      value.count++;
+      genres.set(g, value);
     }
-    const f = formats.get(anime.format) || { sum: 0, count: 0 };
-    f.sum += weight;
-    f.count++;
-    formats.set(anime.format, f);
   }
   for (const g of initial.favoriteGenres) {
-    const p = genres.get(g) || { sum: 0, count: 0, explicit: 0 };
-    p.sum += 2;
-    p.count++;
-    genres.set(g, p);
+    const value = genres.get(g) || { sum: 0, count: 0 };
+    value.sum += 0.4;
+    value.count++;
+    genres.set(g, value);
   }
-  return { genres, formats, records };
+  const anchors = [...records.values()]
+    .filter((r) => r.enjoyment > 0.4)
+    .sort((a, b) => b.enjoyment - a.enjoyment || a.anime.id - b.anime.id)
+    .slice(0, 50)
+    .map((r) => ({ ...r, terms: terms(r.anime) }));
+  return {
+    records,
+    genres,
+    formats,
+    anchors,
+    model: train
+      ? trainContentModel(records, initial.favoriteGenres, corpus)
+      : null,
+  };
 }
-/** Normalize genre evidence to reduce bias toward titles with many genre tags. */
 export function scoreAnime(anime, taste) {
-  const gs = anime.genres || [];
-  const genre =
-    gs.reduce((sum, g) => {
-      const x = taste.genres.get(g);
-      return sum + (x ? x.sum / Math.sqrt(x.count + 2) : 0);
-    }, 0) / Math.sqrt(gs.length || 1);
-  const f = taste.formats.get(anime.format);
-  return genre + (f?.count ? (0.15 * f.sum) / Math.sqrt(f.count + 2) : 0);
+  return taste.model.score(anime).score;
+}
+function explanation(anime, taste) {
+  const words = new Set(terms(anime));
+  let anchor,
+    overlap = 1;
+  for (const r of taste.anchors) {
+    const shared = r.terms.filter((t) => words.has(t)).length;
+    if (shared > overlap) {
+      anchor = r;
+      overlap = shared;
+    }
+  }
+  if (anchor?.anime.title)
+    return `Similar synopsis themes to ${anchor.anime.title}`;
+  const best = (anime.genres || [])
+    .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
+    .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
+    .slice(0, 2);
+  return best.length
+    ? `Matches your interest in ${best.join(" and ")}`
+    : "An exploratory suggestion while we learn your taste";
+}
+function similarity(a, b) {
+  const one = new Set(a.genres || []),
+    two = new Set(b.genres || []);
+  const overlap = [...one].filter((g) => two.has(g)).length;
+  return overlap / (new Set([...one, ...two]).size || 1);
+}
+/** Strong positive seeds for bounded retrieval of MAL community recommendation links. */
+export function recommendationSeeds(reactions, list, preferences) {
+  return [
+    ...buildTaste(reactions, list, preferences, [], false).records.values(),
+  ]
+    .filter((r) => r.weight > 0.15 && r.anime.listStatus?.status !== "dropped")
+    .sort((a, b) => b.weight - a.weight || a.anime.id - b.anime.id)
+    .map((r) => r.anime);
 }
 /** Exclude known titles, unsafe/unknown content labels, and unmet direct prequels. */
 export function isEligible(
@@ -149,7 +217,7 @@ export function chooseNext(
     eligibilityFilter(reactions, list, skipped, false, preferences),
   );
   if (!available.length) return null;
-  const taste = buildTaste(reactions, list, preferences),
+  const taste = buildTaste(reactions, list, preferences, pool),
     count = Object.keys(reactions).length;
   // Cold start: emphasize breadth across genres, not a wall of similar top-ranked shows.
   const initial = normalizePreferences(preferences);
@@ -168,13 +236,18 @@ export function chooseNext(
         ).length;
         score = 2 - overlap * 0.9 + random() * 0.3;
         if (count === 0 && a.id === 1) score += 5;
-      } else if (explore) score = random();
-      else {
+      } else if (explore) {
+        // Evidence-aware exploration, not a claim of calibrated bandit uncertainty.
+        score += 0.25 * (1 - taste.model.support(a));
+        score -=
+          0.15 * Math.max(0, ...recent.slice(-4).map((b) => similarity(a, b)));
+        score += random() * 0.08;
+      } else {
         const overlap = (a.genres || []).filter((g) =>
           recent.slice(-2).some((x) => x.genres?.includes(g)),
         ).length;
-        score -= overlap * 0.18;
-        score += random() * 0.3;
+        score -= overlap * 0.03;
+        score += random() * 0.025;
       }
       return { a, score, index };
     })
@@ -183,15 +256,7 @@ export function chooseNext(
   let reason = "A fresh discovery";
   if (cold) reason = `Finding your taste · ${Math.min(count + 1, 8)} of 8`;
   else if (explore) reason = "A little outside your usual";
-  else {
-    const best = [...(anime.genres || [])].sort(
-      (a, b) =>
-        (taste.genres.get(b)?.sum || 0) - (taste.genres.get(a)?.sum || 0),
-    )[0];
-    if (best && (taste.genres.get(best)?.sum || 0) > 0)
-      reason = `A little more ${best.toLowerCase()}`;
-    else if (list.length) reason = "Inspired by your MAL list";
-  }
+  else reason = explanation(anime, taste);
   return { anime, reason };
 }
 
@@ -202,40 +267,50 @@ export function chooseNext(
  */
 export function rankRecommendations(
   pool,
-  { reactions = {}, list = [], preferences, limit = 25 } = {},
+  { reactions = {}, list = [], preferences, limit = 25, metadata = [] } = {},
 ) {
-  const exclusions = reactions;
-  // Calculate one taste profile for the whole batch, including explicit saved interests.
-  const taste = buildTaste(reactions, list, preferences);
-  const unique = new Map(pool.map((a) => [a.id, a]));
-  return [...unique.values()]
-    .filter(eligibilityFilter(exclusions, list, new Set(), false, preferences))
-    .map((anime) => {
-      const saved =
-        reactions[anime.id]?.action === "watch" ||
-        list.some(
-          (a) => a.id === anime.id && a.listStatus?.status === "plan_to_watch",
-        );
-      const score = scoreAnime(anime, taste) + (saved ? 0.4 : 0);
-      const best = (anime.genres || [])
-        .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
-        .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
-        .slice(0, 2);
-      const reason = best.length
-        ? `Matches your interest in ${best.join(" and ")}`
-        : saved
-          ? "Already on your want-to-watch list"
-          : "An early suggestion while we learn your taste";
-      return { anime, score, reason, saved };
-    })
-    .sort((a, b) => b.score - a.score || a.anime.id - b.anime.id)
-    .slice(0, limit)
-    .map((pick, index) => ({ ...pick, tier: index + 1 }));
+  const taste = buildTaste(reactions, list, preferences, [
+    ...metadata,
+    ...pool,
+  ]);
+  const available = [...new Map(pool.map((a) => [a.id, a])).values()]
+    .filter(eligibilityFilter(reactions, list, new Set(), false, preferences))
+    .map((anime) => ({ anime, ...taste.model.score(anime), saved: false }));
+  const selected = [];
+  // Greedy diversity reranking: first place is the strongest match, later places balance variety.
+  while (selected.length < limit && available.length) {
+    let best = 0,
+      bestScore = -Infinity;
+    for (let i = 0; i < available.length; i++) {
+      const adjusted =
+        available[i].score -
+        0.06 *
+          Math.max(
+            0,
+            ...selected.map((p) => similarity(p.anime, available[i].anime)),
+          );
+      if (
+        adjusted > bestScore ||
+        (adjusted === bestScore &&
+          available[i].anime.id < available[best].anime.id)
+      ) {
+        best = i;
+        bestScore = adjusted;
+      }
+    }
+    const [pick] = available.splice(best, 1);
+    selected.push({
+      ...pick,
+      reason: explanation(pick.anime, taste),
+      tier: selected.length + 1,
+    });
+  }
+  return selected;
 }
 
-/** Eight informative titles is a onboarding heuristic, not a statistical confidence score. */
+/** Eight informative titles is an onboarding heuristic, not a statistical confidence score. */
 export function tasteReadiness(reactions = {}, list = [], preferences) {
-  const taste = buildTaste(reactions, list, preferences);
+  const taste = buildTaste(reactions, list, preferences, [], false);
   const informative = [...taste.records.values()].filter(
     (r) => r.weight !== 0 && r.anime.genres?.length,
   );

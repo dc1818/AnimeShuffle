@@ -10,6 +10,7 @@ import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
 import {
   chooseNext,
+  recommendationSeeds,
   isEligible,
   rankRecommendations,
   preferenceWeight,
@@ -65,6 +66,7 @@ export function createAnimeStore({
   let offsets = { popular: 0, top: 0, season: 0 },
     sourceIndex = 0;
   let initialization;
+  const expandedSeeds = new Map();
   const details = new Map(),
     listeners = new Set();
 
@@ -179,6 +181,55 @@ export function createAnimeStore({
     details.set(id, { anime, expires: Date.now() + 1800000 });
     return anime;
   }
+  function mergePool(anime) {
+    const index = pool.findIndex((a) => a.id === anime.id);
+    if (index < 0) pool.push(anime);
+    else pool[index] = anime;
+  }
+  /** Add a bounded set of candidates beyond ranking pages, using only positive taste seeds. */
+  async function expandFromTaste(seedLimit = 2, candidateLimit = 4) {
+    if (state.preview) return;
+    const known = new Set([
+      ...state.list.map((a) => a.id),
+      ...Object.keys(state.reactions).map(Number),
+      ...state.preferences.favoriteAnime.map((a) => a.id),
+    ]);
+    const seeds = recommendationSeeds(
+      state.reactions,
+      state.list,
+      state.preferences,
+    )
+      .filter((a) => (expandedSeeds.get(a.id) || 0) < Date.now() - 1800000)
+      .slice(0, seedLimit);
+    let added = 0;
+    for (const seed of seeds) {
+      try {
+        const full = await animeDetails(seed.id);
+        mergePool(full); // Enrich the training example as well as retrieving neighbors.
+        expandedSeeds.set(seed.id, Date.now());
+        for (const id of full.recommendations || []) {
+          if (added >= candidateLimit) break;
+          if (
+            !Number.isSafeInteger(id) ||
+            id < 1 ||
+            id > 10000000 ||
+            known.has(id) ||
+            pool.some((a) => a.id === id)
+          )
+            continue;
+          added++;
+          try {
+            mergePool(await animeDetails(id));
+          } catch (error) {
+            if ([401, 429, 502, 503, 504].includes(error.status)) throw error;
+          }
+        }
+      } catch (error) {
+        if ([401, 429, 502, 503, 504].includes(error.status)) throw error;
+        // Missing/deleted seed metadata should not prevent ordinary discovery.
+      }
+    }
+  }
   async function refill() {
     if (state.preview) return false;
     const sources = ["popular", "top", "season"];
@@ -206,6 +257,9 @@ export function createAnimeStore({
     });
     try {
       await yieldToBrowser();
+      // Keep the first card fast; expand from explicit feedback on subsequent discoveries.
+      if (state.current && Object.keys(state.reactions).length >= 3)
+        await expandFromTaste(1, 2);
       let pagesLoaded = 0;
       for (let attempt = 0; attempt < 40; attempt++) {
         if (attempt && attempt % 6 === 0) await yieldToBrowser();
@@ -437,6 +491,7 @@ export function createAnimeStore({
     cloudSync = null;
     update({ syncError: "", malSyncError: "", malSyncProgress: null });
     history = [];
+    expandedSeeds.clear();
     recent = [];
     skipped = new Set();
     offsets = { popular: 0, top: 0, season: 0 };
@@ -556,6 +611,7 @@ export function createAnimeStore({
         });
         return;
       }
+      await expandFromTaste();
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
           if (
@@ -583,6 +639,7 @@ export function createAnimeStore({
       for (const { anime } of ranked) {
         try {
           const full = state.preview ? anime : await animeDetails(anime.id);
+          mergePool(full);
           verified.push(full);
           if (
             isEligible(
@@ -608,7 +665,10 @@ export function createAnimeStore({
         if (checked % 6 === 0) await yieldToBrowser();
       }
       update({
-        recommendationPicks: rankRecommendations(verified, state),
+        recommendationPicks: rankRecommendations(verified, {
+          ...state,
+          metadata: pool,
+        }),
         recommendationPool: verified,
         recommendationsReady: true,
         recommendationError: failures
