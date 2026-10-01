@@ -238,3 +238,26 @@ test("MAL callback failures identify the failing stage without returning provide
     db.db.close();
   }
 });
+
+test("public anime cache survives Worker restart and expires without caching user data", async () => {
+  const db = storage();
+  let calls = 0;
+  const fetcher = async () => {
+    calls++;
+    return Response.json({ id: 42, title: "Cached anime", nsfw: "white" });
+  };
+  let app = createCloudApp(db, env, { interval: 0, fetcher });
+  const viewer = browser(() => app);
+  assert.equal(
+    (await viewer.request("/api/anime/42")).body.title,
+    "Cached anime",
+  );
+  app = createCloudApp(db, env, { interval: 0, fetcher });
+  await viewer.request("/api/anime/42");
+  assert.equal(calls, 1, "a new Worker instance reuses the public response");
+  db.sql.exec("UPDATE public_mal_cache SET expires=0");
+  app = createCloudApp(db, env, { interval: 0, fetcher });
+  await viewer.request("/api/anime/42");
+  assert.equal(calls, 2, "expired entries are fetched again");
+  db.db.close();
+});

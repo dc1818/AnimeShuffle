@@ -197,3 +197,28 @@ test("token failures retain safe categories and upstream status without exposing
       error.code === "token_network" && !error.message.includes("PRIVATE"),
   );
 });
+
+test("persistent caching is public-only and coalesces queued duplicate reads", async () => {
+  const saved = new Map();
+  let calls = 0;
+  const c = createMalClient({
+    clientId: "id",
+    interval: 0,
+    publicStore: saved,
+    fetcher: async () => {
+      calls++;
+      return response({ id: 1 });
+    },
+  });
+  await Promise.all([
+    c.request("/anime/1", { publicCache: true }),
+    c.request("/anime/1", { publicCache: true }),
+  ]);
+  assert.equal(calls, 1);
+  const session = {
+    tokens: { access: "private", expires: Date.now() + 999999 },
+  };
+  await c.request("/users/@me", { session, publicCache: true });
+  assert.equal(saved.size, 1);
+  assert.equal(saved.has("/users/@me"), false);
+});

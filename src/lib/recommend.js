@@ -103,30 +103,35 @@ export function isEligible(
   allowPlan = false,
   preferences,
 ) {
-  if (
-    !a ||
-    reactions[a.id] ||
-    normalizePreferences(preferences).favoriteAnime.some(
-      (x) => x.id === a.id,
-    ) ||
-    skipped.has(a.id) ||
-    (a.nsfw !== "white" && !a.demo)
-  )
-    return false;
-  if (!matchesPreferences(a, preferences)) return false;
-  const existing = list.find((x) => x.id === a.id)?.listStatus?.status;
-  if (existing && !(allowPlan && existing === "plan_to_watch")) return false;
+  return eligibilityFilter(reactions, list, skipped, allowPlan, preferences)(a);
+}
+/** Build membership sets once per candidate batch, rather than once per anime. */
+function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
+  const initial = normalizePreferences(preferences);
+  const favorites = new Set(initial.favoriteAnime.map((a) => a.id));
+  const statuses = new Map(list.map((a) => [a.id, a.listStatus?.status]));
   const seen = new Set(
     list
-      .filter((x) => ["completed", "watching"].includes(x.listStatus?.status))
-      .map((x) => x.id),
+      .filter((a) => ["completed", "watching"].includes(a.listStatus?.status))
+      .map((a) => a.id),
   );
   for (const [id, r] of Object.entries(reactions))
     if (["good", "bad"].includes(r.action)) seen.add(Number(id));
-  for (const favorite of normalizePreferences(preferences).favoriteAnime)
-    seen.add(favorite.id);
-  if ((a.prequels || []).some((id) => !seen.has(id))) return false;
-  return true;
+  for (const id of favorites) seen.add(id);
+  return (a) => {
+    if (
+      !a ||
+      reactions[a.id] ||
+      favorites.has(a.id) ||
+      skipped.has(a.id) ||
+      (a.nsfw !== "white" && !a.demo)
+    )
+      return false;
+    if (!matchesPreferences(a, initial)) return false;
+    const status = statuses.get(a.id);
+    if (status && !(allowPlan && status === "plan_to_watch")) return false;
+    return !(a.prequels || []).some((id) => !seen.has(id));
+  };
 }
 /** Balance learned preferences, recent variety, and a 20% exploration branch. */
 export function chooseNext(
@@ -140,8 +145,8 @@ export function chooseNext(
     preferences,
   } = {},
 ) {
-  const available = pool.filter((a) =>
-    isEligible(a, reactions, list, skipped, false, preferences),
+  const available = pool.filter(
+    eligibilityFilter(reactions, list, skipped, false, preferences),
   );
   if (!available.length) return null;
   const taste = buildTaste(reactions, list, preferences),
@@ -204,9 +209,7 @@ export function rankRecommendations(
   const taste = buildTaste(reactions, list, preferences);
   const unique = new Map(pool.map((a) => [a.id, a]));
   return [...unique.values()]
-    .filter((a) =>
-      isEligible(a, exclusions, list, new Set(), false, preferences),
-    )
+    .filter(eligibilityFilter(exclusions, list, new Set(), false, preferences))
     .map((anime) => {
       const saved =
         reactions[anime.id]?.action === "watch" ||

@@ -91,6 +91,7 @@ export function createAnimeStore({
     if (!response.ok) {
       const error = new Error(result.error || "Request failed.");
       error.code = result.code;
+      error.status = response.status;
       throw error;
     }
     return result;
@@ -148,6 +149,15 @@ export function createAnimeStore({
       recommendationPool: [],
     });
   }
+  // Share verified public details across both feeds, with a bounded freshness window.
+  async function animeDetails(id) {
+    const cached = details.get(id);
+    if (cached?.expires > Date.now()) return cached.anime;
+    const anime = await api("/api/anime/" + id);
+    if (details.size >= 250) details.delete(details.keys().next().value);
+    details.set(id, { anime, expires: Date.now() + 1800000 });
+    return anime;
+  }
   async function refill() {
     if (state.preview) return false;
     const sources = ["popular", "top", "season"];
@@ -194,10 +204,7 @@ export function createAnimeStore({
         update({ discoveryProgress: 50 });
         let anime = pick.anime;
         if (!state.preview) {
-          anime =
-            details.get(anime.id) || (await api("/api/anime/" + anime.id));
-          if (details.size >= 250) details.delete(details.keys().next().value);
-          details.set(anime.id, anime);
+          anime = await animeDetails(anime.id);
           if (
             !isEligible(
               anime,
@@ -522,7 +529,11 @@ export function createAnimeStore({
       }
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
-          if (!(await refill())) break;
+          if (
+            rankRecommendations(pool, { ...state, limit: 75 }).length >= 75 ||
+            !(await refill())
+          )
+            break;
         }
       const candidates = new Map(pool.map((a) => [a.id, a]));
       for (const a of state.list)
@@ -536,22 +547,33 @@ export function createAnimeStore({
       const verified = [];
       let failures = 0;
       let checked = 0;
+      let eligibleCount = 0;
       update({ recommendationProgress: 0 });
       for (const { anime } of ranked) {
         try {
-          const full = state.preview
-            ? anime
-            : await api("/api/anime/" + anime.id);
+          const full = state.preview ? anime : await animeDetails(anime.id);
           verified.push(full);
-        } catch {
+          if (
+            isEligible(
+              full,
+              state.reactions,
+              state.list,
+              new Set(),
+              false,
+              state.preferences,
+            )
+          )
+            eligibleCount++;
+        } catch (error) {
           failures++;
+          if ([401, 429, 502, 503, 504].includes(error.status)) throw error;
         }
         // Count settled detail checks, including failures. Publish the batch only at the end.
         checked++;
         update({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
         });
-        if (rankRecommendations(verified, state).length >= 25) break;
+        if (eligibleCount >= 25) break;
       }
       update({
         recommendationPicks: rankRecommendations(verified, state),

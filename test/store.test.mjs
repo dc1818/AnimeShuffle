@@ -276,16 +276,56 @@ test("loading reports completed work and publishes recommendations as a complete
   store.subscribe(() => snapshots.push(store.getSnapshot()));
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
-  assert.ok(snapshots.some(s => s.discoveryLoading && s.discoveryProgress === 50));
+  assert.ok(
+    snapshots.some((s) => s.discoveryLoading && s.discoveryProgress === 50),
+  );
   assert.equal(store.getSnapshot().discoveryLoading, false);
   snapshots.length = 0;
   await store.loadRecommendations();
-  const loading = snapshots.filter(s => s.recommendationsLoading);
+  const loading = snapshots.filter((s) => s.recommendationsLoading);
   assert.ok(loading.length > 0);
   // No partial leaderboard may escape before all verification work settles.
-  const partial = loading.filter(s => !s.recommendationsReady);
-  assert.ok(partial.every(s => s.recommendationPicks.length === 0));
-  assert.ok(loading.some(s => Number.isFinite(s.recommendationProgress)));
+  const partial = loading.filter((s) => !s.recommendationsReady);
+  assert.ok(partial.every((s) => s.recommendationPicks.length === 0));
+  assert.ok(loading.some((s) => Number.isFinite(s.recommendationProgress)));
   assert.equal(store.getSnapshot().recommendationsLoading, false);
   assert.equal(store.getSnapshot().recommendationsReady, true);
+});
+
+test("recommendations reuse discovery details and avoid unnecessary catalog pages on repeat", async () => {
+  const catalog = Array.from({ length: 80 }, (_, i) => ({
+    ...anime,
+    id: i + 1,
+  }));
+  const counts = { catalog: 0, details: 0 };
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      if (url === "/api/session") return Response.json({ configured: true });
+      if (url.startsWith("/api/catalog")) {
+        counts.catalog++;
+        return Response.json({ data: catalog, nextOffset: null });
+      }
+      if (url.startsWith("/api/anime/")) {
+        counts.details++;
+        return Response.json(catalog[Number(url.split("/").pop()) - 1]);
+      }
+      throw Error(url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  const discoveryId = store.getSnapshot().current.id;
+  await store.loadRecommendations();
+  const first = { ...counts };
+  assert.equal(store.getSnapshot().recommendationPicks.length, 25);
+  assert.ok(first.details <= 26);
+  assert.equal(first.catalog, 1);
+  await store.loadRecommendations();
+  assert.deepEqual(
+    counts,
+    first,
+    "warm refresh needs no additional API requests",
+  );
+  assert.ok(discoveryId);
 });

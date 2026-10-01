@@ -55,11 +55,43 @@ export function createCloudApp(
     `CREATE TABLE IF NOT EXISTS limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires INTEGER NOT NULL)`,
   );
   sql.exec("CREATE INDEX IF NOT EXISTS limits_expiry ON limits(expires)");
+  // Public catalog/detail responses survive Worker restarts; private MAL lists never enter this cache.
+  sql.exec(
+    "CREATE TABLE IF NOT EXISTS public_mal_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, value TEXT NOT NULL)",
+  );
   const mal = createMalClient({
     clientId: env.MAL_CLIENT_ID,
     clientSecret: env.MAL_CLIENT_SECRET,
     fetcher,
     interval,
+    publicStore: {
+      get(path) {
+        const row = one(
+          "SELECT expires, value FROM public_mal_cache WHERE path=? AND expires>?",
+          path,
+          Date.now(),
+        );
+        if (!row) return undefined;
+        try {
+          return { expires: row.expires, data: JSON.parse(row.value) };
+        } catch {
+          return undefined;
+        }
+      },
+      set(path, entry) {
+        sql.exec("DELETE FROM public_mal_cache WHERE expires<=?", Date.now());
+        sql.exec(
+          "INSERT OR REPLACE INTO public_mal_cache VALUES (?, ?, ?)",
+          path,
+          entry.expires,
+          JSON.stringify(entry.data),
+        );
+        // Bound storage even when many users browse unrelated titles.
+        sql.exec(
+          "DELETE FROM public_mal_cache WHERE path IN (SELECT path FROM public_mal_cache ORDER BY expires DESC LIMIT -1 OFFSET 500)",
+        );
+      },
+    },
   });
   function rateLimit(key, max, window) {
     const row = one("SELECT * FROM limits WHERE key=?", key);
