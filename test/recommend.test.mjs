@@ -114,12 +114,12 @@ test("unrated completed and dropped MAL shows shape taste and supersede old plan
   );
 });
 
-test("details distinguish planned, finished and personally rated anime and explain shortlist order", () => {
+test("details distinguish planned, finished and personally rated anime without inventing story similarities", () => {
   const candidate = anime(9, ["Action"]);
   for (const [status, score, phrase] of [
     ["plan_to_watch", 0, "planned to watch"],
     ["completed", 0, "finished"],
-    ["completed", 9, "rated 9/10"],
+    ["completed", 9, "9/10 on MyAnimeList"],
   ]) {
     const taste = buildTaste(
       {},
@@ -138,7 +138,7 @@ test("details distinguish planned, finished and personally rated anime and expla
     });
     assert.ok(text.includes(phrase));
     assert.match(text, /Known show/);
-    assert.match(text, /higher place/);
+    assert.match(text, /There isn’t a specific story parallel/);
     if (!score) assert.doesNotMatch(text, /you liked|you enjoyed|rated/);
   }
   const cold = detailedExplanation(
@@ -146,5 +146,49 @@ test("details distinguish planned, finished and personally rated anime and expla
     buildTaste({}, [], {}, [], false),
     { cold: true },
   );
-  assert.match(cold, /starting point/);
+  assert.match(cold, /starting point/i);
+});
+
+test("extended reasons name supported story connections without inventing setting or style contrasts", () => {
+  const favorite = anime(1, ["Action"], {
+    title: "Favorite",
+    synopsis:
+      "Soldiers fight invading monsters to save humanity from extinction.",
+  });
+  const candidate = anime(2, ["Drama"], {
+    title: "Candidate",
+    synopsis:
+      "An army fights a war against deadly creatures as mankind struggles to survive.",
+  });
+  const taste = buildTaste(
+    { 1: { anime: favorite, action: "good" } },
+    [],
+    {},
+    [favorite, candidate],
+    false,
+  );
+  for (const mode of ["discover", "recommendations"]) {
+    const text = detailedExplanation(candidate, taste, { mode });
+    assert.match(text, /You liked Favorite/);
+    assert.match(text, /stay alive against a deadly threat/);
+    assert.match(text, /soldiers caught up in an armed conflict/);
+    assert.doesNotMatch(
+      text,
+      /artwork|setting feels|next reaction|mixes familiar|higher place|story description.*resembles/,
+    );
+  }
+  const unrelated = anime(3, ["Action"], {
+    synopsis: "A student arrives at school and meets a new friend.",
+  });
+  assert.doesNotMatch(
+    detailedExplanation(unrelated, taste),
+    /Both stories|stay alive|armed conflict/,
+  );
+  const negated = anime(4, ["Action"], {
+    synopsis: "These soldiers never fight a war and instead run a bakery.",
+  });
+  assert.doesNotMatch(
+    detailedExplanation(negated, taste),
+    /Both stories|armed conflict/,
+  );
 });
