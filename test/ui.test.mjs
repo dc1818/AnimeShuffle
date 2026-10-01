@@ -123,6 +123,37 @@ for (const staticMode of [false, true])
       // Keyboard numbers are present in button text, so dispatch by class for reactions.
       await act(async () => document.querySelector(".reaction.watch").click());
       assert.equal(store.getSnapshot().reactions[1].action, "watch");
+      await click("Recommendations");
+      // MAL-free demo must rank the saved pick plus six other sample titles.
+      await act(async () => {});
+      assert.equal(document.querySelectorAll(".ranked-card").length, 7);
+      assert.match(
+        document.querySelector(".tier-badge").textContent,
+        /Gold · Tier 1/,
+      );
+      assert.equal(document.querySelectorAll(".medal-1").length, 1);
+      assert.equal(
+        document.querySelectorAll(".ranked-card .reaction").length,
+        28,
+      );
+      await act(async () =>
+        document.querySelector(".ranked-card .details-toggle").click(),
+      );
+      assert.ok(document.getElementById("details-card"));
+      const firstId = Number(
+        document
+          .querySelector(".ranked-card .details-toggle")
+          .id.split("-")
+          .pop(),
+      );
+      await act(async () =>
+        document.querySelector(".ranked-card .reaction.nope").click(),
+      );
+      assert.equal(store.getSnapshot().reactions[firstId].action, "nope");
+      assert.equal(document.querySelectorAll(".ranked-card").length, 6);
+      await click("Undo last reaction");
+      assert.equal(document.querySelectorAll(".ranked-card").length, 7);
+
       await act(async () =>
         [...document.querySelectorAll("nav button")][1].click(),
       );

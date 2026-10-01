@@ -155,3 +155,45 @@ export function chooseNext(
   }
   return { anime, reason };
 }
+
+/**
+ * A deterministic shortlist, unlike Discover's exploration mix. Numbered tiers are
+ * positions among eligible candidates, not objective quality or probability scores.
+ * Saved/Plan to Watch entries remain candidates; seen/rejected titles only train taste.
+ */
+export function rankRecommendations(
+  pool,
+  { reactions = {}, list = [], preferences, limit = 7 } = {},
+) {
+  const exclusions = Object.fromEntries(
+    Object.entries(reactions).filter(([, r]) => r.action !== "watch"),
+  );
+  // Calculate one taste profile for the whole batch, including explicit saved interests.
+  const taste = buildTaste(reactions, list);
+  const unique = new Map(pool.map((a) => [a.id, a]));
+  return [...unique.values()]
+    .filter((a) =>
+      isEligible(a, exclusions, list, new Set(), true, preferences),
+    )
+    .map((anime) => {
+      const saved =
+        reactions[anime.id]?.action === "watch" ||
+        list.some(
+          (a) => a.id === anime.id && a.listStatus?.status === "plan_to_watch",
+        );
+      const score = scoreAnime(anime, taste) + (saved ? 0.4 : 0);
+      const best = (anime.genres || [])
+        .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
+        .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
+        .slice(0, 2);
+      const reason = best.length
+        ? `Matches your interest in ${best.join(" and ")}`
+        : saved
+          ? "Already on your want-to-watch list"
+          : "An early suggestion while we learn your taste";
+      return { anime, score, reason, saved };
+    })
+    .sort((a, b) => b.score - a.score || a.anime.id - b.anime.id)
+    .slice(0, limit)
+    .map((pick, index) => ({ ...pick, tier: index + 1 }));
+}

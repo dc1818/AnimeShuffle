@@ -1,6 +1,13 @@
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import { demo } from "./demo.js";
-import { chooseNext, isEligible, REACTIONS } from "./recommend.js";
+import { isUnreleased } from "./release.js";
+import {
+  chooseNext,
+  isEligible,
+  rankRecommendations,
+  preferenceWeight,
+  REACTIONS,
+} from "./recommend.js";
 
 /**
  * Application state and asynchronous commands, independent of the DOM.
@@ -22,6 +29,9 @@ export function createAnimeStore({
     reason: "",
     busy: true,
     ready: false,
+    recommendationPool: [],
+    recommendationsReady: false,
+    recommendationError: "",
     preview: true,
     canUndo: false,
     preferences: defaultPreferences(),
@@ -199,10 +209,17 @@ export function createAnimeStore({
    * Good/Bad mean already seen. Only Would watch may write to MAL, and only
    * when the user's optional auto-add setting is enabled.
    */
-  async function react(action) {
-    if (state.busy || !state.current || !REACTIONS.includes(action)) return;
+  async function react(action, target = null) {
+    const anime = target || state.current;
+    if (state.busy || !anime || !REACTIONS.includes(action)) return;
+    if (target && !state.recommendationPool.some((a) => a.id === target.id))
+      return;
+    // This also guards keyboard commands and direct store calls.
+    if (["good", "bad"].includes(action) && isUnreleased(anime)) {
+      notify("This anime has not aired yet. Save it to watch later instead.");
+      return;
+    }
     update({ busy: true });
-    const anime = state.current;
     const entry = {
       anime,
       before: state.reactions[anime.id],
@@ -309,6 +326,9 @@ export function createAnimeStore({
       profile: null,
       list: [],
       current: null,
+      recommendationPool: [],
+      recommendationsReady: false,
+      recommendationError: "",
       reactions: {},
       canUndo: false,
       preview: !session.configured,
@@ -365,7 +385,66 @@ export function createAnimeStore({
     })();
     return initialization;
   }
+  /** Fetch verified details for a bounded shortlist, never render unverified MAL list stubs. */
+  async function loadRecommendations() {
+    if (state.busy || !state.onboardingComplete) return;
+    update({ busy: true, recommendationError: "" });
+    try {
+      const taste = buildRecommendationTaste();
+      if (!taste) {
+        update({ recommendationPool: [], recommendationsReady: true });
+        return;
+      }
+      if (!state.preview)
+        for (let n = 0; n < 3; n++) {
+          if (!(await refill())) break;
+        }
+      const candidates = new Map(pool.map((a) => [a.id, a]));
+      for (const a of state.list)
+        if (a.listStatus?.status === "plan_to_watch") candidates.set(a.id, a);
+      for (const r of Object.values(state.reactions))
+        if (r.action === "watch") candidates.set(r.anime.id, r.anime);
+      const ranked = rankRecommendations([...candidates.values()], {
+        ...state,
+        limit: 28,
+      });
+      const verified = [];
+      let failures = 0;
+      for (const { anime } of ranked) {
+        try {
+          const full = state.preview
+            ? anime
+            : await api("/api/anime/" + anime.id);
+          verified.push(full);
+        } catch {
+          failures++;
+        }
+        if (rankRecommendations(verified, state).length >= 7) break;
+      }
+      update({
+        recommendationPool: verified,
+        recommendationsReady: true,
+        recommendationError: failures
+          ? "Some anime details could not be checked. Try refreshing your picks."
+          : "",
+      });
+    } catch (error) {
+      update({
+        recommendationError: error.message,
+        recommendationsReady: true,
+      });
+    } finally {
+      update({ busy: false });
+    }
+  }
+  function buildRecommendationTaste() {
+    return (
+      Object.keys(state.reactions).length > 0 ||
+      state.list.some((a) => preferenceWeight(a) !== 0)
+    );
+  }
   return {
+    loadRecommendations,
     getSnapshot: () => state,
     subscribe(listener) {
       listeners.add(listener);

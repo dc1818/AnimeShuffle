@@ -1,3 +1,4 @@
+import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
@@ -49,17 +50,22 @@ export function AnimeCard({
   onSkip,
   onUndo,
   dynamic,
+  compact = false,
+  tier,
+  reason,
+  saved = false,
 }) {
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [sampled, setSampled] = useState(null);
   useEffect(() => {
+    if (compact) return;
     const palette = dynamic
       ? sampled || anime.palette || ["25, 100, 130", "129, 43, 77"]
       : ["20, 55, 70", "55, 38, 61"];
     document.body.style.setProperty("--cool", palette[0]);
     document.body.style.setProperty("--warm", palette[1]);
-  }, [sampled, dynamic, anime.palette]);
+  }, [sampled, dynamic, anime.palette, compact]);
   function imageLoaded() {
     setFailed(false);
     // Pixel access can fail when a browser blocks canvas; the default theme remains usable.
@@ -68,7 +74,23 @@ export function AnimeCard({
     } catch {}
   }
   return (
-    <article className="anime-card" aria-label="Current anime" aria-busy={busy}>
+    <article
+      className={`anime-card ${compact ? "ranked-card" : ""} ${tier <= 3 ? "medal-" + tier : ""}`}
+      aria-label={compact ? `Tier ${tier}: ${anime.title}` : "Current anime"}
+      aria-busy={busy}
+    >
+      {tier && (
+        <div className="tier-badge">
+          {tier === 1
+            ? "Gold · "
+            : tier === 2
+              ? "Silver · "
+              : tier === 3
+                ? "Bronze · "
+                : ""}
+          Tier {tier}
+        </div>
+      )}
       <div className="poster-stage">
         <div
           className="poster-glow"
@@ -100,9 +122,24 @@ export function AnimeCard({
         <div className="poster-fade" />
       </div>
       <div className="card-content">
-        <h1 id="anime-title" aria-live="polite">
-          {anime.title}
-        </h1>
+        {compact ? (
+          <h2>{anime.title}</h2>
+        ) : (
+          <h1 id="anime-title" aria-live="polite">
+            {anime.title}
+          </h1>
+        )}
+        <p
+          className={`release-status ${isUnreleased(anime) ? "unreleased" : ""}`}
+        >
+          {releaseLabel(anime)}
+        </p>
+        {compact && (
+          <p className="match-reason">
+            {reason}
+            {saved ? " · On your watchlist" : ""}
+          </p>
+        )}
         <div className="metadata">
           {[
             anime.year,
@@ -124,7 +161,7 @@ export function AnimeCard({
           {anime.synopsis || "Open the MyAnimeList page for more information."}
         </p>
         <button
-          id="details-toggle"
+          id={compact ? `details-toggle-${anime.id}` : "details-toggle"}
           className="details-toggle"
           aria-expanded={detailsOpen}
           aria-controls="details-card"
@@ -147,26 +184,35 @@ export function AnimeCard({
             <button
               key={action}
               className={`reaction ${action}`}
-              disabled={busy}
-              title={`${meaning} (${index + 1})`}
+              disabled={
+                busy ||
+                (["good", "bad"].includes(action) && isUnreleased(anime))
+              }
+              title={
+                ["good", "bad"].includes(action) && isUnreleased(anime)
+                  ? "Unavailable: this anime has not aired yet"
+                  : `${meaning}${compact ? "" : ` (${index + 1})`}`
+              }
               onClick={() => onReact(action)}
             >
               <Icon name={icon} />
               <span>{label}</span>
-              <kbd>{index + 1}</kbd>
+              {!compact && <kbd>{index + 1}</kbd>}
             </button>
           ))}
         </div>
-        <div className="secondary-actions">
-          <button disabled={busy || !canUndo} onClick={onUndo}>
-            <Icon name="undo" />
-            Undo
-          </button>
-          <button disabled={busy} onClick={onSkip}>
-            <Icon name="skip" />
-            Skip
-          </button>
-        </div>
+        {!compact && (
+          <div className="secondary-actions">
+            <button disabled={busy || !canUndo} onClick={onUndo}>
+              <Icon name="undo" />
+              Undo
+            </button>
+            <button disabled={busy} onClick={onSkip}>
+              <Icon name="skip" />
+              Skip
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );
@@ -178,7 +224,7 @@ export function AnimeDetails({ anime, reason, onClose }) {
     Episodes: anime.episodes || "TBA",
     Year: anime.year || "TBA",
     Studio: anime.studios?.join(", ") || "Unknown",
-    Status: (anime.status || "Unknown").replaceAll("_", " "),
+    Status: releaseLabel(anime),
   };
   return (
     <aside

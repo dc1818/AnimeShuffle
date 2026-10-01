@@ -57,11 +57,11 @@ Existing Anime Shuffle users can sign in from the welcome screen. Local accounts
 
 After choosing an account or guest access, select what you want to watch:
 
-| Preference | Choices |
-| --- | --- |
-| Format | Series, Movies, Shorts & specials, or Anything |
-| Series length | 1–13, 14–26, 27–49, 50–99, or 100+ episodes |
-| Release status | Include ongoing/upcoming titles, or finished shows only |
+| Preference          | Choices                                                   |
+| ------------------- | --------------------------------------------------------- |
+| Format              | Series, Movies, Shorts & specials, or Anything            |
+| Series length       | 1–13, 14–26, 27–49, 50–99, or 100+ episodes               |
+| Release status      | Include ongoing/upcoming titles, or finished shows only   |
 | Missing information | Include or exclude unknown lengths/formats when filtering |
 
 You can select more than one format or length. Episode ranges apply to series, so selecting a long series range alongside Movies still allows movies. Hour estimates in the picker assume 24-minute episodes; cards calculate their estimate from the title's listed episode count and runtime. Unknown totals are labeled instead of guessed.
@@ -95,11 +95,11 @@ The `.env` file is ignored by Git. Keep your credentials out of commits.
 
 ## Using the app
 
-| Reaction | Meaning |
-| --- | --- |
-| **Good** | I've seen this and liked it. |
-| **Bad** | I've seen this and didn't like it. |
-| **Would watch** | I haven't seen this and want to watch it. |
+| Reaction        | Meaning                                    |
+| --------------- | ------------------------------------------ |
+| **Good**        | I've seen this and liked it.               |
+| **Bad**         | I've seen this and didn't like it.         |
+| **Would watch** | I haven't seen this and want to watch it.  |
 | **Won't watch** | I haven't seen this and am not interested. |
 
 Each reaction moves to the next anime. **Would watch** saves the title to your local watchlist. **Good** and **Bad** affect recommendations without changing your MAL ratings or marking anything completed.
@@ -118,18 +118,22 @@ Undo can reverse an automatic MAL addition for up to an hour, provided the entry
 
 ### Keyboard shortcuts
 
-| Key | Action |
-| --- | --- |
-| `1` / `2` | Good / Bad |
+| Key       | Action                    |
+| --------- | ------------------------- |
+| `1` / `2` | Good / Bad                |
 | `3` / `4` | Would watch / Won't watch |
-| `Space` | Skip |
-| `U` | Undo |
-| `I` | Toggle details |
-| `Escape` | Close details |
+| `Space`   | Skip                      |
+| `U`       | Undo                      |
+| `I`       | Toggle details            |
+| `Escape`  | Close details             |
 
 Shortcuts are inactive while a dialog is open or a control has focus.
 
 ## Recommendations
+
+The third tab shows up to seven tailored picks in one horizontal row. Every card has a numbered tier: gold 1, silver 2, bronze 3, then plain 4–7. These are relative match positions, not probabilities or global anime ratings. The shortlist includes saved and MAL Plan to Watch titles alongside discoveries, excludes seen/rejected titles, and learns from unrated Watching and Plan to Watch entries. React on any card using the same four actions as Discover; use Refresh picks to replenish the shortlist. Narrow filters or the seven-title demo can produce fewer than seven matches.
+
+Cards show MAL release status. Good and Bad are disabled for Not yet aired titles, including keyboard actions. Unknown release statuses are labeled explicitly.
 
 Suggestions use genre and format preferences, with some variety mixed in to avoid repeating the same kinds of shows.
 
@@ -151,30 +155,30 @@ npm start
 
 Edit files in `src/`, then run `npm run build` and refresh the browser. The build bundles React and copies the static assets into `dist/`.
 
-| Command | Purpose |
-| --- | --- |
-| `npm start` | Start the local server |
-| `npm run build` | Build the frontend |
-| `npm test` | Run the test suite |
-| `npm run check` | Check server and core logic syntax |
-| `npm run format` | Format the source with Prettier |
+| Command          | Purpose                            |
+| ---------------- | ---------------------------------- |
+| `npm start`      | Start the local server             |
+| `npm run build`  | Build the frontend                 |
+| `npm test`       | Run the test suite                 |
+| `npm run check`  | Check server and core logic syntax |
+| `npm run format` | Format the source with Prettier    |
 
 ### Project structure
 
-| Path | Contents |
-| --- | --- |
-| `src/App.jsx` | Page layout, navigation, and keyboard handling |
-| `src/components/` | Anime cards, details, watchlist, and dialogs |
-| `src/lib/store.js` | Application state and API operations |
-| `src/lib/recommend.js` | Recommendation scoring and filtering |
-| `src/styles.css` | Styles and responsive layouts |
-| `server.mjs` | Local server, OAuth, and API routes |
-| `lib/mal.mjs` | MAL requests, token refresh, and response handling |
-| `lib/accounts.mjs` | Local account authentication and saved viewing preferences |
+| Path                     | Contents                                                       |
+| ------------------------ | -------------------------------------------------------------- |
+| `src/App.jsx`            | Page layout, navigation, and keyboard handling                 |
+| `src/components/`        | Anime cards, details, watchlist, and dialogs                   |
+| `src/lib/store.js`       | Application state and API operations                           |
+| `src/lib/recommend.js`   | Recommendation scoring and filtering                           |
+| `src/styles.css`         | Styles and responsive layouts                                  |
+| `server.mjs`             | Local server, OAuth, and API routes                            |
+| `lib/mal.mjs`            | MAL requests, token refresh, and response handling             |
+| `lib/accounts.mjs`       | Local account authentication and saved viewing preferences     |
 | `src/lib/preferences.js` | Shared preference validation, filtering, and runtime estimates |
-| `public/` | HTML entry page and static assets |
-| `dist/` | Generated frontend; edit the source instead |
-| `test/` | Component, recommendation, state, and server tests |
+| `public/`                | HTML entry page and static assets                              |
+| `dist/`                  | Generated frontend; edit the source instead                    |
+| `test/`                  | Component, recommendation, state, and server tests             |
 
 ## Local data
 
@@ -199,12 +203,12 @@ This is an early local build. The server listens on `127.0.0.1` and isn't config
 
 ## Troubleshooting
 
-| Problem | Check |
-| --- | --- |
-| The browser doesn't open | Visit `http://localhost:5173` while the terminal is running. |
-| The app stays in preview mode | Check the `.env` filename and Client ID, then restart the server. |
-| MAL login fails | Check both credentials and the exact registered redirect URL. |
-| Port 5173 is busy | Stop the other instance, or change `PORT` and the MAL redirect URL together. |
-| Source changes don't appear | Run `npm run build`, then refresh the browser. |
+| Problem                       | Check                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| The browser doesn't open      | Visit `http://localhost:5173` while the terminal is running.                 |
+| The app stays in preview mode | Check the `.env` filename and Client ID, then restart the server.            |
+| MAL login fails               | Check both credentials and the exact registered redirect URL.                |
+| Port 5173 is busy             | Stop the other instance, or change `PORT` and the MAL redirect URL together. |
+| Source changes don't appear   | Run `npm run build`, then refresh the browser.                               |
 
 Anime data and cover images come from MyAnimeList. Anime Shuffle is not affiliated with MyAnimeList. Third-party library licenses are included in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
+import { Recommendations } from "./components/Recommendations.jsx";
 import { Watchlist } from "./components/Watchlist.jsx";
 import { Dialogs } from "./components/Dialogs.jsx";
 
@@ -93,15 +94,29 @@ export function App({ store }) {
           </span>
         </a>
         <nav aria-label="Main navigation">
-          {["discover", "watchlist"].map((name) => (
+          {["discover", "watchlist", "recommendations"].map((name) => (
             <button
               key={name}
               className={`nav-button ${view === name ? "active" : ""}`}
               aria-current={view === name ? "page" : undefined}
               onClick={() => setView(name)}
             >
-              <Icon name={name === "discover" ? "compass" : "bookmark"} />
-              <span>{name === "discover" ? "Discover" : "Watchlist"}</span>
+              <Icon
+                name={
+                  name === "discover"
+                    ? "compass"
+                    : name === "watchlist"
+                      ? "bookmark"
+                      : "shuffle"
+                }
+              />
+              <span>
+                {name === "discover"
+                  ? "Discover"
+                  : name === "watchlist"
+                    ? "Watchlist"
+                    : "Recommendations"}
+              </span>
               {name === "watchlist" && savedCount > 0 && (
                 <span className="count">{savedCount}</span>
               )}
@@ -144,8 +159,14 @@ export function App({ store }) {
           </button>
         </div>
       )}
-      <main>
-        {view === "watchlist" ? (
+      <main className={view === "recommendations" ? "wide-main" : undefined}>
+        {view === "recommendations" ? (
+          <Recommendations
+            state={state}
+            store={store}
+            onDiscover={() => setView("discover")}
+          />
+        ) : view === "watchlist" ? (
           <Watchlist
             state={state}
             store={store}
