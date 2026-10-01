@@ -56,3 +56,28 @@ test("watchlist combines taste, availability, search and discovery criteria with
   );
   assert.equal(entries.length, 4);
 });
+
+test("genre dropdown combines with other filters and favorites affect watch-first ordering", () => {
+  assert.deepEqual(
+    orderWatchlist([a, b, c, d], { genre: "Action", release: "available" }).map(
+      (x) => x.anime.id,
+    ),
+    [1, 3],
+  );
+  assert.equal(
+    orderWatchlist([a, b], {
+      tastePreferences: { favoriteGenres: ["Romance"] },
+    })[0].anime.id,
+    2,
+  );
+});
+
+test("text export includes titles, release, runtime, dates and MAL links", async () => {
+  const { watchlistText } = await import("../src/lib/watchlist.js");
+  const text = watchlistText([a, d, c]);
+  assert.match(text, /3 anime/);
+  assert.match(text, /https:\/\/myanimelist.net\/anime\/4/);
+  assert.match(text, /Not yet aired/);
+  assert.match(text, /Added: Unknown/);
+  assert.match(text, /~4h 48m total/);
+});

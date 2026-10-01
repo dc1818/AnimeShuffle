@@ -1687,28 +1687,6 @@ main.wide-main {
   padding: 12px;
   width: 100%;
 }
-.watchlist-filters {
-  padding: 16px;
-  border: 1px solid #405967;
-  border-radius: 10px;
-  margin-bottom: 16px;
-}
-.watchlist-filters summary {
-  cursor: pointer;
-}
-.watchlist-filters fieldset {
-  border: 0;
-  padding: 12px 0;
-}
-.watchlist-filters button[aria-pressed="true"] {
-  background: #234858;
-  color: #cff6ff;
-}
-.watchlist-filters > label {
-  display: block;
-  margin: 10px 0;
-}
-.watchlist-filters p,
 .watchlist-count {
   color: #aebcc9;
   font-size: 13px;
@@ -1724,4 +1702,94 @@ main.wide-main {
     white-space: normal;
     max-width: 85px;
   }
+}
+
+/* Dropdowns share one compact grid; taste setup uses illustrated search results. */
+.watchlist-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.watchlist-controls label {
+  min-width: 0;
+  font-size: 13px;
+}
+.watchlist-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.genre-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 12px 0 24px;
+}
+.genre-choices button[aria-pressed="true"] {
+  background: #284e62;
+  color: #d1f5ff;
+  border-color: #79bacf;
+}
+.taste-setup > label {
+  display: block;
+  margin-top: 18px;
+}
+.taste-setup > input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background: #12232e;
+  color: #e3eef5;
+  border: 1px solid #456171;
+  margin-top: 12px;
+}
+.favorite-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+}
+.favorite-results button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 8px;
+  background: #152b38;
+  color: #e3eef5;
+  border: 1px solid #35566a;
+}
+.favorite-results [aria-selected="true"] button,
+.favorite-results button:hover {
+  background: #284e62;
+}
+.favorite-results img,
+.favorite-selections img {
+  width: 38px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.favorite-results small {
+  display: block;
+  color: #afc5d1;
+  margin-top: 4px;
+}
+.favorite-selections {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.favorite-selections > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px;
+  background: #152b38;
+  border-radius: 8px;
+}
+.favorite-selections span {
+  flex: 1;
 }

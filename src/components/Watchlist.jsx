@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { orderWatchlist } from "../lib/watchlist.js";
+import { orderWatchlist, watchlistText } from "../lib/watchlist.js";
 import {
+  GENRES,
   defaultPreferences,
   FORMAT_OPTIONS,
   LENGTH_OPTIONS,
@@ -17,14 +18,7 @@ export function Watchlist({ state, store, onDiscover }) {
   const [query, setQuery] = useState("");
   const [release, setRelease] = useState("all");
   const [preferences, setPreferences] = useState(defaultPreferences);
-  function toggle(key, id) {
-    setPreferences((p) => ({
-      ...p,
-      [key]: p[key].includes(id)
-        ? p[key].filter((x) => x !== id)
-        : [...p[key], id],
-    }));
-  }
+  const [genre, setGenre] = useState("all");
   const saved = Object.values(state.reactions)
     .filter((r) => r.action === "watch")
     .sort((a, b) => b.at - a.at)
@@ -45,6 +39,8 @@ export function Watchlist({ state, store, onDiscover }) {
   const items = orderWatchlist(source, {
     ...state,
     preferences,
+    tastePreferences: state.preferences,
+    genre,
     sort,
     query,
     release,
@@ -116,72 +112,108 @@ export function Watchlist({ state, store, onDiscover }) {
             <option value="not_yet_aired">Not yet aired</option>
           </select>
         </label>
-      </div>
-      <details className="watchlist-filters">
-        <summary>Viewing filters</summary>
         {[
           ["formats", "Format", FORMAT_OPTIONS],
           ["lengths", "Series length", LENGTH_OPTIONS],
         ].map(([key, label, options]) => (
-          <fieldset key={key}>
-            <legend>{label}</legend>
-            <button
-              className="quiet"
-              aria-pressed={!preferences[key].length}
-              onClick={() => setPreferences((p) => ({ ...p, [key]: [] }))}
+          <label key={key}>
+            {label}
+            <select
+              value={preferences[key][0] || ""}
+              onChange={(e) =>
+                setPreferences((p) => ({
+                  ...p,
+                  [key]: e.target.value ? [e.target.value] : [],
+                }))
+              }
             >
-              Anything
-            </button>
-            {options.map((option) => (
-              <button
-                key={option.id}
-                className="quiet"
-                aria-pressed={preferences[key].includes(option.id)}
-                onClick={() => toggle(key, option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </fieldset>
+              <option value="">Any {label.toLowerCase()}</option>
+              {options.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         ))}
         <label>
-          <input
-            type="checkbox"
-            checked={preferences.finishedOnly}
-            onChange={(e) =>
-              setPreferences((p) => ({ ...p, finishedOnly: e.target.checked }))
-            }
-          />{" "}
-          Finished shows only
+          Genre
+          <select value={genre} onChange={(e) => setGenre(e.target.value)}>
+            <option value="all">Any genre</option>
+            {[
+              ...new Set([
+                ...GENRES,
+                ...source.flatMap(({ anime }) => anime.genres || []),
+              ]),
+            ]
+              .sort()
+              .map((g) => (
+                <option key={g}>{g}</option>
+              ))}
+          </select>
         </label>
         <label>
-          <input
-            type="checkbox"
-            checked={preferences.includeUnknown}
+          Missing information
+          <select
+            value={preferences.includeUnknown ? "include" : "hide"}
             onChange={(e) =>
               setPreferences((p) => ({
                 ...p,
-                includeUnknown: e.target.checked,
+                includeUnknown: e.target.value === "include",
               }))
             }
-          />{" "}
-          Include unknown lengths and formats
+          >
+            <option value="include">Include unknown lengths / formats</option>
+            <option value="hide">Hide unknown lengths / formats</option>
+          </select>
         </label>
+      </div>
+      <div className="watchlist-actions">
         <button
           className="quiet"
           onClick={() => {
             setPreferences(defaultPreferences());
             setQuery("");
             setRelease("all");
+            setGenre("all");
           }}
         >
           Clear filters
         </button>
-        <p>
-          These filters only change this Watchlist view. They do not remove
-          saved anime or change Discover preferences.
-        </p>
-      </details>
+        <button
+          className="outline"
+          disabled={!source.length}
+          onClick={() => {
+            // Export the whole active list, even when its visible view is filtered.
+            const entries = orderWatchlist(source, {
+              ...state,
+              preferences: defaultPreferences(),
+              tastePreferences: state.preferences,
+              sort,
+            });
+            const url = URL.createObjectURL(
+              new Blob(
+                [
+                  watchlistText(
+                    entries,
+                    tab === "mal" ? "MAL Plan to Watch" : "Saved here",
+                  ),
+                ],
+                { type: "text/plain;charset=utf-8" },
+              ),
+            );
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "anime-shuffle-watchlist.txt";
+            document.body.append(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}
+        >
+          Export entire list (.txt)
+        </button>
+      </div>
       <p className="watchlist-count">
         {items.length} of {source.length} saved titles
         {tab === "mal" &&

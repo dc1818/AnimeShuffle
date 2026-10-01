@@ -1,5 +1,6 @@
 import { buildTaste, scoreAnime } from "./recommend.js";
-import { matchesPreferences } from "./preferences.js";
+import { releaseLabel } from "./release.js";
+import { runtimeLabel, matchesPreferences } from "./preferences.js";
 /** Unknown runtimes/dates stay last for both directions. No fabricated MAL added dates. */
 export function orderWatchlist(
   entries,
@@ -7,18 +8,21 @@ export function orderWatchlist(
     reactions = {},
     list = [],
     preferences,
+    tastePreferences,
+    genre = "all",
     sort = "match",
     query = "",
     release = "all",
   } = {},
 ) {
-  const taste = buildTaste(reactions, list);
+  const taste = buildTaste(reactions, list, tastePreferences);
   const knownFirst = (a, b, direction) =>
     a == null ? (b == null ? 0 : 1) : b == null ? -1 : direction * (a - b);
   return entries
     .filter(
       ({ anime }) =>
         matchesPreferences(anime, preferences) &&
+        (genre === "all" || anime.genres?.includes(genre)) &&
         anime.title.toLowerCase().includes(query.trim().toLowerCase()) &&
         (release === "all" ||
           (release === "available"
@@ -49,4 +53,18 @@ export function orderWatchlist(
         a.anime.id - b.anime.id
       );
     });
+}
+
+/** Plain text stays useful outside the app and contains no account credentials. */
+export function watchlistText(entries, label = "Watchlist") {
+  return (
+    `Anime Shuffle — ${label}\n${entries.length} anime\n\n` +
+    entries
+      .map(
+        ({ anime, addedAt }, i) =>
+          `${i + 1}. ${anime.title}\n${releaseLabel(anime)} · ${runtimeLabel(anime)}\nGenres: ${(anime.genres || []).join(", ") || "Unknown"}\nAdded: ${addedAt ? new Date(addedAt).toISOString().slice(0, 10) : "Unknown"}\nhttps://myanimelist.net/anime/${anime.id}`,
+      )
+      .join("\n\n") +
+    "\n"
+  );
 }

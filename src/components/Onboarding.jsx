@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TasteSetup } from "./TasteSetup.jsx";
 import {
   FORMAT_OPTIONS,
   LENGTH_OPTIONS,
@@ -155,6 +156,13 @@ export function ViewingPreferences({ state, store, onComplete }) {
       </span>
       <h2>What are you in the mood for?</h2>
       <p>Pick as many as you like. You can change these in Settings anytime.</p>
+      <TasteSetup
+        value={value}
+        setValue={setValue}
+        store={store}
+        disabled={pending || state.busy}
+        preview={state.preview}
+      />
       <fieldset className="preference-group" disabled={pending || state.busy}>
         <legend>What would you like to watch?</legend>
         <button

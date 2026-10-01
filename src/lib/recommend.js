@@ -1,4 +1,4 @@
-import { matchesPreferences } from "./preferences.js";
+import { normalizePreferences, matchesPreferences } from "./preferences.js";
 /**
  * Pure recommendation functions: no network, React, or browser-storage dependencies.
  * Missing numeric scores represent unknown preference, not a zero-star review.
@@ -23,7 +23,8 @@ export function preferenceWeight(entry, meanScore = 7) {
   );
 }
 /** Merge by anime ID so a direct reaction replaces, rather than doubles, MAL evidence. */
-export function buildTaste(reactions, list) {
+export function buildTaste(reactions, list, preferences) {
+  const initial = normalizePreferences(preferences);
   const genres = new Map(),
     formats = new Map();
   const rated = list.filter((a) => a.listStatus?.score > 0);
@@ -36,6 +37,9 @@ export function buildTaste(reactions, list) {
       { anime: a, weight: preferenceWeight(a, mean), source: "list" },
     ]),
   );
+  // A chosen favorite is explicit evidence, stronger than an unrated MAL status.
+  for (const anime of initial.favoriteAnime)
+    records.set(anime.id, { anime, weight: 3, source: "favorite" });
   for (const [id, r] of Object.entries(reactions))
     records.set(Number(id), {
       anime: r.anime,
@@ -56,6 +60,12 @@ export function buildTaste(reactions, list) {
     f.sum += weight;
     f.count++;
     formats.set(anime.format, f);
+  }
+  for (const g of initial.favoriteGenres) {
+    const p = genres.get(g) || { sum: 0, count: 0, explicit: 0 };
+    p.sum += 2;
+    p.count++;
+    genres.set(g, p);
   }
   return { genres, formats, records };
 }
@@ -82,6 +92,9 @@ export function isEligible(
   if (
     !a ||
     reactions[a.id] ||
+    normalizePreferences(preferences).favoriteAnime.some(
+      (x) => x.id === a.id,
+    ) ||
     skipped.has(a.id) ||
     (a.nsfw !== "white" && !a.demo)
   )
@@ -96,6 +109,8 @@ export function isEligible(
   );
   for (const [id, r] of Object.entries(reactions))
     if (["good", "bad"].includes(r.action)) seen.add(Number(id));
+  for (const favorite of normalizePreferences(preferences).favoriteAnime)
+    seen.add(favorite.id);
   if ((a.prequels || []).some((id) => !seen.has(id))) return false;
   return true;
 }
@@ -115,10 +130,15 @@ export function chooseNext(
     isEligible(a, reactions, list, skipped, false, preferences),
   );
   if (!available.length) return null;
-  const taste = buildTaste(reactions, list),
+  const taste = buildTaste(reactions, list, preferences),
     count = Object.keys(reactions).length;
   // Cold start: emphasize breadth across genres, not a wall of similar top-ranked shows.
-  const cold = count < 8 && list.length === 0;
+  const initial = normalizePreferences(preferences);
+  const cold =
+    count < 8 &&
+    list.length === 0 &&
+    !initial.favoriteGenres.length &&
+    !initial.favoriteAnime.length;
   const explore = !cold && random() < 0.2;
   const ranked = available
     .map((a, index) => {
@@ -167,7 +187,7 @@ export function rankRecommendations(
 ) {
   const exclusions = reactions;
   // Calculate one taste profile for the whole batch, including explicit saved interests.
-  const taste = buildTaste(reactions, list);
+  const taste = buildTaste(reactions, list, preferences);
   const unique = new Map(pool.map((a) => [a.id, a]));
   return [...unique.values()]
     .filter((a) =>

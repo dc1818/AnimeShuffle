@@ -94,10 +94,49 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
       account: "another-user",
     }),
     {
+      favoriteGenres: [],
+      favoriteAnime: [],
       formats: ["movies"],
       lengths: [],
       finishedOnly: false,
       includeUnknown: false,
     },
   );
+});
+
+test("favorites seed taste, are bounded and never reappear as discovery candidates", async () => {
+  const { buildTaste, scoreAnime } = await import("../src/lib/recommend.js");
+  const favorites = [1, 2, 3, 4].map((id) => ({
+    id,
+    title: `Favorite ${id}`,
+    genres: ["Action"],
+    format: "tv",
+    image: "https://untrusted.test/a.jpg",
+  }));
+  const preferences = normalizePreferences({
+    favoriteAnime: favorites,
+    favoriteGenres: ["Action", "Action", "fake"],
+  });
+  assert.equal(preferences.favoriteAnime.length, 3);
+  assert.equal(preferences.favoriteAnime[0].image, "");
+  assert.deepEqual(preferences.favoriteGenres, ["Action"]);
+  const taste = buildTaste({}, [], preferences);
+  assert.ok(
+    scoreAnime(anime(12, { genres: ["Action"] }), taste) >
+      scoreAnime(anime(12, { genres: ["Romance"] }), taste),
+  );
+  assert.equal(
+    chooseNext([anime(1), anime(5)], { preferences, random: () => 0.5 }).anime
+      .id,
+    5,
+  );
+  for (const action of ["good", "bad", "watch", "nope"]) {
+    assert.equal(
+      chooseNext([anime(1), anime(5)], {
+        reactions: { 1: { action, anime: anime(1) } },
+        random: () => 0.5,
+      }).anime.id,
+      5,
+    );
+  }
 });

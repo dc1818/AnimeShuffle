@@ -92,3 +92,17 @@ test("401 clears stale authorization and network errors do not expose secrets", 
     (e) => !e.message.includes("secret"),
   );
 });
+
+test("MAL community scores and content ratings survive normalization without inventing missing scores", () => {
+  const a = normalize({
+    id: 1,
+    title: "Rated",
+    mean: 8.71,
+    num_scoring_users: 12500,
+    rating: "pg_13",
+  });
+  assert.equal(a.score, 8.71);
+  assert.equal(a.scoreVotes, 12500);
+  assert.equal(a.ageRating, "pg_13");
+  assert.equal(normalize({ id: 2, title: "Unrated" }).score, null);
+});

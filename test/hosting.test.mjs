@@ -90,6 +90,13 @@ test("hosted server keeps secure cookies, canonical OAuth redirects and CSRF che
       req.end(body);
     });
   }
+  const search = await request("/api/search?q=Anime");
+  assert.equal(search.status, 200);
+  const found = JSON.parse(search.text).data;
+  assert.equal(found.length, 1);
+  assert.equal(found[0].title, "Search fixture");
+  assert.match(found[0].image, /myanimelist/);
+  assert.equal((await request("/api/search?q=a")).status, 400);
   let r = await request("/healthz", { headers: { Host: "internal-check" } });
   assert.equal(r.status, 200);
   assert.equal(r.headers["set-cookie"], undefined);

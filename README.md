@@ -17,11 +17,12 @@ After changing the interface, run `npm ci && npm run build && npm run build:page
 ## Features
 
 - Sign in with MyAnimeList or create an Anime Shuffle account.
-- First-visit preferences for format, series length, and finished shows.
+- First-visit setup for favorite genres, three searchable favorite anime, format, series length, and finished shows. Favorites guide your taste; they are not shown again in Discover.
 - Four reactions that distinguish shows you've seen from shows you might watch.
 - Recommendations based on your reactions and, optionally, your MAL list.
-- A local watchlist with optional additions to MAL Plan to Watch.
-- Expandable anime details, cover-based background colors, and a mobile layout.
+- A watchlist ordered by best match, with dropdowns for date added, runtime, genre, format, length, and release status. Export the entire active list as a text file.
+- Optional additions to MAL Plan to Watch.
+- Expandable details with MAL community scores and age ratings when available, cover-based background colors, and a mobile layout.
 - Skip, Undo, and keyboard shortcuts.
 
 ## Public hosting
@@ -215,6 +216,6 @@ Anime data and cover images come from MyAnimeList. Anime Shuffle is not affiliat
 
 ### Watchlist ordering and filters
 
-Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Search titles and filter by format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
+Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Export entire list downloads every title in the active Saved here or MAL Plan to Watch tab, even if filters hide some titles. Search titles and use dropdowns to filter by genre, format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
 
 Reactions on Recommendations keep the current batch in place and grey out the chosen row with a confirmation label. Would watch saves the anime in Watchlist immediately. Undo re-enables the row; Refresh picks builds a new batch excluding all saved or reacted anime.

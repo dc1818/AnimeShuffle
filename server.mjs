@@ -292,6 +292,26 @@ const server = http.createServer(async (req, res) => {
         nextOffset: data.paging?.next ? offset + 100 : null,
       });
     }
+    // Same-origin autocomplete. Never expose credentials or accept arbitrary MAL paths.
+    if (u.pathname === "/api/search" && req.method === "GET") {
+      const query = (u.searchParams.get("q") || "").trim();
+      if (query.length < 2 || query.length > 100)
+        throw new AppError("Search needs 2 to 100 characters.");
+      const params = new URLSearchParams({
+        q: query,
+        limit: "8",
+        nsfw: "false",
+        fields: "genres,media_type,nsfw,status,num_episodes",
+      });
+      const result = await mal.request("/anime?" + params, {
+        publicCache: true,
+      });
+      return json(res, 200, {
+        data: (result.data || [])
+          .map((x) => normalize(x.node))
+          .filter((a) => a.nsfw === "white"),
+      });
+    }
     if (u.pathname === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 5000);
       const source = u.searchParams.get("source") || "popular";

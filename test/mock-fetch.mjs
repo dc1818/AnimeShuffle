@@ -24,6 +24,23 @@ globalThis.fetch = async (raw, opt = {}) => {
       refresh_token: "TEST_PRIVATE_REFRESH",
       expires_in: 3600,
     });
+  if (u.pathname === "/v2/anime")
+    return reply({
+      data: [
+        {
+          node: {
+            id: 1,
+            title: "Search fixture",
+            nsfw: "white",
+            genres: [{ name: "Action" }],
+            main_picture: {
+              medium: "https://cdn.myanimelist.net/images/anime/1/1.jpg",
+            },
+          },
+        },
+        { node: { id: 2, title: "Excluded", nsfw: "black" } },
+      ],
+    });
   if (u.pathname === "/v2/users/@me")
     return reply({ id: 7, name: "Test viewer" });
   if (u.pathname.endsWith("/my_list_status")) {

@@ -219,7 +219,20 @@ export function AnimeCard({
 }
 
 export function AnimeDetails({ anime, reason, onClose }) {
+  const ratingLabels = {
+    g: "G · All ages",
+    pg: "PG · Children",
+    pg_13: "PG-13 · Teens 13+",
+    r: "R · 17+",
+    r_plus: "R+ · Mild nudity",
+    rx: "Rx · Explicit",
+  };
   const facts = {
+    "MAL community score":
+      anime.score > 0
+        ? `${anime.score.toFixed(2)} / 10${anime.scoreVotes ? ` · ${anime.scoreVotes.toLocaleString()} ratings` : ""}`
+        : "Not yet scored",
+    "Age rating": ratingLabels[anime.ageRating] || "Not provided by MAL",
     Format: (anime.format || "Unknown").toUpperCase(),
     Episodes: anime.episodes || "TBA",
     Year: anime.year || "TBA",

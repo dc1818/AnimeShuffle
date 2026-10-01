@@ -20,8 +20,10 @@ export function Recommendations({ state, store, onDiscover }) {
       store.loadRecommendations();
     }
   }, [state.ready, state.onboardingComplete, state.busy, store]);
-  const taste = buildTaste(state.reactions, state.list);
-  const hasTaste = [...taste.records.values()].some((r) => r.weight !== 0);
+  const taste = buildTaste(state.reactions, state.list, state.preferences);
+  const hasTaste =
+    state.preferences.favoriteGenres.length > 0 ||
+    [...taste.records.values()].some((r) => r.weight !== 0);
   // Keep this batch and its numbering stable until Refresh picks. Undo re-enables a row.
   const picks = state.recommendationPicks || [];
   // Open the first pick initially; null means the user explicitly collapsed it.
@@ -40,8 +42,11 @@ export function Recommendations({ state, store, onDiscover }) {
             strongest match.
           </p>
           <p>
-            Learned from your reactions and, when connected, your MAL list.
-            Scores on MAL are optional.
+            Learned from your favorites, genre choices, reactions and, when
+            connected, your MAL list. Scores on MAL are optional. You may see
+            fewer than 25 picks while we learn your taste or when eligible
+            titles run low. React to more anime in Discover to help shape fresh
+            suggestions.
           </p>
         </div>
         <div>
@@ -178,8 +183,11 @@ export function Recommendations({ state, store, onDiscover }) {
               available.{" "}
               {state.preview
                 ? "The demo contains only seven sample anime."
-                : "Refresh picks to check more candidates, or broaden your viewing preferences."}{" "}
+                : "React to more anime in Discover to help us learn your taste, then refresh picks. You can also broaden your viewing preferences."}{" "}
               Saved, seen and rejected shows are excluded from new batches.
+              <button className="quiet" onClick={onDiscover}>
+                Explore more in Discover
+              </button>
             </p>
           )}
         </>

@@ -456,12 +456,23 @@ export function createAnimeStore({
   }
   function buildRecommendationTaste() {
     return (
+      state.preferences.favoriteGenres.length > 0 ||
+      state.preferences.favoriteAnime.length > 0 ||
       Object.keys(state.reactions).length > 0 ||
       state.list.some((a) => preferenceWeight(a) !== 0)
     );
   }
   return {
     loadRecommendations,
+    async searchAnime(query) {
+      const term = query.trim();
+      if (term.length < 2) return [];
+      if (state.preview)
+        return demo
+          .filter((a) => a.title.toLowerCase().includes(term.toLowerCase()))
+          .slice(0, 8);
+      return (await api("/api/search?q=" + encodeURIComponent(term))).data;
+    },
     getSnapshot: () => state,
     subscribe(listener) {
       listeners.add(listener);
@@ -491,7 +502,14 @@ export function createAnimeStore({
       try {
         if (state.session.account)
           await api("/api/account/preferences", { preferences });
-        update({ preferences, onboardingComplete: true, canUndo: false });
+        update({
+          preferences,
+          onboardingComplete: true,
+          canUndo: false,
+          recommendationsReady: false,
+          recommendationPicks: [],
+          recommendationPool: [],
+        });
         history = [];
         skipped.clear();
         persist();

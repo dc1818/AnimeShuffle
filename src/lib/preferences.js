@@ -1,3 +1,22 @@
+// Genre interests train ranking; they are not hard exclusions in Discover.
+export const GENRES = [
+  "Action",
+  "Adventure",
+  "Avant Garde",
+  "Award Winning",
+  "Comedy",
+  "Drama",
+  "Fantasy",
+  "Gourmet",
+  "Horror",
+  "Mystery",
+  "Romance",
+  "Sci-Fi",
+  "Slice of Life",
+  "Sports",
+  "Supernatural",
+  "Suspense",
+];
 /** Viewing preferences use complete episode ranges, not assumed broadcast cours. */
 export const FORMAT_OPTIONS = [
   { id: "series", label: "Series", detail: "TV and web series" },
@@ -46,6 +65,8 @@ export const LENGTH_OPTIONS = [
   },
 ];
 export const defaultPreferences = () => ({
+  favoriteGenres: [],
+  favoriteAnime: [],
   formats: [],
   lengths: [],
   finishedOnly: false,
@@ -62,7 +83,49 @@ export function normalizePreferences(value = {}) {
           ),
         ]
       : [];
+  const favoriteGenres = Array.isArray(value?.favoriteGenres)
+    ? [...new Set(value.favoriteGenres.filter((g) => GENRES.includes(g)))]
+    : [];
+  const favoriteAnime = Array.isArray(value?.favoriteAnime)
+    ? [
+        ...new Map(
+          value.favoriteAnime
+            .filter(
+              (a) =>
+                Number.isInteger(a?.id) &&
+                a.id > 0 &&
+                typeof a.title === "string",
+            )
+            .map((a) => [
+              a.id,
+              {
+                id: a.id,
+                title: a.title.slice(0, 200),
+                genres: Array.isArray(a.genres)
+                  ? a.genres
+                      .filter((g) => typeof g === "string")
+                      .slice(0, 20)
+                      .map((g) => g.slice(0, 60))
+                  : [],
+                format:
+                  typeof a.format === "string"
+                    ? a.format.slice(0, 30)
+                    : "unknown",
+                image:
+                  typeof a.image === "string" &&
+                  /^https:\/\/(cdn|api-cdn)\.myanimelist\.net\/images\/anime\/[\w/.-]+$/.test(
+                    a.image,
+                  )
+                    ? a.image
+                    : "",
+              },
+            ]),
+        ).values(),
+      ].slice(0, 3)
+    : [];
   return {
+    favoriteGenres,
+    favoriteAnime,
     formats: clean(value?.formats, FORMAT_OPTIONS),
     lengths: clean(value?.lengths, LENGTH_OPTIONS),
     finishedOnly: value?.finishedOnly === true,
