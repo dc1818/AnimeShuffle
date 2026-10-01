@@ -164,6 +164,31 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     assert.match(document.body.textContent, /Pick three anime/);
     assert.match(document.body.textContent, /What genres/);
     assert.match(document.body.textContent, /Auto-add watchlist/);
+    // Mount an untouched first-use screen to verify the two start choices.
+    await act(async () =>
+      root.render(
+        React.createElement(ViewingPreferences, {
+          key: "fresh",
+          state: {
+            ...state,
+            preferences: defaultPreferences(),
+            settings: { autoAdd: false },
+            onboardingComplete: false,
+          },
+          store,
+          onComplete() {},
+        }),
+      ),
+    );
+    const button = (text) =>
+      [...document.querySelectorAll("button")].find(
+        (b) => b.textContent === text,
+      );
+    assert.equal(button("Start shuffling").disabled, true);
+    assert.ok(button("Surprise me — any anime"));
+    await act(async () => button("Anything").click());
+    assert.equal(button("Start shuffling").disabled, false);
+    assert.equal(button("Surprise me — any anime"), undefined);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

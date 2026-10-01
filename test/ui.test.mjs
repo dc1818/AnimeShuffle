@@ -103,8 +103,8 @@ for (const staticMode of [false, true])
         await click("Try without logging in");
       }
       assert.ok(document.querySelector("dialog[open]"));
-      assert.ok(button("Start shuffling"));
-      await click("Start shuffling");
+      assert.equal(button("Start shuffling").disabled, true);
+      await click("Surprise me — any anime");
       assert.equal(document.querySelector("dialog"), null);
       assert.equal(
         document.getElementById("anime-title").textContent,

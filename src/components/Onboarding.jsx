@@ -129,7 +129,24 @@ export function ViewingPreferences({ state, store, onComplete }) {
   const initialSetup = !state.onboardingComplete;
   const showTasteSetup =
     initialSetup || !(state.session.account || state.session.connected);
-  const [value, setValue] = useState(state.preferences);
+  const [value, updateValue] = useState(state.preferences);
+  const [hasChosen, setHasChosen] = useState(() => {
+    const p = state.preferences;
+    return Boolean(
+      p.favoriteGenres.length ||
+      p.favoriteAnime.length ||
+      p.formats.length ||
+      p.lengths.length ||
+      p.finishedOnly ||
+      !p.includeUnknown ||
+      state.settings.autoAdd,
+    );
+  });
+  // Choosing an explicit “Anything”/“Any length” also counts as user input.
+  function setValue(change) {
+    setHasChosen(true);
+    updateValue(change);
+  }
   const [autoAdd, setAutoAdd] = useState(state.settings.autoAdd);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -171,7 +188,10 @@ export function ViewingPreferences({ state, store, onComplete }) {
           </p>
           <MalWatchlistOption
             enabled={autoAdd}
-            onChange={setAutoAdd}
+            onChange={(enabled) => {
+              setHasChosen(true);
+              setAutoAdd(enabled);
+            }}
             disabled={pending || state.busy}
           />
         </>
@@ -283,7 +303,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       )}
       <button
         className="primary full-width"
-        disabled={pending || state.busy}
+        disabled={pending || state.busy || (initialSetup && !hasChosen)}
         onClick={() => save(value)}
       >
         {pending
@@ -294,7 +314,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
             ? "Start shuffling"
             : "Save preferences"}
       </button>
-      {!state.onboardingComplete && (
+      {initialSetup && !hasChosen && (
         <button
           className="quiet"
           disabled={pending || state.busy}
