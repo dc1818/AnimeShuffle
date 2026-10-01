@@ -253,6 +253,8 @@ export function App({ store }) {
         <button onClick={() => setDialog("privacy")}>
           Privacy &amp; local data
         </button>
+        <a href="./privacy.html">Privacy policy</a>
+        <a href="./terms.html">Terms</a>
         <span id="mode-label">
           {state.preview
             ? "Preview · 7 sample anime"

@@ -1,10 +1,11 @@
 /**
- * Loopback-only HTTP boundary for the React application.
+ * HTTP boundary for local use or a single HTTPS-backed hosted instance.
  * Serves the built frontend and proxies a small set of MAL operations.
  * Client secrets, access tokens, and refresh tokens never enter frontend responses.
  * Session and undo-receipt data are intentionally ephemeral; restarting logs out.
  */
 import http from "node:http";
+import { serverConfig } from "./lib/config.mjs";
 import { createAccountStore, createLoginLimiter } from "./lib/accounts.mjs";
 import { spawn } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
@@ -22,10 +23,8 @@ import {
 const root = path.dirname(fileURLToPath(import.meta.url));
 if (existsSync(path.join(root, ".env")))
   process.loadEnvFile(path.join(root, ".env"));
-const PORT = Number(process.env.PORT || 5173),
-  origin = `http://localhost:${PORT}`;
-if (!Number.isInteger(PORT) || PORT < 1024 || PORT > 65535)
-  throw new Error("PORT must be an integer between 1024 and 65535.");
+const config = serverConfig();
+const { port: PORT, origin } = config;
 const clientId = process.env.MAL_CLIENT_ID || "",
   clientSecret = process.env.MAL_CLIENT_SECRET || "";
 const mal = createMalClient({ clientId, clientSecret });
@@ -55,10 +54,12 @@ function newSession(res) {
       receipts: new Map(),
       created: Date.now(),
     };
+  if (sessions.size >= 10000)
+    throw new AppError("The server is busy. Please try again later.", 503);
   sessions.set(id, s);
   res.setHeader(
     "Set-Cookie",
-    `as_session=${id}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800`,
+    `as_session=${id}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800${config.hosted ? "; Secure" : ""}`,
   );
   return s;
 }
@@ -84,6 +85,7 @@ function redirect(res, target) {
 async function sessionInfo(s) {
   const saved = s.account ? await accounts.preferences(s.account.id) : {};
   return {
+    hosted: config.hosted,
     configured: !!clientId,
     oauthConfigured: !!(clientId && clientSecret),
     connected: !!s.tokens,
@@ -114,8 +116,10 @@ function number(value, max = 10000000) {
     throw new AppError("Invalid identifier.");
   return n;
 }
-// Restrict resources and framing; localhost uses HTTP, so cookies are HttpOnly/SameSite.
+// TLS terminates at the hosting proxy. Hosted cookies remain Secure and HttpOnly.
 function headers(res) {
+  if (config.hosted)
+    res.setHeader("Strict-Transport-Security", "max-age=31536000");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Frame-Options", "DENY");
@@ -128,12 +132,20 @@ const server = http.createServer(async (req, res) => {
   headers(res);
   let release;
   try {
-    if (!["localhost:" + PORT, "127.0.0.1:" + PORT].includes(req.headers.host))
-      throw new AppError("Open this app using its localhost address.", 403);
+    // Health checks do not create sessions or depend on the proxy Host header.
+    if (req.url === "/healthz" && ["GET", "HEAD"].includes(req.method)) {
+      res.writeHead(200, {
+        "Content-Type": "text/plain",
+        "Cache-Control": "no-store",
+      });
+      return res.end(req.method === "HEAD" ? undefined : "ok");
+    }
+    if (!config.allowedHosts.includes(req.headers.host))
+      throw new AppError("Open this app using its configured address.", 403);
     const u = new URL(req.url, origin);
     if (!["GET", "POST"].includes(req.method))
       throw new AppError("Method not allowed.", 405);
-    if (req.headers.host.startsWith("127."))
+    if (!config.hosted && req.headers.host.startsWith("127."))
       return redirect(res, origin + u.pathname + u.search);
     const s = getSession(req, res);
     // All state-changing requests must originate from this app and carry its CSRF token.
@@ -463,7 +475,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.requestTimeout = 30000;
-server.listen(PORT, "127.0.0.1", () => {
+server.listen(PORT, config.host, () => {
   console.log(
     `\nAnime Shuffle is ready: ${origin}\n${clientId ? "MAL catalog enabled." : "Preview mode. Add MAL credentials to .env for live anime and login."}\nKeep this window open. Press Ctrl+C to stop.\n`,
   );

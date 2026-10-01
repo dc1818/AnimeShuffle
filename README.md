@@ -24,6 +24,10 @@ After changing the interface, run `npm ci && npm run build && npm run build:page
 - Expandable anime details, cover-based background colors, and a mobile layout.
 - Skip, Undo, and keyboard shortcuts.
 
+## Public hosting
+
+See [HOSTING.md](HOSTING.md) for the Render deployment setup, private environment variables, persistent storage, and every MyAnimeList registration field. The full website and API run together; GitHub Pages remains a guest demo.
+
 ## Getting started
 
 Install [Node.js 22 or newer](https://nodejs.org/), then clone the repository or download it using **Code → Download ZIP**.

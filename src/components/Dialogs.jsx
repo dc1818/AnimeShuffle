@@ -139,7 +139,7 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
   if (kind === "privacy")
     return (
       <Dialog onClose={onClose}>
-        <h2>Your data stays local</h2>
+        <h2>Your data and privacy</h2>
         <p>
           Your own reactions and saved anime are stored in this browser,
           separately for guests and each signed-in account. Imported MAL
@@ -147,7 +147,7 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           local reactions.
         </p>
         <p>
-          OAuth tokens stay in the local server’s memory and disappear when it
+          OAuth tokens stay in the app server’s memory and disappear when it
           stops. The app contacts MyAnimeList for anime data and cover images.
           It has no analytics.
         </p>
@@ -161,7 +161,16 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           preferences are saved on this installation. Guest preferences stay in
           this browser. Reactions do not sync between browsers.
         </p>
-        <p>This local prototype is not affiliated with MyAnimeList.</p>
+        <p>Anime Shuffle is not affiliated with MyAnimeList.</p>
+        <p>
+          <a href="./privacy.html" target="_blank" rel="noopener noreferrer">
+            Read the privacy policy
+          </a>{" "}
+          ·{" "}
+          <a href="./terms.html" target="_blank" rel="noopener noreferrer">
+            Terms of use
+          </a>
+        </p>
         <button
           className="danger-outline"
           disabled={state.busy}
@@ -211,7 +220,7 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
             ? "You’re using the GitHub Pages demo. Preferences and reactions stay in this browser. Accounts and MAL sync require the server version."
             : state.session.oauthConfigured
               ? "MyAnimeList is ready to connect."
-              : "Live discovery needs your local MAL API credentials."}
+              : "Live discovery needs the app operator to configure MAL credentials."}
       </p>
       {!state.session.connected && state.session.oauthConfigured && (
         <a className="primary" href="/auth/start">
@@ -255,34 +264,36 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           <p>1–4 react · Space skips · U undoes · I opens details.</p>
         </div>
       </div>
-      {!state.session.oauthConfigured && !state.session.staticMode && (
-        <div className="setup-help">
-          <h3>Connect your local app</h3>
-          <ol>
-            <li>
-              Copy <code>.env.example</code> to <code>.env</code> in the app
-              folder.
-            </li>
-            <li>Enter your MAL Client ID and Client Secret there.</li>
-            <li>
-              Register this exact redirect:{" "}
-              <code>{location.origin}/auth/callback</code>
-            </li>
-            <li>Restart the app, then connect MAL.</li>
-          </ol>
-          <p>
-            Credentials stay on this computer. Never commit them to a public
-            repository.
-          </p>
-          <a
-            href="https://myanimelist.net/apiconfig"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open MAL API settings <Icon name="external" />
-          </a>
-        </div>
-      )}
+      {!state.session.oauthConfigured &&
+        !state.session.staticMode &&
+        !state.session.hosted && (
+          <div className="setup-help">
+            <h3>Connect your local app</h3>
+            <ol>
+              <li>
+                Copy <code>.env.example</code> to <code>.env</code> in the app
+                folder.
+              </li>
+              <li>Enter your MAL Client ID and Client Secret there.</li>
+              <li>
+                Register this exact redirect:{" "}
+                <code>{location.origin}/auth/callback</code>
+              </li>
+              <li>Restart the app, then connect MAL.</li>
+            </ol>
+            <p>
+              Credentials stay on this computer. Never commit them to a public
+              repository.
+            </p>
+            <a
+              href="https://myanimelist.net/apiconfig"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open MAL API settings <Icon name="external" />
+            </a>
+          </div>
+        )}
       {state.session.connected &&
         state.session.account?.provider === "local" && (
           <button
