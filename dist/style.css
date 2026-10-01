@@ -1654,3 +1654,74 @@ main.wide-main {
     padding: 8px;
   }
 }
+
+/* Reacted rows stay in their batch until refresh; text explains the muted state. */
+.leaderboard-row.reacted {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.reaction-feedback {
+  font-size: 12px;
+  color: #c5d3dc;
+  white-space: nowrap;
+}
+.watchlist-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0 16px;
+}
+.watchlist-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 210px;
+  color: #c4d8e3;
+}
+.watchlist-controls input,
+.watchlist-controls select {
+  background: #12232e;
+  color: #e3eef5;
+  border: 1px solid #456171;
+  border-radius: 8px;
+  padding: 12px;
+  width: 100%;
+}
+.watchlist-filters {
+  padding: 16px;
+  border: 1px solid #405967;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.watchlist-filters summary {
+  cursor: pointer;
+}
+.watchlist-filters fieldset {
+  border: 0;
+  padding: 12px 0;
+}
+.watchlist-filters button[aria-pressed="true"] {
+  background: #234858;
+  color: #cff6ff;
+}
+.watchlist-filters > label {
+  display: block;
+  margin: 10px 0;
+}
+.watchlist-filters p,
+.watchlist-count {
+  color: #aebcc9;
+  font-size: 13px;
+}
+.saved-content small {
+  display: block;
+  color: #aebcc9;
+  margin: 8px 0;
+}
+@media (max-width: 560px) {
+  .reaction-feedback {
+    font-size: 10px;
+    white-space: normal;
+    max-width: 85px;
+  }
+}

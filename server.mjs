@@ -275,7 +275,8 @@ const server = http.createServer(async (req, res) => {
       auth(s);
       const offset = number(u.searchParams.get("offset") || 0, 100000);
       const q = new URLSearchParams({
-        fields: "list_status,genres,num_episodes,media_type,start_season,nsfw",
+        fields:
+          "list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration",
         limit: "100",
         offset: String(offset),
         nsfw: "false",

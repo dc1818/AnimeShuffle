@@ -159,21 +159,19 @@ export function chooseNext(
 /**
  * A deterministic shortlist, unlike Discover's exploration mix. Numbered tiers are
  * positions among eligible candidates, not objective quality or probability scores.
- * Saved/Plan to Watch entries remain candidates; seen/rejected titles only train taste.
+ * Saved, planned, seen and rejected entries train taste but never reappear as candidates.
  */
 export function rankRecommendations(
   pool,
   { reactions = {}, list = [], preferences, limit = 25 } = {},
 ) {
-  const exclusions = Object.fromEntries(
-    Object.entries(reactions).filter(([, r]) => r.action !== "watch"),
-  );
+  const exclusions = reactions;
   // Calculate one taste profile for the whole batch, including explicit saved interests.
   const taste = buildTaste(reactions, list);
   const unique = new Map(pool.map((a) => [a.id, a]));
   return [...unique.values()]
     .filter((a) =>
-      isEligible(a, exclusions, list, new Set(), true, preferences),
+      isEligible(a, exclusions, list, new Set(), false, preferences),
     )
     .map((anime) => {
       const saved =

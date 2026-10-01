@@ -124,9 +124,9 @@ for (const staticMode of [false, true])
       await act(async () => document.querySelector(".reaction.watch").click());
       assert.equal(store.getSnapshot().reactions[1].action, "watch");
       await click("Recommendations");
-      // MAL-free demo must rank the saved pick plus six other sample titles.
+      // Saved picks no longer reappear in recommendations.
       await act(async () => {});
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 7);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
       assert.equal(
         document
           .querySelector(".leaderboard-number")
@@ -163,9 +163,45 @@ for (const staticMode of [false, true])
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "nope");
       assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
+      assert.equal(
+        document.querySelectorAll(".leaderboard-row.reacted").length,
+        1,
+      );
       await click("Undo last reaction");
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 7);
+      assert.equal(
+        document.querySelectorAll(".leaderboard-row.reacted").length,
+        0,
+      );
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
 
+      await act(async () =>
+        document.querySelector(".ranked-card .reaction.watch").click(),
+      );
+      assert.match(
+        document.querySelector(".reaction-feedback").textContent,
+        /Saved to Watchlist/,
+      );
+      assert.equal(store.getSnapshot().reactions[firstId].action, "watch");
+      await act(async () =>
+        [...document.querySelectorAll("nav button")][1].click(),
+      );
+      assert.equal(document.querySelectorAll(".saved-card").length, 2);
+      await click("Recommendations");
+      assert.equal(
+        document.querySelectorAll(".leaderboard-row.reacted").length,
+        1,
+      );
+      await click("Refresh picks");
+      assert.equal(
+        document.querySelectorAll(".leaderboard-row.reacted").length,
+        0,
+      );
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
+      assert.equal(
+        document.getElementById(`recommendation-heading-${firstId}`),
+        null,
+      );
+      await click("Undo last reaction");
       await act(async () =>
         [...document.querySelectorAll("nav button")][1].click(),
       );

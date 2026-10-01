@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
-import { buildTaste, rankRecommendations } from "../lib/recommend.js";
+import { buildTaste } from "../lib/recommend.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover }) {
@@ -11,6 +11,7 @@ export function Recommendations({ state, store, onDiscover }) {
   useEffect(() => {
     if (
       !requested.current &&
+      !state.recommendationsReady &&
       state.ready &&
       state.onboardingComplete &&
       !state.busy
@@ -21,9 +22,8 @@ export function Recommendations({ state, store, onDiscover }) {
   }, [state.ready, state.onboardingComplete, state.busy, store]);
   const taste = buildTaste(state.reactions, state.list);
   const hasTaste = [...taste.records.values()].some((r) => r.weight !== 0);
-  const picks = hasTaste
-    ? rankRecommendations(state.recommendationPool, state)
-    : [];
+  // Keep this batch and its numbering stable until Refresh picks. Undo re-enables a row.
+  const picks = state.recommendationPicks || [];
   // Open the first pick initially; null means the user explicitly collapsed it.
   const openedId = opened === undefined ? picks[0]?.anime.id : opened;
   return (
@@ -91,6 +91,14 @@ export function Recommendations({ state, store, onDiscover }) {
             aria-label="Anime leaderboard: tiers 1 to 25"
           >
             {picks.map((pick) => {
+              const reaction = state.reactions[pick.anime.id]?.action;
+              const reacted = !!reaction;
+              const feedback = {
+                good: "Seen · Liked",
+                bad: "Seen · Disliked",
+                watch: "Saved to Watchlist",
+                nope: "Passed",
+              }[reaction];
               const expanded = openedId === pick.anime.id;
               const panelId = `recommendation-panel-${pick.anime.id}`;
               const headingId = `recommendation-heading-${pick.anime.id}`;
@@ -98,7 +106,7 @@ export function Recommendations({ state, store, onDiscover }) {
               return (
                 <div
                   key={pick.anime.id}
-                  className={`leaderboard-row ${medal ? `medal-${pick.tier}` : ""}`}
+                  className={`leaderboard-row ${reacted ? "reacted" : ""} ${medal ? `medal-${pick.tier}` : ""}`}
                 >
                   <h2 className="leaderboard-heading">
                     <button
@@ -120,6 +128,9 @@ export function Recommendations({ state, store, onDiscover }) {
                       <span className="leaderboard-title">
                         {pick.anime.title}
                       </span>
+                      {feedback && (
+                        <span className="reaction-feedback">{feedback}</span>
+                      )}
                       <Icon name="chevron" />
                     </button>
                   </h2>
@@ -136,7 +147,7 @@ export function Recommendations({ state, store, onDiscover }) {
                           reason={pick.reason}
                           saved={pick.saved}
                           compact
-                          busy={state.busy}
+                          busy={state.busy || reacted}
                           detailsOpen={about === pick.anime.id}
                           onDetails={() =>
                             setAbout(
@@ -168,7 +179,7 @@ export function Recommendations({ state, store, onDiscover }) {
               {state.preview
                 ? "The demo contains only seven sample anime."
                 : "Refresh picks to check more candidates, or broaden your viewing preferences."}{" "}
-              Seen and rejected shows are excluded.
+              Saved, seen and rejected shows are excluded from new batches.
             </p>
           )}
         </>

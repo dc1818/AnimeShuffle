@@ -13,7 +13,7 @@ const anime = (id, genres = ["Action"]) => ({
   status: "finished_airing",
   episodes: 12,
 });
-test("shortlist numbers 25 unique matches, includes planned titles, excludes seen and rejected", () => {
+test("shortlist numbers 25 unique matches, excludes saved, planned, seen and rejected", () => {
   const pool = Array.from({ length: 30 }, (_, i) => anime(i + 1));
   const reactions = {
     1: { action: "good", anime: pool[0] },
@@ -30,8 +30,8 @@ test("shortlist numbers 25 unique matches, includes planned titles, excludes see
     Array.from({ length: 25 }, (_, i) => i + 1),
   );
   assert.equal(new Set(picks.map((p) => p.anime.id)).size, 25);
-  assert.ok(picks.some((p) => p.anime.id === 3));
-  assert.ok(picks.some((p) => p.anime.id === 5));
+  assert.ok(picks.every((p) => p.anime.id !== 3));
+  assert.ok(picks.every((p) => p.anime.id !== 5));
   assert.ok(picks.every((p) => ![1, 2, 4].includes(p.anime.id)));
   assert.deepEqual(
     picks,
@@ -82,7 +82,6 @@ test("upcoming anime keeps future-watch choices but store rejects seen reactions
   await store.react("watch");
   assert.equal(store.getSnapshot().reactions[10].action, "watch");
   await store.loadRecommendations();
-  assert.equal(store.getSnapshot().recommendationPool[0].id, 10);
-  await store.react("bad", store.getSnapshot().recommendationPool[0]);
+  assert.equal(store.getSnapshot().recommendationPicks.length, 0);
   assert.equal(store.getSnapshot().reactions[10].action, "watch");
 });

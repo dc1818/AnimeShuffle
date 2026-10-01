@@ -131,7 +131,7 @@ Shortcuts are inactive while a dialog is open or a control has focus.
 
 ## Recommendations
 
-The third tab shows up to 25 tailored picks in a vertical leaderboard. Every card has a numbered tier: gold 1, silver 2, bronze 3, then plain 4–25. These are relative match positions, not probabilities or global anime ratings. The shortlist includes saved and MAL Plan to Watch titles alongside discoveries, excludes seen/rejected titles, and learns from unrated Watching and Plan to Watch entries. Click a numbered row to expand its full card in place. Only one row opens at a time. React on the expanded card using the same four actions as Discover; use Refresh picks to replenish the shortlist. Narrow filters or the seven-title demo can produce fewer than 25 matches.
+The third tab shows up to 25 tailored picks in a vertical leaderboard. Every card has a numbered tier: gold 1, silver 2, bronze 3, then plain 4–25. These are relative match positions, not probabilities or global anime ratings. The shortlist excludes saved, MAL Plan to Watch, seen and rejected titles, and learns from unrated Watching and Plan to Watch entries. Click a numbered row to expand its full card in place. Only one row opens at a time. React on the expanded card using the same four actions as Discover; use Refresh picks to replenish the shortlist. Narrow filters or the seven-title demo can produce fewer than 25 matches.
 
 Cards show MAL release status. Good and Bad are disabled for Not yet aired titles, including keyboard actions. Unknown release statuses are labeled explicitly.
 
@@ -212,3 +212,9 @@ This is an early local build. The server listens on `127.0.0.1` and isn't config
 | Source changes don't appear   | Run `npm run build`, then refresh the browser.                               |
 
 Anime data and cover images come from MyAnimeList. Anime Shuffle is not affiliated with MyAnimeList. Third-party library licenses are included in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+
+### Watchlist ordering and filters
+
+Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Search titles and filter by format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
+
+Reactions on Recommendations keep the current batch in place and grey out the chosen row with a confirmation label. Would watch saves the anime in Watchlist immediately. Undo re-enables the row; Refresh picks builds a new batch excluding all saved or reacted anime.

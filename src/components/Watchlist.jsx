@@ -1,25 +1,64 @@
 import { useState } from "react";
+import { orderWatchlist } from "../lib/watchlist.js";
+import {
+  defaultPreferences,
+  FORMAT_OPTIONS,
+  LENGTH_OPTIONS,
+  runtimeLabel,
+} from "../lib/preferences.js";
+import { releaseLabel } from "../lib/release.js";
 import { Icon } from "./Icon.jsx";
 import { coverUrl } from "./AnimeCard.jsx";
 
 /** Local saved picks and imported MAL entries remain separate sources of truth. */
 export function Watchlist({ state, store, onDiscover }) {
   const [tab, setTab] = useState("saved");
+  const [sort, setSort] = useState("match");
+  const [query, setQuery] = useState("");
+  const [release, setRelease] = useState("all");
+  const [preferences, setPreferences] = useState(defaultPreferences);
+  function toggle(key, id) {
+    setPreferences((p) => ({
+      ...p,
+      [key]: p[key].includes(id)
+        ? p[key].filter((x) => x !== id)
+        : [...p[key], id],
+    }));
+  }
   const saved = Object.values(state.reactions)
     .filter((r) => r.action === "watch")
     .sort((a, b) => b.at - a.at)
-    .map((r) => r.anime);
+    .map((r) => ({ anime: r.anime, addedAt: r.at || null }));
   const planned = state.list.filter(
     (a) => a.listStatus?.status === "plan_to_watch",
   );
-  const items = tab === "mal" ? planned : saved;
+  const source =
+    tab === "mal"
+      ? planned.map((anime) => ({
+          anime,
+          addedAt:
+            state.reactions[anime.id]?.action === "watch"
+              ? state.reactions[anime.id].at
+              : null,
+        }))
+      : saved;
+  const items = orderWatchlist(source, {
+    ...state,
+    preferences,
+    sort,
+    query,
+    release,
+  });
   return (
     <section aria-labelledby="watchlist-heading">
       <div className="section-heading">
         <div>
           <span className="eyebrow">Your next obsessions</span>
           <h1 id="watchlist-heading">Watchlist</h1>
-          <p>The anime you want to make time for.</p>
+          <p>
+            Your next watch, ordered by your taste. Unreleased shows come after
+            available picks in Best match.
+          </p>
         </div>
         {state.session.connected && (
           <button
@@ -47,8 +86,109 @@ export function Watchlist({ state, store, onDiscover }) {
           MAL Plan to Watch <span>{planned.length}</span>
         </button>
       </div>
+      <div className="watchlist-controls">
+        <label>
+          Search titles
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a saved anime"
+          />
+        </label>
+        <label>
+          Sort by
+          <select value={sort} onChange={(e) => setSort(e.target.value)}>
+            <option value="match">Best match · Watch first</option>
+            <option value="newest">Date added · Newest first</option>
+            <option value="oldest">Date added · Oldest first</option>
+            <option value="shortest">Total runtime · Shortest first</option>
+            <option value="longest">Total runtime · Longest first</option>
+          </select>
+        </label>
+        <label>
+          Release status
+          <select value={release} onChange={(e) => setRelease(e.target.value)}>
+            <option value="all">Any status</option>
+            <option value="available">Available to start</option>
+            <option value="currently_airing">Currently airing</option>
+            <option value="finished_airing">Finished airing</option>
+            <option value="not_yet_aired">Not yet aired</option>
+          </select>
+        </label>
+      </div>
+      <details className="watchlist-filters">
+        <summary>Viewing filters</summary>
+        {[
+          ["formats", "Format", FORMAT_OPTIONS],
+          ["lengths", "Series length", LENGTH_OPTIONS],
+        ].map(([key, label, options]) => (
+          <fieldset key={key}>
+            <legend>{label}</legend>
+            <button
+              className="quiet"
+              aria-pressed={!preferences[key].length}
+              onClick={() => setPreferences((p) => ({ ...p, [key]: [] }))}
+            >
+              Anything
+            </button>
+            {options.map((option) => (
+              <button
+                key={option.id}
+                className="quiet"
+                aria-pressed={preferences[key].includes(option.id)}
+                onClick={() => toggle(key, option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </fieldset>
+        ))}
+        <label>
+          <input
+            type="checkbox"
+            checked={preferences.finishedOnly}
+            onChange={(e) =>
+              setPreferences((p) => ({ ...p, finishedOnly: e.target.checked }))
+            }
+          />{" "}
+          Finished shows only
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={preferences.includeUnknown}
+            onChange={(e) =>
+              setPreferences((p) => ({
+                ...p,
+                includeUnknown: e.target.checked,
+              }))
+            }
+          />{" "}
+          Include unknown lengths and formats
+        </label>
+        <button
+          className="quiet"
+          onClick={() => {
+            setPreferences(defaultPreferences());
+            setQuery("");
+            setRelease("all");
+          }}
+        >
+          Clear filters
+        </button>
+        <p>
+          These filters only change this Watchlist view. They do not remove
+          saved anime or change Discover preferences.
+        </p>
+      </details>
+      <p className="watchlist-count">
+        {items.length} of {source.length} saved titles
+        {tab === "mal" &&
+          " · Date added is known only for titles you saved here; MAL import dates are not guessed."}
+      </p>
       <div className="watchlist-grid">
-        {items.map((anime) => (
+        {items.map(({ anime, addedAt }) => (
           <article className="saved-card" key={anime.id}>
             <div className="saved-image">
               <img src={coverUrl(anime)} alt={anime.title} loading="lazy" />
@@ -56,6 +196,14 @@ export function Watchlist({ state, store, onDiscover }) {
             <div className="saved-content">
               <h3>{anime.title}</h3>
               <p>{anime.genres?.slice(0, 3).join(" · ")}</p>
+              <p>
+                {releaseLabel(anime)} · {runtimeLabel(anime)}
+              </p>
+              <small>
+                {addedAt
+                  ? `Added ${new Date(addedAt).toLocaleDateString()}`
+                  : "Date added unknown"}
+              </small>
               <a
                 href={`https://myanimelist.net/anime/${anime.id}`}
                 target="_blank"
@@ -91,7 +239,11 @@ export function Watchlist({ state, store, onDiscover }) {
       {!items.length && (
         <div className="empty">
           <Icon name="bookmark" />
-          <h2>Room for your next favorite</h2>
+          <h2>
+            {source.length
+              ? "No saved anime match these filters"
+              : "Room for your next favorite"}
+          </h2>
           <p>
             {tab === "mal"
               ? "Your imported MAL Plan to Watch list is empty."

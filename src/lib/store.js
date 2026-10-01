@@ -29,6 +29,7 @@ export function createAnimeStore({
     reason: "",
     busy: true,
     ready: false,
+    recommendationPicks: [],
     recommendationPool: [],
     recommendationsReady: false,
     recommendationError: "",
@@ -212,7 +213,11 @@ export function createAnimeStore({
   async function react(action, target = null) {
     const anime = target || state.current;
     if (state.busy || !anime || !REACTIONS.includes(action)) return;
-    if (target && !state.recommendationPool.some((a) => a.id === target.id))
+    if (
+      target &&
+      (state.reactions[target.id] ||
+        !state.recommendationPool.some((a) => a.id === target.id))
+    )
       return;
     // This also guards keyboard commands and direct store calls.
     if (["good", "bad"].includes(action) && isUnreleased(anime)) {
@@ -326,6 +331,7 @@ export function createAnimeStore({
       profile: null,
       list: [],
       current: null,
+      recommendationPicks: [],
       recommendationPool: [],
       recommendationsReady: false,
       recommendationError: "",
@@ -392,7 +398,11 @@ export function createAnimeStore({
     try {
       const taste = buildRecommendationTaste();
       if (!taste) {
-        update({ recommendationPool: [], recommendationsReady: true });
+        update({
+          recommendationPicks: [],
+          recommendationPool: [],
+          recommendationsReady: true,
+        });
         return;
       }
       if (!state.preview)
@@ -421,12 +431,14 @@ export function createAnimeStore({
         }
         // Reveal verified candidates progressively while the remaining details load.
         update({
+          recommendationPicks: rankRecommendations(verified, state),
           recommendationPool: [...verified],
           recommendationsReady: true,
         });
         if (rankRecommendations(verified, state).length >= 25) break;
       }
       update({
+        recommendationPicks: rankRecommendations(verified, state),
         recommendationPool: verified,
         recommendationsReady: true,
         recommendationError: failures
