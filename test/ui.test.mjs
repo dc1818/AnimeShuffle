@@ -39,6 +39,7 @@ for (const staticMode of [false, true])
     ])
       globalThis[name] = dom.window[name];
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    if (staticMode) document.documentElement.dataset.hosting = "pages";
     dom.window.HTMLDialogElement.prototype.showModal = function () {
       this.setAttribute("open", "");
     };
@@ -109,6 +110,12 @@ for (const staticMode of [false, true])
         document.getElementById("anime-title").textContent,
         "Cowboy Bebop",
       );
+      if (staticMode)
+        assert.ok(
+          document
+            .querySelector(".poster")
+            .src.startsWith("https://cdn.myanimelist.net/"),
+        );
       await click("More about this anime");
       assert.ok(document.getElementById("details-card"));
       await click("Hide details");

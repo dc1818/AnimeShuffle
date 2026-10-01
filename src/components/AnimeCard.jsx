@@ -2,8 +2,13 @@ import { runtimeLabel } from "../lib/preferences.js";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 
-export const coverUrl = (anime) =>
-  anime.image ? "/api/image?url=" + encodeURIComponent(anime.image) : undefined;
+// Pages cannot proxy images; its sample covers load directly from MAL.
+export const coverUrl = (anime) => {
+  if (!anime.image) return undefined;
+  return document.documentElement.dataset.hosting === "pages"
+    ? anime.image
+    : "/api/image?url=" + encodeURIComponent(anime.image);
+};
 const actions = [
   ["good", "Good", "thumbUp", "Seen it and liked it"],
   ["bad", "Bad", "thumbDown", "Seen it and disliked it"],
