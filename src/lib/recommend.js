@@ -163,7 +163,7 @@ export function chooseNext(
  */
 export function rankRecommendations(
   pool,
-  { reactions = {}, list = [], preferences, limit = 7 } = {},
+  { reactions = {}, list = [], preferences, limit = 25 } = {},
 ) {
   const exclusions = Object.fromEntries(
     Object.entries(reactions).filter(([, r]) => r.action !== "watch"),

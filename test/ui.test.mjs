@@ -126,15 +126,27 @@ for (const staticMode of [false, true])
       await click("Recommendations");
       // MAL-free demo must rank the saved pick plus six other sample titles.
       await act(async () => {});
-      assert.equal(document.querySelectorAll(".ranked-card").length, 7);
-      assert.match(
-        document.querySelector(".tier-badge").textContent,
-        /Gold · Tier 1/,
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 7);
+      assert.equal(
+        document
+          .querySelector(".leaderboard-number")
+          .getAttribute("aria-label"),
+        "Gold, Tier 1",
       );
       assert.equal(document.querySelectorAll(".medal-1").length, 1);
+      const toggles = [...document.querySelectorAll(".leaderboard-toggle")];
+      assert.equal(toggles[0].getAttribute("aria-expanded"), "true");
+      await act(async () => toggles[1].click());
+      assert.equal(toggles[0].getAttribute("aria-expanded"), "false");
+      assert.equal(toggles[1].getAttribute("aria-expanded"), "true");
+      assert.equal(document.querySelectorAll(".ranked-card").length, 1);
+      await act(async () => toggles[1].click());
+      assert.equal(document.querySelectorAll(".ranked-card").length, 0);
+      await act(async () => toggles[0].click());
+
       assert.equal(
         document.querySelectorAll(".ranked-card .reaction").length,
-        28,
+        4,
       );
       await act(async () =>
         document.querySelector(".ranked-card .details-toggle").click(),
@@ -150,9 +162,9 @@ for (const staticMode of [false, true])
         document.querySelector(".ranked-card .reaction.nope").click(),
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "nope");
-      assert.equal(document.querySelectorAll(".ranked-card").length, 6);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
       await click("Undo last reaction");
-      assert.equal(document.querySelectorAll(".ranked-card").length, 7);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 7);
 
       await act(async () =>
         [...document.querySelectorAll("nav button")][1].click(),

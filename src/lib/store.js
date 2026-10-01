@@ -406,7 +406,7 @@ export function createAnimeStore({
         if (r.action === "watch") candidates.set(r.anime.id, r.anime);
       const ranked = rankRecommendations([...candidates.values()], {
         ...state,
-        limit: 28,
+        limit: 75,
       });
       const verified = [];
       let failures = 0;
@@ -419,7 +419,12 @@ export function createAnimeStore({
         } catch {
           failures++;
         }
-        if (rankRecommendations(verified, state).length >= 7) break;
+        // Reveal verified candidates progressively while the remaining details load.
+        update({
+          recommendationPool: [...verified],
+          recommendationsReady: true,
+        });
+        if (rankRecommendations(verified, state).length >= 25) break;
       }
       update({
         recommendationPool: verified,

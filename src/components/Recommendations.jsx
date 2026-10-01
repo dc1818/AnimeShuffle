@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
 import { buildTaste, rankRecommendations } from "../lib/recommend.js";
 
-/** Seven positions in a single scrollable row; reactions use the same commands as Discover. */
+/** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover }) {
   const requested = useRef(false);
-  const [opened, setOpened] = useState(null);
+  const [opened, setOpened] = useState(undefined);
+  const [about, setAbout] = useState(null);
   useEffect(() => {
     if (
       !requested.current &&
@@ -22,7 +24,8 @@ export function Recommendations({ state, store, onDiscover }) {
   const picks = hasTaste
     ? rankRecommendations(state.recommendationPool, state)
     : [];
-  const detail = picks.find((p) => p.anime.id === opened);
+  // Open the first pick initially; null means the user explicitly collapsed it.
+  const openedId = opened === undefined ? picks[0]?.anime.id : opened;
   return (
     <section
       className="recommendations-page"
@@ -31,10 +34,10 @@ export function Recommendations({ state, store, onDiscover }) {
       <div className="recommendations-heading">
         <div>
           <span className="eyebrow">Based on your taste</span>
-          <h1 id="recommendations-title">Your top seven</h1>
+          <h1 id="recommendations-title">Your top 25</h1>
           <p>
-            Strongest match first. Tier 1 is your best match among these picks,
-            not an overall anime rating.
+            Ranked for your taste. Click a row to explore. Tier 1 is your
+            strongest match.
           </p>
           <p>
             Learned from your reactions and, when connected, your MAL list.
@@ -46,7 +49,8 @@ export function Recommendations({ state, store, onDiscover }) {
             className="outline"
             disabled={state.busy || !hasTaste}
             onClick={() => {
-              setOpened(null);
+              setOpened(undefined);
+              setAbout(null);
               store.loadRecommendations();
             }}
           >
@@ -83,25 +87,81 @@ export function Recommendations({ state, store, onDiscover }) {
             <p role="alert">{state.recommendationError}</p>
           )}
           <div
-            className="recommendations-row"
-            aria-label="Anime ranked from tier 1 to tier 7"
-            tabIndex={0}
+            className="recommendations-stack"
+            aria-label="Anime leaderboard: tiers 1 to 25"
           >
-            {picks.map((pick) => (
-              <AnimeCard
-                key={pick.anime.id}
-                {...pick}
-                compact
-                busy={state.busy}
-                detailsOpen={opened === pick.anime.id}
-                onDetails={() =>
-                  setOpened(opened === pick.anime.id ? null : pick.anime.id)
-                }
-                onReact={(action) => store.react(action, pick.anime)}
-              />
-            ))}
+            {picks.map((pick) => {
+              const expanded = openedId === pick.anime.id;
+              const panelId = `recommendation-panel-${pick.anime.id}`;
+              const headingId = `recommendation-heading-${pick.anime.id}`;
+              const medal = ["Gold", "Silver", "Bronze"][pick.tier - 1];
+              return (
+                <div
+                  key={pick.anime.id}
+                  className={`leaderboard-row ${medal ? `medal-${pick.tier}` : ""}`}
+                >
+                  <h2 className="leaderboard-heading">
+                    <button
+                      id={headingId}
+                      className="leaderboard-toggle"
+                      aria-expanded={expanded}
+                      aria-controls={panelId}
+                      onClick={() => {
+                        setOpened(expanded ? null : pick.anime.id);
+                        setAbout(null);
+                      }}
+                    >
+                      <span
+                        className="leaderboard-number"
+                        aria-label={`${medal ? medal + ", " : ""}Tier ${pick.tier}`}
+                      >
+                        {pick.tier}
+                      </span>
+                      <span className="leaderboard-title">
+                        {pick.anime.title}
+                      </span>
+                      <Icon name="chevron" />
+                    </button>
+                  </h2>
+                  <div
+                    id={panelId}
+                    hidden={!expanded}
+                    role="region"
+                    aria-labelledby={headingId}
+                  >
+                    {expanded && (
+                      <>
+                        <AnimeCard
+                          anime={pick.anime}
+                          reason={pick.reason}
+                          saved={pick.saved}
+                          compact
+                          busy={state.busy}
+                          detailsOpen={about === pick.anime.id}
+                          onDetails={() =>
+                            setAbout(
+                              about === pick.anime.id ? null : pick.anime.id,
+                            )
+                          }
+                          onReact={(action) => store.react(action, pick.anime)}
+                        />
+                        {about === pick.anime.id && (
+                          <div className="recommendation-details">
+                            <AnimeDetails
+                              anime={pick.anime}
+                              reason={pick.reason}
+                              onClose={() => setAbout(null)}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          {!state.busy && state.recommendationsReady && picks.length < 7 && (
+          {!state.busy && state.recommendationsReady && picks.length < 25 && (
             <p className="shortlist-note">
               {picks.length} eligible {picks.length === 1 ? "match" : "matches"}{" "}
               available.{" "}
@@ -110,15 +170,6 @@ export function Recommendations({ state, store, onDiscover }) {
                 : "Refresh picks to check more candidates, or broaden your viewing preferences."}{" "}
               Seen and rejected shows are excluded.
             </p>
-          )}
-          {detail && (
-            <div className="recommendation-details">
-              <AnimeDetails
-                anime={detail.anime}
-                reason={detail.reason}
-                onClose={() => setOpened(null)}
-              />
-            </div>
           )}
         </>
       )}

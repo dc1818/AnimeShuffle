@@ -13,8 +13,8 @@ const anime = (id, genres = ["Action"]) => ({
   status: "finished_airing",
   episodes: 12,
 });
-test("shortlist numbers seven unique matches, includes planned titles, excludes seen and rejected", () => {
-  const pool = Array.from({ length: 12 }, (_, i) => anime(i + 1));
+test("shortlist numbers 25 unique matches, includes planned titles, excludes seen and rejected", () => {
+  const pool = Array.from({ length: 30 }, (_, i) => anime(i + 1));
   const reactions = {
     1: { action: "good", anime: pool[0] },
     2: { action: "nope", anime: pool[1] },
@@ -27,9 +27,9 @@ test("shortlist numbers seven unique matches, includes planned titles, excludes 
   const picks = rankRecommendations([...pool, pool[5]], { reactions, list });
   assert.deepEqual(
     picks.map((p) => p.tier),
-    [1, 2, 3, 4, 5, 6, 7],
+    Array.from({ length: 25 }, (_, i) => i + 1),
   );
-  assert.equal(new Set(picks.map((p) => p.anime.id)).size, 7);
+  assert.equal(new Set(picks.map((p) => p.anime.id)).size, 25);
   assert.ok(picks.some((p) => p.anime.id === 3));
   assert.ok(picks.some((p) => p.anime.id === 5));
   assert.ok(picks.every((p) => ![1, 2, 4].includes(p.anime.id)));

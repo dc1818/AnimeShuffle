@@ -76,7 +76,7 @@ export function AnimeCard({
   return (
     <article
       className={`anime-card ${compact ? "ranked-card" : ""} ${tier <= 3 ? "medal-" + tier : ""}`}
-      aria-label={compact ? `Tier ${tier}: ${anime.title}` : "Current anime"}
+      aria-label={compact ? anime.title : "Current anime"}
       aria-busy={busy}
     >
       {tier && (

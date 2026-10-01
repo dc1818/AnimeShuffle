@@ -1431,18 +1431,19 @@ code {
   }
 }
 
-/* The shortlist is one horizontal row at every size; small screens scroll it. */
+/* Stacked accordion leaderboard. Only the expanded row mounts the full anime card. */
 main.wide-main {
-  max-width: 2000px;
+  max-width: 1600px;
   width: 100%;
-  padding: 30px 20px;
+  margin: 0 auto;
+  padding: 30px 24px;
 }
 .recommendations-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .recommendations-heading h1 {
   font-size: clamp(26px, 3vw, 40px);
@@ -1457,68 +1458,109 @@ main.wide-main {
   flex-wrap: wrap;
   gap: 12px;
 }
-.recommendations-row {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(225px, 1fr));
-  gap: 14px;
-  overflow-x: auto;
-  align-items: start;
-  padding: 5px 3px 20px;
-  scroll-snap-type: x proximity;
+.recommendations-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
-.recommendations-row:focus-visible {
-  outline: 2px solid #80d9e2;
-  outline-offset: 4px;
+.leaderboard-row {
+  --rank-color: #b8cbd9;
+  border: 1px solid #3e5463;
+  border-radius: 9px;
+  background: linear-gradient(110deg, #10212bcc, #0b1720e8);
+  overflow: hidden;
 }
-.recommendations-row .ranked-card {
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-  scroll-snap-align: start;
-  position: relative;
-  border: 1px solid #48545e;
+.leaderboard-row.medal-1 {
+  --rank-color: #ffe18a;
+  border: 2px solid #e4bf51;
 }
-.tier-badge {
-  padding: 12px 14px;
-  font-weight: 800;
-  color: #d3dde4;
-  background: #202c35;
-}
-.ranked-card.medal-1 {
-  border: 2px solid #e9c45b;
-}
-.ranked-card.medal-2 {
+.leaderboard-row.medal-2 {
+  --rank-color: #e0e9f3;
   border: 2px solid #b7c7d8;
 }
-.ranked-card.medal-3 {
-  border: 2px solid #cf946a;
+.leaderboard-row.medal-3 {
+  --rank-color: #edb181;
+  border: 2px solid #c68e61;
 }
-.medal-1 .tier-badge {
-  background: #44381a;
-  color: #ffe08b;
+.leaderboard-heading {
+  margin: 0;
+  font: inherit;
 }
-.medal-2 .tier-badge {
-  background: #303b49;
-  color: #e0eaf6;
+.leaderboard-toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px 0 0;
+  gap: 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--rank-color);
+  text-align: left;
+  cursor: pointer;
 }
-.medal-3 .tier-badge {
-  background: #453024;
-  color: #f4bb90;
+.leaderboard-toggle:hover {
+  background: #ffffff08;
 }
-.recommendations-row .poster-stage {
-  height: 260px;
+.leaderboard-toggle:focus-visible {
+  outline: 2px solid #80d9e2;
+  outline-offset: -4px;
 }
-.recommendations-row .card-content {
-  padding: 14px;
+.leaderboard-number {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  width: 64px;
+  flex-shrink: 0;
+  background: #ffffff07;
+  font-size: 19px;
+  font-weight: 800;
+}
+.leaderboard-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.leaderboard-toggle > svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  transform: rotate(90deg);
+}
+.leaderboard-toggle[aria-expanded="true"] > svg {
+  transform: rotate(-90deg);
+}
+.leaderboard-row .ranked-card {
+  display: grid;
+  grid-template-columns: minmax(240px, 38%) minmax(0, 1fr);
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-top: 1px solid #ffffff18;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 12px;
+  gap: 18px;
+}
+.leaderboard-row .poster-stage {
+  height: 100%;
+  min-height: 320px;
+  border-radius: 8px;
+}
+.leaderboard-row .card-content {
+  padding: 8px 12px 12px 0;
 }
 .ranked-card h2 {
-  font-size: 19px;
+  font-size: 24px;
   line-height: 1.3;
   margin: 0 0 8px;
-  min-height: 50px;
 }
 .ranked-card .genres {
-  gap: 4px;
+  gap: 6px;
 }
 .ranked-card .synopsis {
   display: -webkit-box;
@@ -1528,26 +1570,23 @@ main.wide-main {
 }
 .ranked-card .reactions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 .ranked-card .reaction {
   min-width: 0;
-  padding: 10px 4px;
-  font-size: 12px;
-  min-height: 62px;
-}
-.ranked-card .reaction-labels {
-  display: none;
+  padding: 10px 5px;
+  font-size: 13px;
+  min-height: 58px;
 }
 .ranked-card .details-toggle {
-  font-size: 12px;
-  gap: 4px;
+  font-size: 13px;
 }
 .match-reason {
-  font-size: 12px;
+  font-size: 13px;
   color: #b9d8d9;
-  min-height: 48px;
+  padding: 10px 0;
+  border-bottom: 1px solid #ffffff18;
 }
 .release-status {
   font-size: 12px;
@@ -1564,8 +1603,7 @@ main.wide-main {
   cursor: not-allowed;
 }
 .recommendation-details {
-  margin: 20px auto;
-  max-width: 720px;
+  margin: 0 12px 12px;
 }
 .recommendation-details .details-card {
   width: 100%;
@@ -1580,5 +1618,39 @@ main.wide-main {
   .topbar nav {
     overflow-x: auto;
     max-width: 100%;
+  }
+  .leaderboard-row .ranked-card {
+    grid-template-columns: minmax(180px, 35%) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .ranked-card .reactions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ranked-card .reaction-labels {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  main.wide-main {
+    padding: 22px 12px;
+  }
+  .leaderboard-toggle {
+    gap: 10px;
+  }
+  .leaderboard-number {
+    width: 44px;
+  }
+  .leaderboard-title {
+    font-size: 14px;
+  }
+  .leaderboard-row .ranked-card {
+    grid-template-columns: 1fr;
+  }
+  .leaderboard-row .poster-stage {
+    height: 260px;
+    min-height: 0;
+  }
+  .leaderboard-row .card-content {
+    padding: 8px;
   }
 }

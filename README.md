@@ -131,7 +131,7 @@ Shortcuts are inactive while a dialog is open or a control has focus.
 
 ## Recommendations
 
-The third tab shows up to seven tailored picks in one horizontal row. Every card has a numbered tier: gold 1, silver 2, bronze 3, then plain 4–7. These are relative match positions, not probabilities or global anime ratings. The shortlist includes saved and MAL Plan to Watch titles alongside discoveries, excludes seen/rejected titles, and learns from unrated Watching and Plan to Watch entries. React on any card using the same four actions as Discover; use Refresh picks to replenish the shortlist. Narrow filters or the seven-title demo can produce fewer than seven matches.
+The third tab shows up to 25 tailored picks in a vertical leaderboard. Every card has a numbered tier: gold 1, silver 2, bronze 3, then plain 4–25. These are relative match positions, not probabilities or global anime ratings. The shortlist includes saved and MAL Plan to Watch titles alongside discoveries, excludes seen/rejected titles, and learns from unrated Watching and Plan to Watch entries. Click a numbered row to expand its full card in place. Only one row opens at a time. React on the expanded card using the same four actions as Discover; use Refresh picks to replenish the shortlist. Narrow filters or the seven-title demo can produce fewer than 25 matches.
 
 Cards show MAL release status. Good and Bad are disabled for Not yet aired titles, including keyboard actions. Unknown release statuses are labeled explicitly.
 
