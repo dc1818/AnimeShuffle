@@ -485,6 +485,25 @@ const server = http.createServer(async (req, res) => {
     });
     res.end(await readFile(local));
   } catch (e) {
+    if (!e.status || e.status >= 500) {
+      // Log diagnostics, never request bodies, cookies, OAuth queries, or raw error messages.
+      console.error(
+        "[request-error]",
+        JSON.stringify({
+          method: req.method,
+          route: new URL(req.url, origin).pathname.slice(0, 160),
+          code: e.status ? e.code : "server_error",
+          errorType:
+            e instanceof TypeError
+              ? "TypeError"
+              : e instanceof SyntaxError
+                ? "SyntaxError"
+                : "Error",
+          operation: e.operation,
+          storageCode: e.storageCode,
+        }),
+      );
+    }
     if (!res.headersSent)
       json(res, e.status || 500, {
         error: e.status ? e.message : "Something went wrong. Please try again.",

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createAccountStore, createLoginLimiter } from "../lib/accounts.mjs";
@@ -45,4 +45,26 @@ test("login limiter counts attempts independently of browser sessions", () => {
   check();
   check();
   assert.throws(check, (error) => error.status === 429);
+});
+
+test("storage failures are actionable and malformed account data is never overwritten", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "anime-storage-test-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "accounts.json");
+  await writeFile(file, "malformed database");
+  const store = createAccountStore(directory);
+  await assert.rejects(
+    store.savePreferences("mal:7", {}),
+    (e) =>
+      e.status === 503 &&
+      e.code === "account_storage_unavailable" &&
+      e.storageCode === "INVALID_DATABASE",
+  );
+  assert.equal(await readFile(file, "utf8"), "malformed database");
+  // A file where a directory is expected reliably reproduces a storage fault on all platforms.
+  const invalid = createAccountStore(file);
+  await assert.rejects(
+    invalid.savePreferences("mal:7", {}),
+    (e) => e.status === 503 && e.code === "account_storage_unavailable",
+  );
 });
