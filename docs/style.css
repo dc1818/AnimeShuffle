@@ -1834,3 +1834,67 @@ main.wide-main {
   color: #fff3da;
   text-align: center;
 }
+
+/* The spinner occupies the feed only while work is pending; no placeholder cards. */
+.loading-state {
+  min-height: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+}
+.loading-ring {
+  width: 150px;
+  height: 150px;
+  position: relative;
+  margin-bottom: 24px;
+}
+.loading-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.loading-track,
+.loading-arc {
+  fill: none;
+  stroke-width: 4;
+}
+.loading-track {
+  stroke: #ffffff14;
+}
+.loading-arc {
+  stroke: #79dbe6;
+  stroke-linecap: round;
+  stroke-dasharray: 95 220;
+  transform-origin: 60px 60px;
+  animation: loading-orbit 1.4s linear infinite;
+}
+.loading-ring strong {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #d8e8f0;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+.loading-state h2 {
+  font-size: 21px;
+  margin: 0 0 10px;
+}
+.loading-state p {
+  color: #a9b7c4;
+  margin: 0;
+}
+@keyframes loading-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-arc {
+    animation: none;
+  }
+}

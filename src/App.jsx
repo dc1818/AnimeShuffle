@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
+import { LoadingIndicator } from "./components/LoadingIndicator.jsx";
 import { Recommendations } from "./components/Recommendations.jsx";
 import { Watchlist } from "./components/Watchlist.jsx";
 import { combinedWatchlist } from "./lib/watchlist.js";
@@ -257,7 +258,17 @@ export function App({ store }) {
                 {Object.keys(state.reactions).length} reactions
               </span>
             </div>
-            {state.current ? (
+            {!state.ready || state.discoveryLoading ? (
+              <LoadingIndicator
+                progress={state.discoveryProgress}
+                label="Loading your discovery queue…"
+                detail={
+                  state.discoveryProgress === null
+                    ? "Finding anime for you to explore"
+                    : "Verifying anime details · loading steps completed"
+                }
+              />
+            ) : state.current ? (
               <div className={`cards-layout ${details ? "expanded" : ""}`}>
                 <AnimeCard
                   key={state.current.id}

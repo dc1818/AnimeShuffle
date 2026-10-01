@@ -35,6 +35,10 @@ export function createAnimeStore({
     reason: "",
     busy: true,
     ready: false,
+    discoveryLoading: false,
+    discoveryProgress: null,
+    recommendationsLoading: false,
+    recommendationProgress: null,
     recommendationPicks: [],
     recommendationPool: [],
     recommendationsReady: false,
@@ -162,7 +166,12 @@ export function createAnimeStore({
   }
   /** Fetch details before displaying a candidate so prerequisite filtering is accurate. */
   async function next() {
-    update({ busy: true, error: "" });
+    update({
+      busy: true,
+      error: "",
+      discoveryLoading: true,
+      discoveryProgress: null,
+    });
     try {
       let pagesLoaded = 0;
       for (let attempt = 0; attempt < 40; attempt++) {
@@ -181,6 +190,8 @@ export function createAnimeStore({
           update({ current: null });
           return;
         }
+        // The candidate is selected; verifying its details is the remaining step.
+        update({ discoveryProgress: 50 });
         let anime = pick.anime;
         if (!state.preview) {
           anime =
@@ -198,6 +209,7 @@ export function createAnimeStore({
             )
           ) {
             skipped.add(anime.id);
+            update({ discoveryProgress: null });
             continue;
           }
         }
@@ -217,7 +229,12 @@ export function createAnimeStore({
       // Never keep a reacted card visible as if it were a new recommendation.
       update({ current: null, error: error.message });
     } finally {
-      update({ busy: false, canUndo: history.length > 0 });
+      update({
+        busy: false,
+        canUndo: history.length > 0,
+        discoveryLoading: false,
+        discoveryProgress: null,
+      });
     }
   }
   function recordHistory(entry) {
@@ -487,7 +504,12 @@ export function createAnimeStore({
   /** Fetch verified details for a bounded shortlist, never render unverified MAL list stubs. */
   async function loadRecommendations() {
     if (state.busy || !state.onboardingComplete) return;
-    update({ busy: true, recommendationError: "" });
+    update({
+      busy: true,
+      recommendationError: "",
+      recommendationsLoading: true,
+      recommendationProgress: null,
+    });
     try {
       const taste = buildRecommendationTaste();
       if (!taste) {
@@ -513,6 +535,8 @@ export function createAnimeStore({
       });
       const verified = [];
       let failures = 0;
+      let checked = 0;
+      update({ recommendationProgress: 0 });
       for (const { anime } of ranked) {
         try {
           const full = state.preview
@@ -522,11 +546,10 @@ export function createAnimeStore({
         } catch {
           failures++;
         }
-        // Reveal verified candidates progressively while the remaining details load.
+        // Count settled detail checks, including failures. Publish the batch only at the end.
+        checked++;
         update({
-          recommendationPicks: rankRecommendations(verified, state),
-          recommendationPool: [...verified],
-          recommendationsReady: true,
+          recommendationProgress: Math.floor((checked / ranked.length) * 100),
         });
         if (rankRecommendations(verified, state).length >= 25) break;
       }
@@ -544,7 +567,11 @@ export function createAnimeStore({
         recommendationsReady: true,
       });
     } finally {
-      update({ busy: false });
+      update({
+        busy: false,
+        recommendationsLoading: false,
+        recommendationProgress: null,
+      });
     }
   }
   function buildRecommendationTaste() {

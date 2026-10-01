@@ -269,3 +269,23 @@ for (const setup of ["settings", "onboarding"])
       "new imports follow explicit auto-add consent",
     );
   });
+
+test("loading reports completed work and publishes recommendations as a complete batch", async () => {
+  const snapshots = [];
+  const store = createAnimeStore({ storage: memory(), staticMode: true });
+  store.subscribe(() => snapshots.push(store.getSnapshot()));
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  assert.ok(snapshots.some(s => s.discoveryLoading && s.discoveryProgress === 50));
+  assert.equal(store.getSnapshot().discoveryLoading, false);
+  snapshots.length = 0;
+  await store.loadRecommendations();
+  const loading = snapshots.filter(s => s.recommendationsLoading);
+  assert.ok(loading.length > 0);
+  // No partial leaderboard may escape before all verification work settles.
+  const partial = loading.filter(s => !s.recommendationsReady);
+  assert.ok(partial.every(s => s.recommendationPicks.length === 0));
+  assert.ok(loading.some(s => Number.isFinite(s.recommendationProgress)));
+  assert.equal(store.getSnapshot().recommendationsLoading, false);
+  assert.equal(store.getSnapshot().recommendationsReady, true);
+});

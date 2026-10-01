@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { LoadingIndicator } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
 import { buildTaste } from "../lib/recommend.js";
@@ -70,7 +71,20 @@ export function Recommendations({ state, store, onDiscover }) {
           </button>
         </div>
       </div>
-      {!hasTaste ? (
+      {state.recommendationsLoading ||
+      (!state.recommendationsReady &&
+        hasTaste &&
+        !state.recommendationError) ? (
+        <LoadingIndicator
+          progress={state.recommendationProgress}
+          label="Calculating your recommendations…"
+          detail={
+            state.recommendationProgress === null
+              ? "Gathering anime for your shortlist"
+              : "Candidate checks completed · your picks appear when ready"
+          }
+        />
+      ) : !hasTaste ? (
         <div className="empty">
           <h2>Let’s learn what you enjoy first</h2>
           <p>
@@ -83,11 +97,6 @@ export function Recommendations({ state, store, onDiscover }) {
         </div>
       ) : (
         <>
-          {state.busy && (
-            <p role="status">
-              Checking anime details and calculating your matches…
-            </p>
-          )}
           {state.recommendationError && (
             <p role="alert">{state.recommendationError}</p>
           )}
