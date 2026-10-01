@@ -4,7 +4,15 @@ An anime discovery app for finding something to watch and building your MyAnimeL
 
 Browse one anime at a time, react to it, and get suggestions based on your interests. Connect MyAnimeList to use your existing list, or start as a guest. You don't need to rate shows for recommendations to work.
 
-Built with React, CSS, and Node.js. Currently runs locally.
+Built with React, CSS, and Node.js. The full app runs locally; a guest demo can run on GitHub Pages.
+
+## GitHub Pages demo
+
+Once Pages is enabled, open [Anime Shuffle](https://dc1818.github.io/AnimeShuffle/). The demo includes seven sample anime, viewing preferences, all four reactions, details, Undo, and a browser-saved watchlist. Account creation, MAL sign-in, and live catalog access need the Node server and are unavailable on Pages.
+
+To publish: open **Settings → Pages**, choose **Deploy from a branch**, select **main** and **/docs**, then save. GitHub publishes the checked-in `docs/` build.
+
+After changing the interface, run `npm ci && npm run build && npm run build:pages`, then commit the source and both build folders. No API credentials belong in the Pages build.
 
 ## Features
 

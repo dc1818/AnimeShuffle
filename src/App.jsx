@@ -86,8 +86,8 @@ export function App({ store }) {
         <i />
       </div>
       <header className="topbar">
-        <a className="brand" href="/" aria-label="Anime Shuffle home">
-          <img src="/assets/logo.png" alt="" width="92" height="62" />
+        <a className="brand" href="./" aria-label="Anime Shuffle home">
+          <img src="./assets/logo.png" alt="" width="92" height="62" />
           <span>
             Anime <b>Shuffle</b>
           </span>
@@ -118,7 +118,10 @@ export function App({ store }) {
             }
           >
             <Icon name="link" />
-            <span>{state.session.account?.name || "Sign in"}</span>
+            <span>
+              {state.session.account?.name ||
+                (state.session.staticMode ? "About demo" : "Sign in")}
+            </span>
           </button>
           <button
             className="icon-button"
@@ -132,10 +135,13 @@ export function App({ store }) {
       {state.ready && state.preview && (
         <div className="notice">
           <span>
-            Preview mode: try seven sample anime. Set up MAL to unlock live
-            discovery.
+            {state.session.staticMode
+              ? "GitHub Pages demo · Seven sample anime · Saved in this browser"
+              : "Preview mode: try seven sample anime. Set up MAL to unlock live discovery."}
           </span>
-          <button onClick={() => setDialog("settings")}>Set up MAL</button>
+          <button onClick={() => setDialog("settings")}>
+            {state.session.staticMode ? "About this demo" : "Set up MAL"}
+          </button>
         </div>
       )}
       <main>
@@ -193,7 +199,7 @@ export function App({ store }) {
                 <p>
                   {state.error ||
                     (state.preview
-                      ? "No preview titles match your current choices, or you’ve seen them all. Change your preferences or set up live discovery."
+                      ? "No sample titles match your choices, or you’ve seen them all. Change preferences, undo a reaction, or clear reactions in Privacy to start again."
                       : "No fresh matches in the loaded pages. Try more anime, adjust your preferences, or revisit skipped titles.")}
                 </p>
                 <button
@@ -203,7 +209,7 @@ export function App({ store }) {
                     state.preview ? setDialog("settings") : store.retry()
                   }
                 >
-                  {state.preview ? "Set up live discovery" : "Find more anime"}
+                  {state.preview ? "Discovery settings" : "Find more anime"}
                 </button>
                 <button
                   className="quiet"

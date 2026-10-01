@@ -11,6 +11,7 @@ import { chooseNext, isEligible, REACTIONS } from "./recommend.js";
 export function createAnimeStore({
   request = fetch,
   storage = localStorage,
+  staticMode = false,
 } = {}) {
   let state = {
     session: {},
@@ -47,6 +48,9 @@ export function createAnimeStore({
   }
   const notify = (message) => update({ message });
   async function api(url, data) {
+    // Pages has no backend. Never send account credentials or API calls there.
+    if (staticMode)
+      throw new Error("Accounts and MyAnimeList require the server version.");
     const response = await request(url, {
       method: data === undefined ? "GET" : "POST",
       headers:
@@ -343,7 +347,16 @@ export function createAnimeStore({
     if (initialization) return initialization;
     initialization = (async () => {
       try {
-        await adoptSession(await api("/api/session"));
+        await adoptSession(
+          staticMode
+            ? {
+                configured: false,
+                connected: false,
+                oauthConfigured: false,
+                staticMode: true,
+              }
+            : await api("/api/session"),
+        );
       } catch (error) {
         update({ error: error.message, busy: false });
       } finally {

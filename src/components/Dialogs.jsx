@@ -40,6 +40,40 @@ function Dialog({
 }
 export function Dialogs({ kind, state, store, onClose, onNavigate }) {
   if (!kind) return null;
+  if (
+    state.session.staticMode &&
+    ["welcome", "login", "register"].includes(kind)
+  )
+    return (
+      <Dialog onClose={onClose} welcome>
+        <img
+          className="welcome-logo"
+          src="./assets/logo.png"
+          alt="Anime Shuffle cards"
+        />
+        <span className="eyebrow">A little shuffle. A new favorite.</span>
+        <h2>Find your next anime.</h2>
+        <p>
+          Try seven sample anime, react to each pick, and build a watchlist
+          saved in this browser.
+        </p>
+        <p>
+          This GitHub Pages demo does not support accounts or MyAnimeList
+          sign-in. The server version includes both.
+        </p>
+        <button className="primary" onClick={onClose}>
+          Start shuffling
+        </button>
+        <a
+          className="quiet"
+          href="https://github.com/dc1818/AnimeShuffle#Getting-started"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Get the full local app
+        </a>
+      </Dialog>
+    );
   if (["login", "register"].includes(kind))
     return (
       <Dialog busy={state.busy} onClose={() => onNavigate("welcome")}>
@@ -66,7 +100,7 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
       <Dialog onClose={onClose} welcome>
         <img
           className="welcome-logo"
-          src="/assets/logo.png"
+          src="./assets/logo.png"
           alt="Anime Shuffle cards"
         />
         <span className="eyebrow">A little shuffle. A new favorite.</span>
@@ -165,7 +199,7 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
       >
         Viewing preferences
       </button>
-      {!state.session.account && (
+      {!state.session.account && !state.session.staticMode && (
         <button className="quiet" onClick={() => onNavigate("welcome")}>
           Sign in or create an account
         </button>
@@ -173,9 +207,11 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
       <p>
         {state.profile
           ? `Connected as ${state.profile.name}`
-          : state.session.oauthConfigured
-            ? "MyAnimeList is ready to connect."
-            : "Live discovery needs your local MAL API credentials."}
+          : state.session.staticMode
+            ? "You’re using the GitHub Pages demo. Preferences and reactions stay in this browser. Accounts and MAL sync require the server version."
+            : state.session.oauthConfigured
+              ? "MyAnimeList is ready to connect."
+              : "Live discovery needs your local MAL API credentials."}
       </p>
       {!state.session.connected && state.session.oauthConfigured && (
         <a className="primary" href="/auth/start">
@@ -219,7 +255,7 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           <p>1–4 react · Space skips · U undoes · I opens details.</p>
         </div>
       </div>
-      {!state.session.oauthConfigured && (
+      {!state.session.oauthConfigured && !state.session.staticMode && (
         <div className="setup-help">
           <h3>Connect your local app</h3>
           <ol>

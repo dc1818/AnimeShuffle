@@ -5,7 +5,9 @@ import { createAnimeStore } from "./lib/store.js";
 
 // A single store survives component remounts. Secrets and OAuth tokens remain
 // in server.mjs; this entry point only calls our same-origin API routes.
-const store = createAnimeStore();
+const store = createAnimeStore({
+  staticMode: document.documentElement.dataset.hosting === "pages",
+});
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App store={store} />

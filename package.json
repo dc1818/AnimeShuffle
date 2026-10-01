@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server.mjs",
     "build": "node scripts/build.mjs",
+    "build:pages": "node scripts/build.mjs --pages",
     "test": "node --test test/*.test.mjs",
     "check": "node --check server.mjs && node --check src/lib/store.js && node --check src/lib/recommend.js",
     "format": "prettier --write src lib server.mjs scripts test public/index.html package.json"
