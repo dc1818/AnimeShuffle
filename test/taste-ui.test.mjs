@@ -252,6 +252,24 @@ test("watchlist labels MAL update time and requires a cancellable removal confir
       root.render(React.createElement(Watchlist, { state, store })),
     );
     assert.match(document.body.textContent, /Found on Anime Shuffle/);
+    assert.equal(
+      button("Import JSON").parentElement,
+      button("Export entire list").parentElement,
+    );
+    assert.ok(button("Import JSON").classList.contains("outline"));
+    assert.equal(document.querySelector(".watchlist-import"), null);
+    const fileInput = document.querySelector('input[type="file"]');
+    Object.defineProperty(fileInput, "files", {
+      configurable: true,
+      value: [{ name: "wrong.json", size: 2, text: async () => "{}" }],
+    });
+    await act(async () =>
+      fileInput.dispatchEvent(
+        new dom.window.Event("change", { bubbles: true }),
+      ),
+    );
+    assert.match(document.body.textContent, /Unsupported backup/);
+
     assert.match(document.body.textContent, /MAL last updated/);
     await act(async () => button("Remove").click());
     assert.equal(calls.length, 0);

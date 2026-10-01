@@ -143,7 +143,10 @@ export function parseWatchlistBackup(text) {
     file?.app !== "anime-shuffle" ||
     file.version !== 1 ||
     !Array.isArray(file.entries) ||
-    file.entries.length > 10000
+    file.entries.length > 10000 ||
+    (file.exportedAt !== undefined &&
+      (typeof file.exportedAt !== "string" ||
+        !Number.isFinite(Date.parse(file.exportedAt))))
   )
     throw new Error(
       "Unsupported backup. Use an Anime Shuffle version 1 JSON export (up to 10,000 titles).",
@@ -153,6 +156,10 @@ export function parseWatchlistBackup(text) {
     if (
       !Number.isSafeInteger(a?.id) ||
       a.id <= 0 ||
+      a.id > 10000000 ||
+      (a.genres !== undefined &&
+        (!Array.isArray(a.genres) ||
+          a.genres.some((g) => typeof g !== "string"))) ||
       typeof a.title !== "string" ||
       !a.title.trim()
     )

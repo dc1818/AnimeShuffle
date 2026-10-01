@@ -15,6 +15,7 @@ export function Recommendations({ state, store, onDiscover }) {
   useEffect(() => {
     if (
       !state.recommendationsReady &&
+      !state.recommendationPicks.length &&
       state.ready &&
       state.onboardingComplete &&
       !state.busy
@@ -27,6 +28,7 @@ export function Recommendations({ state, store, onDiscover }) {
     state.onboardingComplete,
     state.busy,
     state.recommendationsReady,
+    state.recommendationPicks.length,
     store,
   ]);
   const taste = useMemo(
@@ -72,7 +74,7 @@ export function Recommendations({ state, store, onDiscover }) {
             onClick={() => {
               setOpened(undefined);
               setAbout(null);
-              store.loadRecommendations();
+              store.loadRecommendations({ force: true });
             }}
           >
             Refresh picks
@@ -106,6 +108,7 @@ export function Recommendations({ state, store, onDiscover }) {
       )}
       {state.recommendationsLoading ||
       (!state.recommendationsReady &&
+        !picks.length &&
         hasTaste &&
         !state.recommendationError) ? (
         <LoadingIndicator

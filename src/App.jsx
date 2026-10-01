@@ -109,7 +109,7 @@ export function App({ store }) {
   useEffect(() => {
     const sync = () => {
       if (document.visibilityState !== "hidden") {
-        store.syncAccount?.();
+        store.syncAccount?.({ background: true });
         setFreshnessTick((tick) => tick + 1);
       }
     };

@@ -105,6 +105,22 @@ test("JSON backups round trip and reject invalid input without trusting image UR
       ),
     /invalid anime/,
   );
+  for (const invalid of [
+    { app: "other-app", version: 1, entries: [] },
+    { app: "anime-shuffle", version: 1, entries: "wrong type" },
+    { app: "anime-shuffle", version: 1, exportedAt: "invalid", entries: [] },
+    {
+      app: "anime-shuffle",
+      version: 1,
+      entries: [{ anime: { id: 10000001, title: "Bad" } }],
+    },
+    {
+      app: "anime-shuffle",
+      version: 1,
+      entries: [{ anime: { id: 1, title: "Bad", genres: "Action" } }],
+    },
+  ])
+    assert.throws(() => parseWatchlistBackup(JSON.stringify(invalid)));
   const unsafe = parseWatchlistBackup(
     watchlistBackup([{ anime: { ...a.anime, image: "javascript:alert(1)" } }]),
   );

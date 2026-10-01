@@ -1745,9 +1745,13 @@ main.wide-main {
 }
 .watchlist-actions {
   display: flex;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-end;
+}
+.watchlist-actions > .quiet {
+  margin: 0 auto 0 0;
 }
 .genre-choices {
   display: flex;

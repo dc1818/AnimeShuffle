@@ -86,6 +86,7 @@ export function createAnimeStore({
     sourceIndex = 0;
   let initialization;
   let lastMalCheck = -Infinity;
+  let lastAccountCheck = -Infinity;
   const expandedSeeds = new Map();
   const details = new Map(),
     listeners = new Set();
@@ -173,6 +174,22 @@ export function createAnimeStore({
       },
     });
   }
+  // Background sync may change eligibility, but must not start another network
+  // recommendation batch. Reuse only the details already verified for this batch.
+  function reconcileRecommendationBatch(patch) {
+    if (!state.recommendationsReady) return {};
+    const nextState = { ...state, ...patch };
+    const picks = rankRecommendations(state.recommendationPool, {
+      ...nextState,
+      metadata: pool,
+    });
+    return {
+      recommendationsReady: true,
+      recommendationPicks: sameData(picks, state.recommendationPicks)
+        ? state.recommendationPicks
+        : picks,
+    };
+  }
   async function readList() {
     lastMalCheck = now();
     try {
@@ -194,9 +211,7 @@ export function createAnimeStore({
       if (canonical(imported) !== canonical(state.list)) {
         update({
           list: imported,
-          recommendationsReady: false,
-          recommendationPicks: [],
-          recommendationPool: [],
+          ...reconcileRecommendationBatch({ list: imported }),
         });
       }
     } finally {
@@ -564,6 +579,7 @@ export function createAnimeStore({
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
     lastMalCheck = -Infinity;
+    lastAccountCheck = -Infinity;
     cloudSync?.dispose();
     cloudSync = null;
     update({ syncError: "", malSyncError: "", malSyncProgress: null });
@@ -628,13 +644,15 @@ export function createAnimeStore({
               : remote.settings,
             preferences: preferencesChanged ? preferences : state.preferences,
             onboardingComplete: remote.onboardingComplete,
-            ...(reactionsChanged || preferencesChanged || onboardingChanged
+            ...(preferencesChanged || onboardingChanged
               ? {
                   recommendationPicks: [],
                   recommendationPool: [],
                   recommendationsReady: false,
                 }
-              : {}),
+              : reactionsChanged
+                ? reconcileRecommendationBatch({ reactions: remote.reactions })
+                : {}),
           });
           persist(false);
         },
@@ -679,8 +697,13 @@ export function createAnimeStore({
     return initialization;
   }
   /** Fetch verified details for a bounded shortlist, never render unverified MAL list stubs. */
-  async function loadRecommendations() {
+  async function loadRecommendations({ force = false } = {}) {
     if (state.busy || !state.onboardingComplete) return;
+    if (
+      !force &&
+      (state.recommendationsReady || state.recommendationPicks.length)
+    )
+      return;
     const finishTiming = diagnostics.start("recommendations_total");
     update({
       busy: true,
@@ -787,8 +810,9 @@ export function createAnimeStore({
     );
   }
   return {
-    async syncAccount() {
+    async syncAccount({ background = false } = {}) {
       if (!cloudSync || state.busy) return;
+      if (background && now() - lastAccountCheck < 60000) return;
       update({ busy: true });
       try {
         await cloudSync.refresh();
@@ -797,6 +821,7 @@ export function createAnimeStore({
       } catch (error) {
         update({ syncError: "Account sync is unavailable. " + error.message });
       } finally {
+        lastAccountCheck = now();
         update({ busy: false });
       }
     },

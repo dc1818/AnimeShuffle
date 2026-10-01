@@ -321,7 +321,7 @@ test("recommendations reuse discovery details and avoid unnecessary catalog page
   assert.equal(store.getSnapshot().recommendationPicks.length, 25);
   assert.ok(first.details <= 26);
   assert.equal(first.catalog, 1);
-  await store.loadRecommendations();
+  await store.loadRecommendations({ force: true });
   assert.deepEqual(
     counts,
     first,
@@ -455,7 +455,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   await store.refreshMalIfStale();
   assert.equal(store.getSnapshot().list[0].id, 1);
   assert.notEqual(store.getSnapshot().current?.id, 1);
-  assert.equal(store.getSnapshot().recommendationsReady, false);
+  assert.equal(store.getSnapshot().recommendationsReady, true);
   await store.loadRecommendations();
   assert.ok(
     store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1),
@@ -576,6 +576,7 @@ test("unchanged account polling preserves recommendations while real preference 
     preferences: { favoriteGenres: ["Action"] },
     onboardingComplete: true,
   };
+  let accountReads = 0;
   const store = createAnimeStore({
     storage: memory(),
     request: async (url) => {
@@ -588,7 +589,10 @@ test("unchanged account polling preserves recommendations while real preference 
           preferences: remote.preferences,
           onboardingComplete: true,
         });
-      if (url === "/api/account/state") return ok(remote);
+      if (url === "/api/account/state") {
+        accountReads++;
+        return ok(remote);
+      }
       if (url.startsWith("/api/catalog"))
         return ok({ data: [anime], nextOffset: null });
       if (url === "/api/anime/1") return ok(anime);
@@ -625,6 +629,13 @@ test("unchanged account polling preserves recommendations while real preference 
   await store.syncAccount();
   assert.equal(store.getSnapshot().recommendationsReady, true);
   assert.equal(store.getSnapshot().recommendationPicks, refreshed);
+  const beforeBackground = accountReads;
+  for (let i = 0; i < 5; i++) await store.syncAccount({ background: true });
+  assert.equal(
+    accountReads,
+    beforeBackground,
+    "Focus and visibility events share a polling cooldown",
+  );
 });
 
 test("a slow MAL refresh waits a full interval after finishing before another attempt", async () => {
@@ -664,4 +675,69 @@ test("a slow MAL refresh waits a full interval after finishing before another at
   clock += 60001;
   await store.refreshMalIfStale();
   assert.equal(reads, completedReads + 1);
+});
+
+test("populated recommendations never restart from changing MAL metadata or repeated automatic loads", async () => {
+  let clock = 100000,
+    updates = 0,
+    network = 0;
+  const known = () => ({
+    ...anime,
+    id: 99,
+    listStatus: { status: "watching", updated_at: String(updates) },
+  });
+  const store = createAnimeStore({
+    storage: memory(),
+    now: () => clock,
+    request: async (url) => {
+      network++;
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session")
+        return ok({ configured: true, connected: true });
+      if (url === "/api/profile") return ok({ id: 7 });
+      if (url.startsWith("/api/list"))
+        return ok({ data: [known()], nextOffset: null });
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [anime, { ...anime, id: 2 }], nextOffset: null });
+      if (url.startsWith("/api/anime/"))
+        return ok({ ...anime, id: Number(url.split("/").pop()) });
+      throw Error(url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  await store.loadRecommendations();
+  assert.ok(store.getSnapshot().recommendationPicks.length);
+  let loadingStarts = 0,
+    loading = false;
+  const unsubscribe = store.subscribe(() => {
+    const next = store.getSnapshot().recommendationsLoading;
+    if (next && !loading) loadingStarts++;
+    loading = next;
+  });
+  for (let i = 0; i < 5; i++) {
+    updates++;
+    clock += 60001;
+    const before = network;
+    await store.refreshMalIfStale();
+    assert.equal(
+      network - before,
+      1,
+      "Only the freshness request runs, with no new candidate requests",
+    );
+    await store.loadRecommendations();
+    assert.equal(store.getSnapshot().recommendationsReady, true);
+    assert.ok(store.getSnapshot().recommendationPicks.length);
+  }
+  assert.equal(loadingStarts, 0);
+  const before = network;
+  await Promise.all([store.loadRecommendations(), store.loadRecommendations()]);
+  assert.equal(network, before);
+  await store.loadRecommendations({ force: true });
+  assert.equal(
+    loadingStarts,
+    1,
+    "Explicit Refresh picks still generates one batch",
+  );
+  unsubscribe();
 });

@@ -22,6 +22,7 @@ import { coverUrl } from "./AnimeCard.jsx";
 /** Show site saves and MAL plans together while keeping their origin explicit. */
 export function Watchlist({ state, store, onDiscover }) {
   const [removing, setRemoving] = useState(null);
+  const importFile = useRef(null);
   async function remove(anime, confirmed = false) {
     const result = await store.removeSaved(anime.id, confirmed);
     if (result?.confirmationRequired) setRemoving(anime);
@@ -236,89 +237,97 @@ export function Watchlist({ state, store, onDiscover }) {
         >
           Export entire list
         </button>
+        <button
+          className="outline"
+          disabled={state.busy || importing}
+          onClick={() => importFile.current?.click()}
+        >
+          Import JSON
+        </button>
+        <input
+          ref={importFile}
+          hidden
+          aria-label="Import watchlist JSON"
+          type="file"
+          accept=".json,application/json"
+          disabled={state.busy || importing}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            setPendingImport(null);
+            setImportMessage("");
+            if (!file) return;
+            if (!/\.json$/i.test(file.name)) {
+              setImportMessage("Choose an Anime Shuffle .json export.");
+              return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+              setImportMessage("Choose a JSON backup smaller than 5 MB.");
+              return;
+            }
+            try {
+              const text = await file.text();
+              const entries = parseWatchlistBackup(text);
+              const fresh = newWatchlistEntries(
+                entries,
+                state.reactions,
+                state.list,
+              );
+              setPendingImport({
+                text,
+                count: fresh.length,
+                skipped: entries.length - fresh.length,
+              });
+            } catch (error) {
+              setImportMessage(error.message);
+            }
+          }}
+        />
       </div>
-      <div className="watchlist-import">
-        <label>
-          Import watchlist backup (.json)
-          <input
-            type="file"
-            accept=".json,application/json"
-            disabled={state.busy || importing}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              setPendingImport(null);
-              setImportMessage("");
-              if (!file) return;
-              if (file.size > 5 * 1024 * 1024) {
-                setImportMessage("Choose a JSON backup smaller than 5 MB.");
-                return;
-              }
-              try {
-                const text = await file.text();
-                const entries = parseWatchlistBackup(text);
-                const fresh = newWatchlistEntries(
-                  entries,
-                  state.reactions,
-                  state.list,
-                );
-                setPendingImport({
-                  text,
-                  count: fresh.length,
-                  skipped: entries.length - fresh.length,
-                });
-              } catch (error) {
-                setImportMessage(error.message);
-              }
-            }}
-          />
-        </label>
-        <p>
-          JSON backups restore into Found on Anime Shuffle. Existing choices are
-          kept.{" "}
-          {state.settings.autoAdd && state.session.connected
-            ? "Auto-add is enabled, so new imports will also be added to MAL when no existing MAL status is present."
-            : "Importing does not add shows to MyAnimeList while auto-add is off."}{" "}
-          Text exports are for reading.
-        </p>
-        {pendingImport && (
-          <div>
-            <p>
-              {pendingImport.count} new titles to add · {pendingImport.skipped}{" "}
-              duplicates or existing choices skipped.
-            </p>
-            <button
-              className="primary"
-              disabled={!pendingImport.count || state.busy || importing}
-              onClick={async () => {
-                setImporting(true);
-                try {
-                  const count = await store.importWatchlist(pendingImport.text);
-                  setTab("all");
-                  setPendingImport(null);
-                  setImportMessage(
-                    `Imported ${count} titles into Found on Anime Shuffle.`,
-                  );
-                } catch (error) {
-                  setImportMessage(error.message);
-                } finally {
-                  setImporting(false);
-                }
-              }}
-            >
-              Import {pendingImport.count} titles
-            </button>
-            <button
-              className="quiet"
-              disabled={importing}
-              onClick={() => setPendingImport(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-        <p role="status">{importMessage}</p>
-      </div>
+      {(pendingImport || importMessage) && (
+        <div className="watchlist-import">
+          {pendingImport && (
+            <div>
+              <p>
+                {pendingImport.count} new titles to add ·{" "}
+                {pendingImport.skipped} duplicates or existing choices skipped.
+              </p>
+              {state.settings.autoAdd && state.session.connected && (
+                <p>New titles will also be added to MAL Plan to Watch.</p>
+              )}
+              <button
+                className="outline"
+                disabled={!pendingImport.count || state.busy || importing}
+                onClick={async () => {
+                  setImporting(true);
+                  try {
+                    const count = await store.importWatchlist(
+                      pendingImport.text,
+                    );
+                    setTab("all");
+                    setPendingImport(null);
+                    setImportMessage(`Imported ${count} titles.`);
+                  } catch (error) {
+                    setImportMessage(error.message);
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+              >
+                Import {pendingImport.count} titles
+              </button>
+              <button
+                className="quiet"
+                disabled={importing}
+                onClick={() => setPendingImport(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          <p role="status">{importMessage}</p>
+        </div>
+      )}
       <p className="watchlist-count">
         {items.length} of {source.length} saved titles
         {source.some((entry) => entry.mal && !entry.addedAt) &&
