@@ -1,3 +1,4 @@
+import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingIndicator } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
@@ -191,7 +192,7 @@ export function Recommendations({ state, store, onDiscover }) {
                         {pick.tier}
                       </span>
                       <span className="leaderboard-title">
-                        {pick.anime.title}
+                        <AnimeTitle anime={pick.anime} />
                       </span>
                       {feedback && (
                         <span className="reaction-feedback">{feedback}</span>

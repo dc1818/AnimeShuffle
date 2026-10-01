@@ -1,3 +1,4 @@
+import { primaryTitle, englishTitle } from "./titles.js";
 import { trainContentModel, terms } from "./content-model.js";
 import { normalizePreferences, matchesPreferences } from "./preferences.js";
 /**
@@ -138,14 +139,14 @@ function explanation(anime, taste) {
     }
   }
   if (anchor?.anime.title)
-    return `Similar synopsis themes to ${anchor.anime.title}`;
+    return `A story that might appeal to you if you enjoyed ${englishTitle(anchor.anime) || primaryTitle(anchor.anime)}.`;
   const best = (anime.genres || [])
     .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
     .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
     .slice(0, 2);
   return best.length
-    ? `Matches your interest in ${best.join(" and ")}`
-    : "An exploratory suggestion while we learn your taste";
+    ? `More ${best.join(" and ")} for your watchlist.`
+    : "Something a little different to try.";
 }
 function similarity(a, b) {
   const one = new Set(a.genres || []),
@@ -253,9 +254,9 @@ export function chooseNext(
     })
     .sort((a, b) => b.score - a.score);
   const anime = ranked[0].a;
-  let reason = "A fresh discovery";
-  if (cold) reason = `Finding your taste · ${Math.min(count + 1, 8)} of 8`;
-  else if (explore) reason = "A little outside your usual";
+  let reason = "What do you think of this one?";
+  if (cold) reason = "Let’s find something you’ll enjoy.";
+  else if (explore) reason = "How about something a little different?";
   else reason = explanation(anime, taste);
   return { anime, reason };
 }

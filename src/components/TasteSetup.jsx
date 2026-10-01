@@ -1,3 +1,4 @@
+import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useState } from "react";
 import { GENRES } from "../lib/preferences.js";
 import { coverUrl } from "./AnimeCard.jsx";
@@ -143,7 +144,9 @@ export function TasteSetup({ value, setValue, store, disabled, preview }) {
                 <button type="button" onClick={() => choose(a)}>
                   <img src={coverUrl(a)} alt="" />
                   <span>
-                    <strong>{a.title}</strong>
+                    <strong>
+                      <AnimeTitle anime={a} />
+                    </strong>
                     <small>{a.genres?.join(" · ")}</small>
                   </span>
                 </button>
@@ -156,7 +159,9 @@ export function TasteSetup({ value, setValue, store, disabled, preview }) {
         {value.favoriteAnime.map((a) => (
           <div key={a.id}>
             <img src={coverUrl(a)} alt="" />
-            <span>{a.title}</span>
+            <span>
+              <AnimeTitle anime={a} />
+            </span>
             <button
               className="quiet"
               aria-label={`Remove favorite ${a.title}`}

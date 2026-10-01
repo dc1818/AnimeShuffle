@@ -1,3 +1,4 @@
+import { matchesTitle } from "./titles.js";
 import { createDiagnostics } from "./diagnostics.js";
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import {
@@ -716,9 +717,7 @@ export function createAnimeStore({
       const term = query.trim();
       if (term.length < 2) return [];
       if (state.preview)
-        return demo
-          .filter((a) => a.title.toLowerCase().includes(term.toLowerCase()))
-          .slice(0, 8);
+        return demo.filter((a) => matchesTitle(a, term)).slice(0, 8);
       return (await api("/api/search?q=" + encodeURIComponent(term))).data;
     },
     getSnapshot: () => state,

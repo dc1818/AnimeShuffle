@@ -1,3 +1,4 @@
+import { titleFields } from "./titles.js";
 // Genre interests train ranking; they are not hard exclusions in Discover.
 export const GENRES = [
   "Action",
@@ -101,6 +102,7 @@ export function normalizePreferences(value = {}) {
               {
                 id: a.id,
                 title: a.title.slice(0, 200),
+                ...titleFields(a),
                 genres: Array.isArray(a.genres)
                   ? a.genres
                       .filter((g) => typeof g === "string")

@@ -1,3 +1,4 @@
+import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
 import { useEffect, useRef, useState } from "react";
@@ -123,10 +124,12 @@ export function AnimeCard({
       </div>
       <div className="card-content">
         {compact ? (
-          <h2>{anime.title}</h2>
+          <h2>
+            <AnimeTitle anime={anime} />
+          </h2>
         ) : (
           <h1 id="anime-title" aria-live="polite">
-            {anime.title}
+            <AnimeTitle anime={anime} />
           </h1>
         )}
         <p
@@ -253,10 +256,9 @@ export function AnimeDetails({ anime, reason, onClose }) {
         <Icon name="close" />
       </button>
       <span className="eyebrow">About this anime</span>
-      <h2 id="details-heading">{anime.title}</h2>
-      <p className="alternate-title">
-        {anime.originalTitle !== anime.title ? anime.originalTitle : ""}
-      </p>
+      <h2 id="details-heading">
+        <AnimeTitle anime={anime} />
+      </h2>
       <p className="full-synopsis">
         {anime.synopsis || "No synopsis available."}
       </p>
@@ -272,10 +274,7 @@ export function AnimeDetails({ anime, reason, onClose }) {
         <Icon name="shuffle" />
         <div>
           <h3>Why this pick?</h3>
-          <p>
-            {reason}. Your reactions shape future picks. Watching and Plan to
-            Watch entries provide extra signals when MAL is connected.
-          </p>
+          <p>{reason || "Something new for your next watch."}</p>
         </div>
       </div>
       <a

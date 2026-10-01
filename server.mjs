@@ -288,7 +288,7 @@ const server = http.createServer(async (req, res) => {
       const offset = number(u.searchParams.get("offset") || 0, 100000);
       const q = new URLSearchParams({
         fields:
-          "list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration,synopsis,studios",
+          "alternative_titles,list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration,synopsis,studios",
         limit: "100",
         offset: String(offset),
         nsfw: "false",
@@ -313,7 +313,7 @@ const server = http.createServer(async (req, res) => {
         q: query,
         limit: "8",
         nsfw: "false",
-        fields: "genres,media_type,nsfw,status,num_episodes",
+        fields: "alternative_titles,genres,media_type,nsfw,status,num_episodes",
       });
       const result = await mal.request("/anime?" + params, {
         publicCache: true,
@@ -331,7 +331,7 @@ const server = http.createServer(async (req, res) => {
         throw new AppError("Invalid discovery source.");
       const q = new URLSearchParams({
         fields:
-          "genres,num_episodes,media_type,start_season,synopsis,nsfw,studios,status,average_episode_duration",
+          "alternative_titles,genres,num_episodes,media_type,start_season,synopsis,nsfw,studios,status,average_episode_duration",
         limit: "50",
         offset: String(offset),
         nsfw: "false",

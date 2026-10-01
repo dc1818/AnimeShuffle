@@ -22,7 +22,8 @@ test("normalization preserves zero scores and extracts prerequisite IDs", () => 
     related_anime: [{ relation_type: "prequel", node: { id: 2 } }],
     my_list_status: { score: 0 },
   });
-  assert.equal(a.title, "English");
+  assert.equal(a.title, "Original");
+  assert.equal(a.englishTitle, "English");
   assert.equal(a.duration, 24);
   assert.deepEqual(a.prequels, [2]);
   assert.equal(a.listStatus.score, 0);

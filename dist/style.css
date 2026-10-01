@@ -1898,3 +1898,13 @@ main.wide-main {
     animation: none;
   }
 }
+
+.english-title {
+  display: block;
+  color: #aab9c5;
+  font-size: 0.7em;
+  font-weight: 400;
+  line-height: 1.4;
+  margin-top: 0.25em;
+  overflow-wrap: anywhere;
+}

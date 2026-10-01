@@ -50,7 +50,7 @@ test("synopsis evidence separates anime sharing the same broad genres", () => {
   });
   assert.equal(picks[0].anime.id, 2);
   assert.ok(picks[0].enjoyment > picks[1].enjoyment);
-  assert.match(picks[0].reason, /synopsis themes/);
+  assert.match(picks[0].reason, /if you enjoyed/);
 });
 
 test("enjoyment and viewing interest remain separate for dropped rated anime and prospective choices", () => {

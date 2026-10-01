@@ -1,3 +1,9 @@
+import {
+  matchesTitle,
+  titleFields,
+  primaryTitle,
+  englishTitle,
+} from "./titles.js";
 import { buildTaste, scoreAnime } from "./recommend.js";
 import { releaseLabel } from "./release.js";
 import { runtimeLabel, matchesPreferences } from "./preferences.js";
@@ -61,7 +67,7 @@ export function orderWatchlist(
       ({ anime }) =>
         matchesPreferences(anime, preferences) &&
         (genre === "all" || anime.genres?.includes(genre)) &&
-        anime.title.toLowerCase().includes(query.trim().toLowerCase()) &&
+        matchesTitle(anime, query) &&
         (release === "all" ||
           (release === "available"
             ? ["currently_airing", "finished_airing"].includes(anime.status)
@@ -100,7 +106,7 @@ export function watchlistText(entries, label = "Watchlist") {
     entries
       .map(
         ({ anime, addedAt }, i) =>
-          `${i + 1}. ${anime.title}\n${releaseLabel(anime)} · ${runtimeLabel(anime)}\nGenres: ${(anime.genres || []).join(", ") || "Unknown"}\nAdded: ${addedAt ? new Date(addedAt).toISOString().slice(0, 10) : "Unknown"}\nhttps://myanimelist.net/anime/${anime.id}`,
+          `${i + 1}. ${primaryTitle(anime)}${englishTitle(anime) ? " — " + englishTitle(anime) : ""}\n${releaseLabel(anime)} · ${runtimeLabel(anime)}\nGenres: ${(anime.genres || []).join(", ") || "Unknown"}\nAdded: ${addedAt ? new Date(addedAt).toISOString().slice(0, 10) : "Unknown"}\nhttps://myanimelist.net/anime/${anime.id}`,
       )
       .join("\n\n") +
     "\n"
@@ -167,6 +173,7 @@ export function parseWatchlistBackup(text) {
       anime: {
         id: a.id,
         title: a.title.trim().slice(0, 200),
+        ...titleFields(a),
         genres: Array.isArray(a.genres)
           ? a.genres
               .filter((g) => typeof g === "string")

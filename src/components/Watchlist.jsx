@@ -1,3 +1,4 @@
+import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useState } from "react";
 import {
   orderWatchlist,
@@ -321,7 +322,9 @@ export function Watchlist({ state, store, onDiscover }) {
               <img src={coverUrl(anime)} alt={anime.title} loading="lazy" />
             </div>
             <div className="saved-content">
-              <h3>{anime.title}</h3>
+              <h3>
+                <AnimeTitle anime={anime} />
+              </h3>
               <p>{anime.genres?.slice(0, 3).join(" · ")}</p>
               <p>
                 {releaseLabel(anime)} · {runtimeLabel(anime)}
