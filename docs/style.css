@@ -1536,7 +1536,7 @@ main.wide-main {
 }
 .leaderboard-row .ranked-card {
   display: grid;
-  grid-template-columns: minmax(240px, 38%) minmax(0, 1fr);
+  grid-template-columns: minmax(180px, 28%) minmax(0, 1fr);
   width: 100%;
   max-width: none;
   border: 0;
@@ -1547,10 +1547,19 @@ main.wide-main {
   padding: 12px;
   gap: 18px;
 }
+/* MAL covers vary in resolution. Scale down to fit without enlarging
+   smaller originals, and keep the cover independent of the text column. */
 .leaderboard-row .poster-stage {
-  height: 100%;
-  min-height: 320px;
+  height: 340px;
+  min-height: 0;
+  align-self: start;
   border-radius: 8px;
+}
+.leaderboard-row .poster {
+  object-fit: scale-down;
+}
+.leaderboard-row .poster-glow {
+  display: none;
 }
 .leaderboard-row .card-content {
   padding: 8px 12px 12px 0;
@@ -1928,129 +1937,4 @@ main.wide-main {
   line-height: 1.4;
   margin-top: 0.25em;
   overflow-wrap: anywhere;
-}
-
-/* Discover scales with viewport height, reserving space for all voting controls.
-   Keep natural overflow for long titles, zoomed text and very short screens. */
-.discovery-page .feed-top {
-  min-height: 54px;
-  padding: 8px 0;
-  gap: 4px;
-}
-.discovery-page .reason {
-  padding: 5px 12px;
-  font-size: 12px;
-}
-.discovery-page .cards-layout {
-  max-width: 940px;
-  gap: 20px;
-}
-.discovery-page .anime-card,
-.discovery-page .cards-layout.expanded .anime-card {
-  width: min(100%, 460px);
-  border-radius: 17px;
-}
-.discovery-page .poster-stage {
-  height: clamp(140px, calc(100dvh - 580px), 300px);
-}
-.discovery-page .card-content {
-  padding: 0 18px 14px;
-}
-.discovery-page #anime-title {
-  font-size: clamp(22px, 2.2vw, 28px);
-  margin-bottom: 6px;
-  letter-spacing: -0.4px;
-}
-.discovery-page .metadata,
-.discovery-page .runtime-estimate {
-  font-size: 12px;
-}
-.discovery-page .runtime-estimate {
-  margin-top: 4px;
-}
-.discovery-page .release-status {
-  margin: 5px 0;
-}
-.discovery-page .genres {
-  gap: 5px;
-  margin: 8px 0;
-}
-.discovery-page .genre {
-  padding: 4px 8px;
-  font-size: 11px;
-}
-.discovery-page .synopsis {
-  font-size: 13px;
-  line-height: 1.45;
-  min-height: 0;
-  margin: 8px 0 10px;
-  -webkit-line-clamp: 2;
-}
-.discovery-page .details-toggle {
-  min-height: 36px;
-  padding: 7px 10px;
-  font-size: 13px;
-}
-.discovery-page .details-toggle svg {
-  width: 17px;
-  height: 17px;
-}
-.discovery-page .reaction-labels {
-  margin: 12px 0 7px;
-  font-size: 12px;
-}
-.discovery-page .reactions {
-  gap: 7px;
-}
-.discovery-page .reaction {
-  min-height: 54px;
-  padding: 7px 3px;
-  gap: 4px;
-  font-size: 12px;
-  border-radius: 10px;
-}
-.discovery-page .reaction svg {
-  width: 21px;
-  height: 21px;
-}
-.discovery-page .secondary-actions {
-  margin-top: 9px;
-  gap: 9px;
-}
-.discovery-page .secondary-actions button {
-  min-height: 36px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-.discovery-page .details-card,
-.discovery-page .cards-layout.expanded .details-card {
-  width: min(100%, 420px);
-  padding: 22px;
-  border-radius: 17px;
-}
-.discovery-page .details-card h2 {
-  font-size: 25px;
-}
-.discovery-page .full-synopsis {
-  font-size: 14px;
-  line-height: 1.6;
-}
-@media (min-width: 761px) and (max-width: 1000px) {
-  .discovery-page .cards-layout.expanded .anime-card,
-  .discovery-page .cards-layout.expanded .details-card {
-    width: calc(50% - 10px);
-  }
-}
-@media (max-width: 760px) {
-  .discovery-page .cards-layout.expanded .anime-card {
-    width: min(100%, 460px);
-  }
-  .discovery-page .cards-layout.expanded .details-card {
-    width: 100%;
-    padding: 22px 18px;
-    border-radius: 18px 18px 0 0;
-  }
-  .discovery-page .poster-stage {
-    height: clamp(120px, calc(100dvh - 610px), 240px);
-  }
 }

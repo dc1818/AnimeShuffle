@@ -262,7 +262,7 @@ export function App({ store }) {
             onDiscover={() => setView("discover")}
           />
         ) : (
-          <section className="discovery-page" aria-label="Anime discovery">
+          <section aria-label="Anime discovery">
             <div className="feed-top">
               <span className="reason">
                 <Icon name="shuffle" />
