@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingIndicator } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
-import { buildTaste } from "../lib/recommend.js";
+import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover }) {
@@ -10,6 +10,10 @@ export function Recommendations({ state, store, onDiscover }) {
   const [opened, setOpened] = useState(undefined);
   const [about, setAbout] = useState(null);
   useEffect(() => {
+    if (state.recommendationsReady) {
+      requested.current = false;
+      return;
+    }
     if (
       !requested.current &&
       !state.recommendationsReady &&
@@ -20,8 +24,21 @@ export function Recommendations({ state, store, onDiscover }) {
       requested.current = true;
       store.loadRecommendations();
     }
-  }, [state.ready, state.onboardingComplete, state.busy, store]);
-  const taste = buildTaste(state.reactions, state.list, state.preferences);
+  }, [
+    state.ready,
+    state.onboardingComplete,
+    state.busy,
+    state.recommendationsReady,
+    store,
+  ]);
+  const taste = useMemo(
+    () => buildTaste(state.reactions, state.list, state.preferences),
+    [state.reactions, state.list, state.preferences],
+  );
+  const readiness = useMemo(
+    () => tasteReadiness(state.reactions, state.list, state.preferences),
+    [state.reactions, state.list, state.preferences],
+  );
   const hasTaste =
     state.preferences.favoriteGenres.length > 0 ||
     [...taste.records.values()].some((r) => r.weight !== 0);
@@ -71,6 +88,24 @@ export function Recommendations({ state, store, onDiscover }) {
           </button>
         </div>
       </div>
+      {state.ready && readiness.needsMore && (
+        <div className="shortlist-note" role="status">
+          <strong>Still learning your taste</strong>
+          <p>
+            {readiness.reactionCount} reactions so far. {readiness.knownTitles}{" "}
+            anime with usable genre signals from your choices and MAL history.
+          </p>
+          <p>
+            {readiness.remaining > 0
+              ? `Go back to Discover and react to about ${readiness.remaining} more anime to give us a better starting point.`
+              : "Go back to Discover and mark a few anime Good or Would watch so we know what you enjoy."}{" "}
+            Any picks below are early suggestions, not confident predictions.
+          </p>
+          <button className="primary" onClick={onDiscover}>
+            Back to Discover
+          </button>
+        </div>
+      )}
       {state.recommendationsLoading ||
       (!state.recommendationsReady &&
         hasTaste &&
@@ -100,6 +135,22 @@ export function Recommendations({ state, store, onDiscover }) {
           {state.recommendationError && (
             <p role="alert">{state.recommendationError}</p>
           )}
+          {!state.busy &&
+            state.recommendationsReady &&
+            !picks.length &&
+            !state.recommendationError && (
+              <div className="empty">
+                <h2>No suitable picks yet</h2>
+                <p>
+                  Go back to Discover to give us more likes and dislikes, then
+                  refresh your picks. If you already have plenty of reactions,
+                  try broadening your viewing filters.
+                </p>
+                <button className="primary" onClick={onDiscover}>
+                  Back to Discover
+                </button>
+              </div>
+            )}
           <div
             className="recommendations-stack"
             aria-label="Anime leaderboard: tiers 1 to 25"

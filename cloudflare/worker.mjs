@@ -13,7 +13,17 @@ export class AnimeBackend extends DurableObject {
     this.tail = Promise.resolve();
   }
   fetch(request) {
-    const next = this.tail.then(() => this.app.fetch(request));
+    const queuedAt = performance.now();
+    const next = this.tail.then(async () => {
+      const wait = performance.now() - queuedAt;
+      const response = await this.app.fetch(request);
+      if (request.headers.get("X-AnimeShuffle-Debug") === "1")
+        response.headers.append(
+          "Server-Timing",
+          `coordinator_queue;dur=${wait.toFixed(1)}`,
+        );
+      return response;
+    });
     this.tail = next.catch(() => {});
     return next;
   }

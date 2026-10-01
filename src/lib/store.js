@@ -1,3 +1,4 @@
+import { createDiagnostics } from "./diagnostics.js";
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import {
   parseWatchlistBackup,
@@ -25,6 +26,7 @@ export function createAnimeStore({
   request = fetch,
   storage = localStorage,
   staticMode = false,
+  diagnostics = createDiagnostics({ storage }),
 } = {}) {
   let state = {
     session: {},
@@ -72,30 +74,49 @@ export function createAnimeStore({
     listeners.forEach((listener) => listener());
   }
   const notify = (message) => update({ message });
+  const pendingReads = new Map();
   async function api(url, data) {
-    // Pages has no backend. Never send account credentials or API calls there.
     if (staticMode)
       throw new Error("Accounts and MyAnimeList require the server version.");
-    const response = await request(url, {
-      method: data === undefined ? "GET" : "POST",
-      headers:
-        data === undefined
-          ? {}
-          : {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": state.session.csrf,
-            },
-      body: data === undefined ? undefined : JSON.stringify(data),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      const error = new Error(result.error || "Request failed.");
-      error.code = result.code;
-      error.status = response.status;
-      throw error;
+    const read = data === undefined;
+    // Share identical reads; mutations are never deduplicated or automatically retried.
+    if (read && pendingReads.has(url)) return pendingReads.get(url);
+    const pending = (async () => {
+      try {
+        const { response, result } = await diagnostics.request(request, url, {
+          method: read ? "GET" : "POST",
+          headers: read
+            ? {}
+            : {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": state.session.csrf,
+              },
+          body: read ? undefined : JSON.stringify(data),
+          // A hung read must release the loading UI. Server requests have their own deadline.
+          ...(read ? { signal: AbortSignal.timeout(45000) } : {}),
+        });
+        if (!response.ok) {
+          const error = new Error(result.error || "Request failed.");
+          error.code = result.code;
+          error.status = response.status;
+          throw error;
+        }
+        return result;
+      } catch (error) {
+        if (["TimeoutError", "AbortError"].includes(error.name))
+          throw new Error("This request took too long. Please try again.");
+        throw error;
+      }
+    })();
+    if (read) pendingReads.set(url, pending);
+    try {
+      return await pending;
+    } finally {
+      if (read) pendingReads.delete(url);
     }
-    return result;
   }
+  // Awaiting an already-cached promise does not give the browser a paint opportunity.
+  const yieldToBrowser = () => new Promise((resolve) => setTimeout(resolve, 0));
   function persist(sync = true) {
     try {
       storage.setItem(
@@ -176,6 +197,7 @@ export function createAnimeStore({
   }
   /** Fetch details before displaying a candidate so prerequisite filtering is accurate. */
   async function next() {
+    const finishTiming = diagnostics.start("discovery_total");
     update({
       busy: true,
       error: "",
@@ -183,8 +205,11 @@ export function createAnimeStore({
       discoveryProgress: null,
     });
     try {
+      await yieldToBrowser();
       let pagesLoaded = 0;
       for (let attempt = 0; attempt < 40; attempt++) {
+        if (attempt && attempt % 6 === 0) await yieldToBrowser();
+        const finishRank = diagnostics.start("discovery_rank");
         const pick = chooseNext(pool, {
           reactions: state.reactions,
           list: state.list,
@@ -192,6 +217,7 @@ export function createAnimeStore({
           recent,
           preferences: state.preferences,
         });
+        finishRank();
         if (!pick) {
           if (pagesLoaded < 3 && (await refill())) {
             pagesLoaded++;
@@ -236,6 +262,7 @@ export function createAnimeStore({
       // Never keep a reacted card visible as if it were a new recommendation.
       update({ current: null, error: error.message });
     } finally {
+      finishTiming();
       update({
         busy: false,
         canUndo: history.length > 0,
@@ -511,6 +538,7 @@ export function createAnimeStore({
   /** Fetch verified details for a bounded shortlist, never render unverified MAL list stubs. */
   async function loadRecommendations() {
     if (state.busy || !state.onboardingComplete) return;
+    const finishTiming = diagnostics.start("recommendations_total");
     update({
       busy: true,
       recommendationError: "",
@@ -518,6 +546,7 @@ export function createAnimeStore({
       recommendationProgress: null,
     });
     try {
+      await yieldToBrowser();
       const taste = buildRecommendationTaste();
       if (!taste) {
         update({
@@ -540,10 +569,12 @@ export function createAnimeStore({
         if (a.listStatus?.status === "plan_to_watch") candidates.set(a.id, a);
       for (const r of Object.values(state.reactions))
         if (r.action === "watch") candidates.set(r.anime.id, r.anime);
+      const finishRank = diagnostics.start("recommendations_rank");
       const ranked = rankRecommendations([...candidates.values()], {
         ...state,
         limit: 75,
       });
+      finishRank();
       const verified = [];
       let failures = 0;
       let checked = 0;
@@ -574,6 +605,7 @@ export function createAnimeStore({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
         });
         if (eligibleCount >= 25) break;
+        if (checked % 6 === 0) await yieldToBrowser();
       }
       update({
         recommendationPicks: rankRecommendations(verified, state),
@@ -589,6 +621,7 @@ export function createAnimeStore({
         recommendationsReady: true,
       });
     } finally {
+      finishTiming();
       update({
         busy: false,
         recommendationsLoading: false,

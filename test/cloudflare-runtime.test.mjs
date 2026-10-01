@@ -117,10 +117,13 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     const session = await (await call("/api/session")).json();
     assert.equal(session.account.name, "RuntimeViewer");
     assert.equal(session.connected, true);
-    assert.equal(
-      (await (await call("/api/anime/1")).json()).title,
-      "Runtime anime",
+    const timed = await mf.dispatchFetch(
+      "https://shuffle.example/api/anime/1",
+      { headers: { "X-AnimeShuffle-Debug": "1" } },
     );
+    assert.equal((await timed.json()).title, "Runtime anime");
+    assert.match(timed.headers.get("Server-Timing"), /coordinator_queue;dur=/);
+    assert.match(timed.headers.get("Server-Timing"), /mal;dur=/);
     assert.equal(
       (
         await call(

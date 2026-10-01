@@ -253,7 +253,13 @@ test("public anime cache survives Worker restart and expires without caching use
     "Cached anime",
   );
   app = createCloudApp(db, env, { interval: 0, fetcher });
-  await viewer.request("/api/anime/42");
+  const cachedResult = await viewer.request("/api/anime/42", undefined, {
+    "X-AnimeShuffle-Debug": "1",
+  });
+  assert.match(
+    cachedResult.response.headers.get("Server-Timing"),
+    /cache_hits;dur=1.0/,
+  );
   assert.equal(calls, 1, "a new Worker instance reuses the public response");
   db.sql.exec("UPDATE public_mal_cache SET expires=0");
   app = createCloudApp(db, env, { interval: 0, fetcher });

@@ -1,11 +1,24 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.jsx";
+import { createDiagnostics } from "./lib/diagnostics.js";
 import { createAnimeStore } from "./lib/store.js";
 
 // A single store survives component remounts. Secrets and OAuth tokens remain
 // in server.mjs; this entry point only calls our same-origin API routes.
+const diagnostics = createDiagnostics({
+  storage: localStorage,
+  enabled: new URLSearchParams(location.search).get("debugPerf") === "1",
+});
+// Read-only developer helpers; these never expose accounts, cookies or API credentials.
+window.animeShuffleDebug = {
+  on: diagnostics.on,
+  off: diagnostics.off,
+  report: diagnostics.report,
+  clear: diagnostics.clear,
+};
 const store = createAnimeStore({
+  diagnostics,
   staticMode: document.documentElement.dataset.hosting === "pages",
 });
 createRoot(document.getElementById("root")).render(

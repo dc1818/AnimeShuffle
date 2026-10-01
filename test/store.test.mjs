@@ -329,3 +329,34 @@ test("recommendations reuse discovery details and avoid unnecessary catalog page
   );
   assert.ok(discoveryId);
 });
+
+test("duplicate autocomplete reads share one pending request and failed reads can be retried", async () => {
+  let calls = 0,
+    release;
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url, options) => {
+      if (url === "/api/session") return Response.json({ configured: true });
+      assert.ok(options.signal, "GET has a timeout signal");
+      calls++;
+      await new Promise((resolve) => {
+        release = resolve;
+      });
+      return Response.json(
+        { data: [anime] },
+        { status: calls === 1 ? 503 : 200 },
+      );
+    },
+  });
+  await store.initialize();
+  const first = store.searchAnime("test");
+  const second = store.searchAnime("test");
+  const settled = Promise.allSettled([first, second]);
+  assert.equal(calls, 1);
+  release();
+  assert.ok((await settled).every((r) => r.status === "rejected"));
+  const retry = store.searchAnime("test");
+  release();
+  assert.deepEqual(await retry, [anime]);
+  assert.equal(calls, 2);
+});

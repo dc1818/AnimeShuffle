@@ -1,3 +1,4 @@
+import { requestTiming } from "./lib/timing.mjs";
 /**
  * HTTP boundary for local use or a single HTTPS-backed hosted instance.
  * Serves the built frontend and proxies a small set of MAL operations.
@@ -27,7 +28,7 @@ const config = serverConfig();
 const { port: PORT, origin } = config;
 const clientId = process.env.MAL_CLIENT_ID || "",
   clientSecret = process.env.MAL_CLIENT_SECRET || "";
-const mal = createMalClient({ clientId, clientSecret });
+const malClient = createMalClient({ clientId, clientSecret });
 const sessions = new Map();
 const accounts = createAccountStore(
   process.env.ANIME_SHUFFLE_DATA_DIR || path.join(root, ".data"),
@@ -129,6 +130,17 @@ function headers(res) {
   );
 }
 const server = http.createServer(async (req, res) => {
+  const measured = requestTiming(
+    malClient,
+    req.headers["x-animeshuffle-debug"] === "1",
+  );
+  const mal = measured.mal;
+  // writeHead runs after asynchronous API work, so this also measures error responses.
+  const writeHead = res.writeHead;
+  res.writeHead = function (...args) {
+    if (measured.header()) res.setHeader("Server-Timing", measured.header());
+    return writeHead.apply(this, args);
+  };
   headers(res);
   let release;
   try {

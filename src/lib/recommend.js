@@ -232,3 +232,21 @@ export function rankRecommendations(
     .slice(0, limit)
     .map((pick, index) => ({ ...pick, tier: index + 1 }));
 }
+
+/** Eight informative titles is a onboarding heuristic, not a statistical confidence score. */
+export function tasteReadiness(reactions = {}, list = [], preferences) {
+  const taste = buildTaste(reactions, list, preferences);
+  const informative = [...taste.records.values()].filter(
+    (r) => r.weight !== 0 && r.anime.genres?.length,
+  );
+  const positive =
+    normalizePreferences(preferences).favoriteGenres.length > 0 ||
+    informative.some((r) => r.weight > 0);
+  return {
+    reactionCount: Object.keys(reactions).length,
+    knownTitles: informative.length,
+    remaining: Math.max(0, 8 - informative.length),
+    needsMore: informative.length < 8 || !positive,
+    positive,
+  };
+}

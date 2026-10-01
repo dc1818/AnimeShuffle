@@ -1,3 +1,4 @@
+import { requestTiming } from "../lib/timing.mjs";
 /** Persistent Cloudflare API. SQL statements bind every user-controlled value.
  * A single small-installation Durable Object serializes requests, including MAL mutations.
  * Accounts/reactions live in SQLite; tokens and OAuth verifiers are encrypted at rest.
@@ -59,7 +60,7 @@ export function createCloudApp(
   sql.exec(
     "CREATE TABLE IF NOT EXISTS public_mal_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, value TEXT NOT NULL)",
   );
-  const mal = createMalClient({
+  const malClient = createMalClient({
     clientId: env.MAL_CLIENT_ID,
     clientSecret: env.MAL_CLIENT_SECRET,
     fetcher,
@@ -166,6 +167,11 @@ export function createCloudApp(
   }
   return {
     async fetch(req) {
+      const measured = requestTiming(
+        malClient,
+        req.headers.get("X-AnimeShuffle-Debug") === "1",
+      );
+      const mal = measured.mal;
       let session, sessionHash, setCookie, tokenSession, account, encryption;
       const u = new URL(req.url);
       try {
@@ -715,6 +721,8 @@ export function createCloudApp(
         sql.exec("DELETE FROM sessions WHERE expires<?", Date.now());
         sql.exec("DELETE FROM limits WHERE expires<?", Date.now());
         if (setCookie) response.headers.set("Set-Cookie", setCookie);
+        if (measured.header())
+          response.headers.set("Server-Timing", measured.header());
         return secure(response);
       } catch (error) {
         // Consume OAuth state even when an unexpected failure occurs. No secret-bearing messages in logs.
@@ -747,6 +755,8 @@ export function createCloudApp(
           error.status || 503,
         );
         if (setCookie) response.headers.set("Set-Cookie", setCookie);
+        if (measured.header())
+          response.headers.set("Server-Timing", measured.header());
         return secure(response);
       }
     },
