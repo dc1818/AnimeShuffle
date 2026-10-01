@@ -37,7 +37,8 @@ export default {
         return secure(new Response("Invalid cover URL", { status: 400 }));
       try {
         const image = await fetch(target, {
-          redirect: "error",
+          // Workerd requires manual redirects; non-2xx responses are rejected below.
+          redirect: "manual",
           signal: AbortSignal.timeout(15000),
           cf: { cacheTtl: 1800 },
         });
