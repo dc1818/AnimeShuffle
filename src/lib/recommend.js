@@ -1,3 +1,4 @@
+import { matchesPreferences } from "./preferences.js";
 /**
  * Pure recommendation functions: no network, React, or browser-storage dependencies.
  * Missing numeric scores represent unknown preference, not a zero-star review.
@@ -70,7 +71,14 @@ export function scoreAnime(anime, taste) {
   return genre + (f?.count ? (0.15 * f.sum) / Math.sqrt(f.count + 2) : 0);
 }
 /** Exclude known titles, unsafe/unknown content labels, and unmet direct prequels. */
-export function isEligible(a, reactions, list, skipped, allowPlan = false) {
+export function isEligible(
+  a,
+  reactions,
+  list,
+  skipped,
+  allowPlan = false,
+  preferences,
+) {
   if (
     !a ||
     reactions[a.id] ||
@@ -78,6 +86,7 @@ export function isEligible(a, reactions, list, skipped, allowPlan = false) {
     (a.nsfw !== "white" && !a.demo)
   )
     return false;
+  if (!matchesPreferences(a, preferences)) return false;
   const existing = list.find((x) => x.id === a.id)?.listStatus?.status;
   if (existing && !(allowPlan && existing === "plan_to_watch")) return false;
   const seen = new Set(
@@ -99,9 +108,12 @@ export function chooseNext(
     skipped = new Set(),
     recent = [],
     random = Math.random,
+    preferences,
   } = {},
 ) {
-  const available = pool.filter((a) => isEligible(a, reactions, list, skipped));
+  const available = pool.filter((a) =>
+    isEligible(a, reactions, list, skipped, false, preferences),
+  );
   if (!available.length) return null;
   const taste = buildTaste(reactions, list),
     count = Object.keys(reactions).length;

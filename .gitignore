@@ -3,3 +3,8 @@ node_modules/
 *.log
 .DS_Store
 .react-test-*/
+
+# Local accounts and private installation data
+.data/
+.env.*
+!.env.example

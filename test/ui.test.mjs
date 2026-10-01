@@ -69,12 +69,24 @@ test("React interface preserves onboarding, details, four reactions, watchlist a
       await store.initialize();
     });
     assert.equal(
+      document.getElementById("anime-title"),
+      null,
+      "No cards before onboarding",
+    );
+    assert.ok(
+      document.querySelector('a[href="https://myanimelist.net/register.php"]'),
+    );
+    assert.ok(document.querySelector('a[href="/auth/start"]'));
+    assert.ok(button("Create an Anime Shuffle account"));
+    await click("Try without logging in");
+    assert.ok(document.querySelector("dialog[open]"));
+    assert.ok(button("Start shuffling"));
+    await click("Start shuffling");
+    assert.equal(document.querySelector("dialog"), null);
+    assert.equal(
       document.getElementById("anime-title").textContent,
       "Cowboy Bebop",
     );
-    assert.ok(document.querySelector("dialog[open]"));
-    await click("Try without logging in");
-    assert.equal(document.querySelector("dialog"), null);
     await click("More about this anime");
     assert.ok(document.getElementById("details-card"));
     await click("Hide details");
@@ -111,6 +123,20 @@ test("React interface preserves onboarding, details, four reactions, watchlist a
       "Cowboy Bebop",
     );
     assert.equal(Object.keys(store.getSnapshot().reactions).length, 0);
+    await act(async () =>
+      document.querySelector('[aria-label="Open settings"]').click(),
+    );
+    await click("Viewing preferences");
+    await act(async () =>
+      [...document.querySelectorAll(".preference-option")]
+        .find((element) => element.textContent.startsWith("Movies"))
+        .click(),
+    );
+    await click("Start shuffling");
+    assert.equal(store.getSnapshot().current.format, "movie");
+    assert.ok(
+      document.querySelector(".runtime-estimate").textContent.includes("total"),
+    );
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

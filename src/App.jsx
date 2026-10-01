@@ -23,13 +23,11 @@ export function App({ store }) {
     onboardingShown.current = true;
     const query = new URLSearchParams(location.search);
     if (query.has("setup")) setDialog("settings");
-    else if (query.has("auth_error"))
+    else if (query.has("auth_error")) {
       store.notify("MAL connection did not finish. Please try again.");
-    else if (
-      !state.session.connected &&
-      !sessionStorage.getItem("anime-shuffle-welcome")
-    )
-      setDialog("welcome");
+      setDialog(state.session.account ? "settings" : "welcome");
+    } else if (!state.onboardingComplete)
+      setDialog(state.session.account ? "preferences" : "welcome");
     window.history.replaceState({}, "", location.pathname);
   }, [state.ready, state.session.connected, store]);
   useEffect(() => {
@@ -66,9 +64,16 @@ export function App({ store }) {
     return () => document.removeEventListener("keydown", keydown);
   }, [dialog, view, store]);
   function closeDialog() {
-    if (dialog === "welcome")
-      sessionStorage.setItem("anime-shuffle-welcome", "1");
-    setDialog(null);
+    // Closing the welcome screen continues as a guest; it does not skip preferences.
+    if (!store.getSnapshot().onboardingComplete) {
+      setDialog(
+        dialog === "welcome"
+          ? "preferences"
+          : store.getSnapshot().session.account
+            ? "preferences"
+            : "welcome",
+      );
+    } else setDialog(null);
   }
   const savedCount = Object.values(state.reactions).filter(
     (r) => r.action === "watch",
@@ -107,13 +112,13 @@ export function App({ store }) {
           <button
             className="account"
             onClick={() =>
-              state.session.connected
+              state.session.account
                 ? setDialog("settings")
-                : location.assign("/auth/start")
+                : setDialog("welcome")
             }
           >
             <Icon name="link" />
-            <span>{state.profile?.name || "Connect MAL"}</span>
+            <span>{state.session.account?.name || "Sign in"}</span>
           </button>
           <button
             className="icon-button"
@@ -183,13 +188,13 @@ export function App({ store }) {
                     ? "Finding your next anime…"
                     : state.error
                       ? "Let’s try that again"
-                      : "You’re all caught up"}
+                      : "No more matches right now"}
                 </h2>
                 <p>
                   {state.error ||
                     (state.preview
-                      ? "Explore seven sample anime, then set up MAL for live discovery."
-                      : "No fresh matches in the loaded catalog. Revisit skipped anime or check your watchlist.")}
+                      ? "No preview titles match your current choices, or you’ve seen them all. Change your preferences or set up live discovery."
+                      : "No fresh matches in the loaded pages. Try more anime, adjust your preferences, or revisit skipped titles.")}
                 </p>
                 <button
                   className="primary"
@@ -206,6 +211,13 @@ export function App({ store }) {
                   onClick={store.revisit}
                 >
                   Revisit skipped anime
+                </button>
+                <button
+                  className="quiet"
+                  disabled={state.busy}
+                  onClick={() => setDialog("preferences")}
+                >
+                  Change viewing preferences
                 </button>
                 {state.canUndo && (
                   <button
@@ -254,6 +266,7 @@ export function App({ store }) {
         state={state}
         store={store}
         onClose={closeDialog}
+        onNavigate={setDialog}
       />
     </>
   );

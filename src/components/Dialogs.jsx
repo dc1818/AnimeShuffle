@@ -1,8 +1,15 @@
 import { useEffect, useRef } from "react";
+import { AccountForm, ViewingPreferences } from "./Onboarding.jsx";
 import { Icon } from "./Icon.jsx";
 
 /** Native dialog supplies focus trapping and Escape; React supplies its content. */
-function Dialog({ children, onClose, welcome = false }) {
+function Dialog({
+  children,
+  onClose,
+  welcome = false,
+  dismissable = true,
+  busy = false,
+}) {
   const ref = useRef(null);
   useEffect(() => {
     ref.current.showModal();
@@ -14,22 +21,46 @@ function Dialog({ children, onClose, welcome = false }) {
       className={`dialog ${welcome ? "welcome" : ""}`}
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (dismissable && !busy) onClose();
       }}
     >
-      <button
-        className="icon-button close"
-        aria-label="Close dialog"
-        onClick={onClose}
-      >
-        <Icon name="close" />
-      </button>
+      {dismissable && (
+        <button
+          disabled={busy}
+          className="icon-button close"
+          aria-label="Close dialog"
+          onClick={onClose}
+        >
+          <Icon name="close" />
+        </button>
+      )}
       {children}
     </dialog>
   );
 }
-export function Dialogs({ kind, state, store, onClose }) {
+export function Dialogs({ kind, state, store, onClose, onNavigate }) {
   if (!kind) return null;
+  if (["login", "register"].includes(kind))
+    return (
+      <Dialog busy={state.busy} onClose={() => onNavigate("welcome")}>
+        <AccountForm
+          mode={kind}
+          store={store}
+          onNavigate={onNavigate}
+          onComplete={onClose}
+        />
+      </Dialog>
+    );
+  if (kind === "preferences")
+    return (
+      <Dialog
+        busy={state.busy}
+        dismissable={state.onboardingComplete}
+        onClose={onClose}
+      >
+        <ViewingPreferences state={state} store={store} onComplete={onClose} />
+      </Dialog>
+    );
   if (kind === "welcome")
     return (
       <Dialog onClose={onClose} welcome>
@@ -41,17 +72,34 @@ export function Dialogs({ kind, state, store, onClose }) {
         <span className="eyebrow">A little shuffle. A new favorite.</span>
         <h2>Find your next anime.</h2>
         <p>
-          Bring your MyAnimeList taste with you, or start with a few familiar
-          titles. No ratings needed.
+          Create an Anime Shuffle account, or use your MyAnimeList account to
+          sign in and bring your list with you.
         </p>
-        <a className="primary" href="/auth/start">
+        <button className="primary" onClick={() => onNavigate("register")}>
+          Create an Anime Shuffle account
+        </button>
+        <a className="outline" href="/auth/start">
           <Icon name="link" />
-          Connect MyAnimeList
+          Sign in with MyAnimeList
         </a>
-        <button className="outline" onClick={onClose}>
+        <a
+          className="outline"
+          href="https://myanimelist.net/register.php"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Create a MyAnimeList account <Icon name="external" />
+        </a>
+        <small>
+          Register on MAL, then return here and choose “Sign in with
+          MyAnimeList.”
+        </small>
+        <button className="quiet" onClick={() => onNavigate("login")}>
+          Already have an Anime Shuffle account? Sign in
+        </button>
+        <button className="quiet" onClick={onClose}>
           Try without logging in
         </button>
-        <small>Your password stays on MyAnimeList.</small>
       </Dialog>
     );
   if (kind === "privacy")
@@ -60,8 +108,9 @@ export function Dialogs({ kind, state, store, onClose }) {
         <h2>Your data stays local</h2>
         <p>
           Your own reactions and saved anime are stored in this browser,
-          separately for each MAL account. Imported MAL profiles and lists are
-          held in memory. Clearing browser data removes local reactions.
+          separately for guests and each signed-in account. Imported MAL
+          profiles and lists are held in memory. Clearing browser data removes
+          local reactions.
         </p>
         <p>
           OAuth tokens stay in the local server’s memory and disappear when it
@@ -72,6 +121,11 @@ export function Dialogs({ kind, state, store, onClose }) {
           Auto-add is optional. Good and Bad never change MAL statuses or
           numerical ratings. You can revoke authorization on MyAnimeList after
           disconnecting here.
+        </p>
+        <p>
+          Anime Shuffle usernames, salted password hashes and account viewing
+          preferences are saved on this installation. Guest preferences stay in
+          this browser. Reactions do not sync between browsers.
         </p>
         <p>This local prototype is not affiliated with MyAnimeList.</p>
         <button
@@ -96,6 +150,26 @@ export function Dialogs({ kind, state, store, onClose }) {
     <Dialog onClose={onClose}>
       <span className="eyebrow">Make it yours</span>
       <h2>Settings</h2>
+      {state.session.account && (
+        <p>
+          Signed in as <strong>{state.session.account.name}</strong> ·{" "}
+          {state.session.account.provider === "mal"
+            ? "MyAnimeList"
+            : "Anime Shuffle"}
+        </p>
+      )}
+      <button
+        className="outline full-width"
+        disabled={state.busy}
+        onClick={() => onNavigate("preferences")}
+      >
+        Viewing preferences
+      </button>
+      {!state.session.account && (
+        <button className="quiet" onClick={() => onNavigate("welcome")}>
+          Sign in or create an account
+        </button>
+      )}
       <p>
         {state.profile
           ? `Connected as ${state.profile.name}`
@@ -173,15 +247,27 @@ export function Dialogs({ kind, state, store, onClose }) {
           </a>
         </div>
       )}
-      {state.session.connected && (
+      {state.session.connected &&
+        state.session.account?.provider === "local" && (
+          <button
+            className="outline"
+            disabled={state.busy}
+            onClick={async () => {
+              if (await store.disconnect(true)) location.reload();
+            }}
+          >
+            Disconnect MyAnimeList
+          </button>
+        )}
+      {state.session.account && (
         <button
-          className="outline"
+          className="outline full-width"
           disabled={state.busy}
           onClick={async () => {
             if (await store.disconnect()) location.reload();
           }}
         >
-          Disconnect MyAnimeList
+          Sign out
         </button>
       )}
     </Dialog>

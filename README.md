@@ -8,6 +8,8 @@ Built with React, CSS, and Node.js. Currently runs locally.
 
 ## Features
 
+- Sign in with MyAnimeList or create an Anime Shuffle account.
+- First-visit preferences for format, series length, and finished shows.
 - Four reactions that distinguish shows you've seen from shows you might watch.
 - Recommendations based on your reactions and, optionally, your MAL list.
 - A local watchlist with optional additions to MAL Plan to Watch.
@@ -30,6 +32,32 @@ On Windows, you can double-click `start.bat` instead. On macOS or Linux, run `sh
 
 A prebuilt frontend is included, so `npm install` isn't needed just to run the app. Without API credentials, it starts with seven sample anime. Cover images require an internet connection.
 
+## Accounts and first-time setup
+
+The welcome screen offers four ways to get started:
+
+- **Create an Anime Shuffle account:** choose a username and password here. No MAL account is required.
+- **Sign in with MyAnimeList:** authorize the app on MAL and use that account as your Anime Shuffle login.
+- **Create a MyAnimeList account:** opens MAL registration in a new tab. Once registered, return and choose Sign in with MyAnimeList.
+- **Try without logging in:** continue as a guest.
+
+Existing Anime Shuffle users can sign in from the welcome screen. Local accounts can also connect MAL from Settings to import a list without switching their Anime Shuffle identity. Signing in directly with MAL uses a separate MAL-based profile; it does not merge local accounts automatically.
+
+After choosing an account or guest access, select what you want to watch:
+
+| Preference | Choices |
+| --- | --- |
+| Format | Series, Movies, Shorts & specials, or Anything |
+| Series length | 1–13, 14–26, 27–49, 50–99, or 100+ episodes |
+| Release status | Include ongoing/upcoming titles, or finished shows only |
+| Missing information | Include or exclude unknown lengths/formats when filtering |
+
+You can select more than one format or length. Episode ranges apply to series, so selecting a long series range alongside Movies still allows movies. Hour estimates in the picker assume 24-minute episodes; cards calculate their estimate from the title's listed episode count and runtime. Unknown totals are labeled instead of guessed.
+
+**Surprise me** accepts any format and length. Change your choices later under **Settings → Viewing preferences**. If the sample set has no matches, broaden your choices or enable the live catalog.
+
+Signed-in viewing preferences are saved on this local installation. Guest preferences, reactions, and saved picks stay in the browser. Accounts currently have no email verification or password-recovery service.
+
 ## MyAnimeList setup
 
 Live discovery requires a MAL Client ID. Connecting your account also requires a Client Secret.
@@ -45,7 +73,7 @@ MAL_CLIENT_SECRET=your_client_secret
 PORT=5173
 ```
 
-5. Restart the server and select **Connect MAL** in the app.
+5. Restart the server and select **Sign in with MyAnimeList**, or **Connect MyAnimeList** in Settings if you already have an Anime Shuffle account.
 
 Sign-in happens on MyAnimeList. The client secret and login tokens stay on the local server.
 
@@ -130,21 +158,27 @@ Edit files in `src/`, then run `npm run build` and refresh the browser. The buil
 | `src/styles.css` | Styles and responsive layouts |
 | `server.mjs` | Local server, OAuth, and API routes |
 | `lib/mal.mjs` | MAL requests, token refresh, and response handling |
+| `lib/accounts.mjs` | Local account authentication and saved viewing preferences |
+| `src/lib/preferences.js` | Shared preference validation, filtering, and runtime estimates |
 | `public/` | HTML entry page and static assets |
 | `dist/` | Generated frontend; edit the source instead |
 | `test/` | Component, recommendation, state, and server tests |
 
 ## Local data
 
-Reactions and saved picks are stored in your browser, separately for guests and each connected MAL account. Imported MAL lists stay in memory. Login tokens are held in server memory, so restarting the server requires reconnecting your account.
+Reactions and saved picks are stored in your browser, separately for guests and each signed-in account. They do not sync between browsers. Imported MAL lists stay in memory.
 
-You can clear local reactions under **Privacy & local data** without changing your MAL list. There are no analytics.
+Anime Shuffle account records and signed-in viewing preferences are saved in `.data/accounts.json`. Passwords use scrypt with a unique random salt; plaintext passwords are not saved. The `.data/` directory is excluded from Git and is never served as a static file. Keep it when updating the app if you want to retain your accounts.
+
+Sessions and MAL tokens are held in server memory. Restarting the server signs users out, but account records and viewing preferences remain. Local accounts can disconnect MAL without signing out of Anime Shuffle; MAL-based accounts use **Sign out**. You can also revoke authorization on MAL.
+
+You can clear local reactions under **Privacy & local data** without changing your MAL list or deleting your account. There are no analytics.
 
 ## Current limitations
 
 This is an early local build. The server listens on `127.0.0.1` and isn't configured for public hosting.
 
-- Tests use mocked MAL responses and jsdom. Live OAuth and visual browser checks are still pending.
+- Account, preference, and session tests run locally. MAL tests use mocked responses, and component tests use jsdom. Live OAuth and visual browser checks are still pending.
 - MAL lists refresh on connection or manually, not continuously.
 - List imports stop at 10,000 entries; each discovery source stops at offset 5,000.
 - Undo keeps the last 30 actions for the current page session.

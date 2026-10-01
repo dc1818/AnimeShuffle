@@ -1,3 +1,4 @@
+import { runtimeLabel } from "../lib/preferences.js";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 
@@ -106,6 +107,7 @@ export function AnimeCard({
             .filter(Boolean)
             .join(" · ")}
         </div>
+        <p className="runtime-estimate">{runtimeLabel(anime)}</p>
         <div className="genres">
           {anime.genres?.map((genre) => (
             <span className="genre" key={genre}>

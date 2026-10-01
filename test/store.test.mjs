@@ -47,6 +47,7 @@ test("React store keeps auto-add opt-in and preserves MAL entry when Undo is ref
     },
   });
   await Promise.all([store.initialize(), store.initialize()]);
+  await store.savePreferences({});
   assert.equal(starts, 1, "StrictMode must not duplicate initialization");
   await store.react("watch");
   assert.equal(writes, 0, "Auto-add defaults off");
@@ -70,6 +71,7 @@ test("clearing reactions and removing saved entries cannot leave stale Undo hist
       new Response(JSON.stringify({ configured: false, connected: false })),
   });
   await store.initialize();
+  await store.savePreferences({});
   await store.react("watch");
   store.removeSaved(1);
   assert.equal(store.getSnapshot().canUndo, false);
@@ -77,4 +79,58 @@ test("clearing reactions and removing saved entries cannot leave stale Undo hist
   await store.clearLocal();
   assert.equal(store.getSnapshot().canUndo, false);
   assert.deepEqual(store.getSnapshot().reactions, {});
+});
+
+test("local sign-in restores account preferences without copying guest reactions", async () => {
+  const storage = memory();
+  const account = { id: "local:fixture", name: "Viewer", provider: "local" };
+  storage.setItem(
+    "anime-shuffle:guest",
+    JSON.stringify({
+      reactions: { 1: { action: "bad", anime } },
+      onboardingComplete: true,
+    }),
+  );
+  const store = createAnimeStore({
+    storage,
+    request: async (url, options) => {
+      const reply = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session")
+        return reply({ configured: false, connected: false, csrf: "guest" });
+      if (url === "/api/account/login") {
+        assert.equal(options.headers["X-CSRF-Token"], "guest");
+        return reply({
+          account,
+          csrf: "signed-in",
+          configured: false,
+          connected: false,
+          onboardingComplete: true,
+          preferences: { formats: ["movies"] },
+        });
+      }
+      if (url === "/api/account/preferences") {
+        assert.equal(options.headers["X-CSRF-Token"], "signed-in");
+        return reply({ onboardingComplete: true });
+      }
+      throw Error("Unexpected URL " + url);
+    },
+  });
+  await store.initialize();
+  assert.equal(
+    await store.authenticate("login", "Viewer", "example-password"),
+    true,
+  );
+  assert.equal(store.getSnapshot().session.account.id, account.id);
+  assert.deepEqual(store.getSnapshot().reactions, {});
+  assert.equal(store.getSnapshot().current.format, "movie");
+  await store.savePreferences({ formats: ["series"], lengths: ["standard"] });
+  assert.deepEqual(
+    JSON.parse(storage.getItem("anime-shuffle:local:fixture")).preferences
+      .lengths,
+    ["standard"],
+  );
+  assert.equal(
+    JSON.parse(storage.getItem("anime-shuffle:guest")).reactions[1].action,
+    "bad",
+  );
 });

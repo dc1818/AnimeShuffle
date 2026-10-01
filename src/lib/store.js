@@ -1,3 +1,4 @@
+import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import { demo } from "./demo.js";
 import { chooseNext, isEligible, REACTIONS } from "./recommend.js";
 
@@ -22,6 +23,8 @@ export function createAnimeStore({
     ready: false,
     preview: true,
     canUndo: false,
+    preferences: defaultPreferences(),
+    onboardingComplete: false,
     settings: { autoAdd: false, dynamic: true },
     message: "",
     error: "",
@@ -66,6 +69,8 @@ export function createAnimeStore({
         JSON.stringify({
           reactions: state.reactions,
           settings: state.settings,
+          preferences: state.preferences,
+          onboardingComplete: state.onboardingComplete,
         }),
       );
     } catch {
@@ -81,6 +86,8 @@ export function createAnimeStore({
     } catch {}
     update({
       reactions: stored.reactions || {},
+      preferences: normalizePreferences(stored.preferences),
+      onboardingComplete: stored.onboardingComplete === true,
       settings: {
         autoAdd: false,
         dynamic: true,
@@ -122,15 +129,20 @@ export function createAnimeStore({
   async function next() {
     update({ busy: true, error: "" });
     try {
-      for (let attempt = 0; attempt < 80; attempt++) {
+      let pagesLoaded = 0;
+      for (let attempt = 0; attempt < 40; attempt++) {
         const pick = chooseNext(pool, {
           reactions: state.reactions,
           list: state.list,
           skipped,
           recent,
+          preferences: state.preferences,
         });
         if (!pick) {
-          if (await refill()) continue;
+          if (pagesLoaded < 3 && (await refill())) {
+            pagesLoaded++;
+            continue;
+          }
           update({ current: null });
           return;
         }
@@ -140,7 +152,16 @@ export function createAnimeStore({
             details.get(anime.id) || (await api("/api/anime/" + anime.id));
           if (details.size >= 250) details.delete(details.keys().next().value);
           details.set(anime.id, anime);
-          if (!isEligible(anime, state.reactions, state.list, skipped)) {
+          if (
+            !isEligible(
+              anime,
+              state.reactions,
+              state.list,
+              skipped,
+              false,
+              state.preferences,
+            )
+          ) {
             skipped.add(anime.id);
             continue;
           }
@@ -272,32 +293,57 @@ export function createAnimeStore({
     skipped.add(state.current.id);
     await next();
   }
-  /** Initialization is idempotent, including when React StrictMode runs effects twice. */
+  /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
+  async function adoptSession(session) {
+    history = [];
+    recent = [];
+    skipped = new Set();
+    offsets = { popular: 0, top: 0, season: 0 };
+    sourceIndex = 0;
+    update({
+      session,
+      profile: null,
+      list: [],
+      current: null,
+      reactions: {},
+      canUndo: false,
+      preview: !session.configured,
+      busy: true,
+    });
+    profileKey =
+      session.account?.provider === "local"
+        ? session.account.id
+        : session.account?.provider === "mal"
+          ? session.account.id.slice(4)
+          : "guest";
+    if (session.connected) {
+      try {
+        const profile = await api("/api/profile");
+        if (!session.account) profileKey = String(profile.id);
+        update({ profile });
+        await readList();
+      } catch (error) {
+        update({ session: { ...session, connected: false }, list: [] });
+        notify(error.message);
+      }
+    }
+    loadLocal();
+    if (session.account)
+      update({
+        preferences: normalizePreferences(session.preferences),
+        onboardingComplete: session.onboardingComplete === true,
+      });
+    pool = state.preview ? [...demo] : [];
+    // Onboarding precedes discovery, including for authenticated first-time visitors.
+    if (state.onboardingComplete) await next();
+    else update({ busy: false });
+  }
+  /** Idempotent initialization also handles React StrictMode's repeated effects. */
   function initialize() {
     if (initialization) return initialization;
     initialization = (async () => {
       try {
-        const session = await api("/api/session");
-        update({ session, preview: !session.configured });
-        if (session.connected) {
-          try {
-            const profile = await api("/api/profile");
-            profileKey = String(profile.id);
-            update({ profile });
-            await readList();
-          } catch (error) {
-            profileKey = "guest";
-            update({
-              profile: null,
-              list: [],
-              session: { ...session, connected: false },
-            });
-            notify(error.message);
-          }
-        }
-        loadLocal();
-        pool = state.preview ? [...demo] : [];
-        await next();
+        await adoptSession(await api("/api/session"));
       } catch (error) {
         update({ error: error.message, busy: false });
       } finally {
@@ -313,6 +359,38 @@ export function createAnimeStore({
       return () => listeners.delete(listener);
     },
     initialize,
+    async authenticate(mode, username, password) {
+      if (state.busy) throw new Error("Please wait for the current request.");
+      if (!["register", "login"].includes(mode))
+        throw new Error("Invalid account action.");
+      update({ busy: true });
+      try {
+        const session = await api(`/api/account/${mode}`, {
+          username,
+          password,
+        });
+        await adoptSession(session);
+        return state.onboardingComplete;
+      } finally {
+        update({ busy: false });
+      }
+    },
+    async savePreferences(input) {
+      if (state.busy) throw new Error("Please wait for the current request.");
+      const preferences = normalizePreferences(input);
+      update({ busy: true });
+      try {
+        if (state.session.account)
+          await api("/api/account/preferences", { preferences });
+        update({ preferences, onboardingComplete: true, canUndo: false });
+        history = [];
+        skipped.clear();
+        persist();
+        await next();
+      } finally {
+        update({ busy: false });
+      }
+    },
     react,
     undo,
     skip,
@@ -366,9 +444,9 @@ export function createAnimeStore({
         update({ busy: false });
       }
     },
-    async disconnect() {
+    async disconnect(malOnly = false) {
       try {
-        await api("/api/logout", {});
+        await api(malOnly ? "/api/mal/disconnect" : "/api/logout", {});
         return true;
       } catch (error) {
         notify(error.message);

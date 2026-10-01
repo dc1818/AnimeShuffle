@@ -1323,3 +1323,110 @@ code {
 .detail-facts > .fact {
   display: block;
 }
+
+/* First-visit forms share the existing card palette and native dialog focus trap. */
+.account-form {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+.account-form label {
+  font-size: 14px;
+  margin-top: 10px;
+  font-weight: 650;
+}
+.account-form input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #567384;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #0b151e;
+  color: #eff4f8;
+}
+.account-form small,
+.preference-group small {
+  color: #a6bdcc;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.account-form .primary {
+  margin-top: 16px;
+}
+.dialog .account-note {
+  font-size: 13px;
+  margin: 22px 0 0;
+}
+.dialog .form-error {
+  color: #ffb8c5;
+  background: #4b24324d;
+  padding: 10px 13px;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.full-width {
+  width: 100%;
+  margin: 12px 0;
+}
+.preference-group {
+  border: 0;
+  padding: 0;
+  margin: 24px 0;
+  min-width: 0;
+}
+.preference-group legend {
+  font-size: 17px;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+.preference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.preference-option {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid #466070;
+  border-radius: 12px;
+  text-align: left;
+  background: #13232e;
+}
+.preference-option strong {
+  font-size: 15px;
+}
+.preference-option span {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b8cbd8;
+}
+.preference-option[aria-pressed="true"],
+.any-choice[aria-pressed="true"] {
+  border-color: #95d9ef;
+  background: #234755;
+  box-shadow: inset 0 0 0 1px #95d9ef;
+}
+.any-choice {
+  border: 1px solid #466070;
+  border-radius: 20px;
+  background: #13232e;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+.dialog .preference-help {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.runtime-estimate {
+  font-size: 13px;
+  color: #a9c9da;
+  margin-top: 8px;
+}
+@media (max-width: 380px) {
+  .preference-grid {
+    grid-template-columns: 1fr;
+  }
+}

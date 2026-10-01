@@ -5,6 +5,7 @@
  * Session and undo-receipt data are intentionally ephemeral; restarting logs out.
  */
 import http from "node:http";
+import { createAccountStore, createLoginLimiter } from "./lib/accounts.mjs";
 import { spawn } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -29,6 +30,10 @@ const clientId = process.env.MAL_CLIENT_ID || "",
   clientSecret = process.env.MAL_CLIENT_SECRET || "";
 const mal = createMalClient({ clientId, clientSecret });
 const sessions = new Map();
+const accounts = createAccountStore(
+  process.env.ANIME_SHUFFLE_DATA_DIR || path.join(root, ".data"),
+);
+const limitLogin = createLoginLimiter();
 const random = () => randomBytes(32).toString("base64url");
 const eq = (a, b) =>
   typeof a === "string" &&
@@ -75,6 +80,17 @@ function json(res, code, value) {
 function redirect(res, target) {
   res.writeHead(302, { Location: target });
   res.end();
+}
+async function sessionInfo(s) {
+  const saved = s.account ? await accounts.preferences(s.account.id) : {};
+  return {
+    configured: !!clientId,
+    oauthConfigured: !!(clientId && clientSecret),
+    connected: !!s.tokens,
+    csrf: s.csrf,
+    account: s.account || null,
+    ...saved,
+  };
 }
 async function body(req) {
   let data = "";
@@ -134,12 +150,43 @@ const server = http.createServer(async (req, res) => {
         throw new AppError("JSON required.", 415);
     }
     if (u.pathname === "/api/session" && req.method === "GET")
-      return json(res, 200, {
-        configured: !!clientId,
-        oauthConfigured: !!(clientId && clientSecret),
-        connected: !!s.tokens,
-        csrf: s.csrf,
-      });
+      return json(res, 200, await sessionInfo(s));
+    // Local authentication rotates the cookie and drops any previous account's MAL tokens.
+    if (
+      ["/api/account/register", "/api/account/login"].includes(u.pathname) &&
+      req.method === "POST"
+    ) {
+      if (s.account)
+        throw new AppError("Sign out before switching accounts.", 409);
+      limitLogin();
+      const input = await body(req);
+      const account = u.pathname.endsWith("register")
+        ? await accounts.register(input.username, input.password)
+        : await accounts.login(input.username, input.password);
+      sessions.delete(s.id);
+      const fresh = newSession(res);
+      fresh.account = account;
+      return json(res, 200, await sessionInfo(fresh));
+    }
+    if (u.pathname === "/api/account/preferences" && req.method === "POST") {
+      if (!s.account)
+        throw new AppError("Sign in to save account preferences.", 401);
+      const input = await body(req);
+      return json(
+        res,
+        200,
+        await accounts.savePreferences(s.account.id, input.preferences),
+      );
+    }
+    if (u.pathname === "/api/mal/disconnect" && req.method === "POST") {
+      if (s.account?.provider !== "local")
+        throw new AppError("Use Sign out for a MyAnimeList login.", 400);
+      const account = s.account;
+      sessions.delete(s.id);
+      const fresh = newSession(res);
+      fresh.account = account;
+      return json(res, 200, await sessionInfo(fresh));
+    }
     // MAL supports plain PKCE: the random verifier also acts as the challenge.
     if (u.pathname === "/auth/start" && req.method === "GET") {
       if (req.headers["sec-fetch-site"] === "cross-site")
@@ -179,9 +226,24 @@ const server = http.createServer(async (req, res) => {
           code_verifier: pending.verifier,
           redirect_uri: origin + "/auth/callback",
         });
+        // Verify the MAL identity before accepting it as the app's login.
+        const profile = await mal.request("/users/@me", {
+          session: { tokens },
+        });
+        if (!Number.isInteger(profile.id) || !profile.name)
+          throw new AppError("Invalid MAL profile.", 502);
+        const account =
+          s.account?.provider === "local"
+            ? s.account
+            : {
+                id: `mal:${profile.id}`,
+                name: profile.name,
+                provider: "mal",
+              };
         sessions.delete(s.id);
         const fresh = newSession(res);
         fresh.tokens = tokens;
+        fresh.account = account;
         return redirect(res, "/?connected=1");
       } catch {
         return redirect(res, "/?auth_error=exchange");
@@ -224,7 +286,7 @@ const server = http.createServer(async (req, res) => {
         throw new AppError("Invalid discovery source.");
       const q = new URLSearchParams({
         fields:
-          "genres,num_episodes,media_type,start_season,synopsis,nsfw,studios",
+          "genres,num_episodes,media_type,start_season,synopsis,nsfw,studios,status,average_episode_duration",
         limit: "50",
         offset: String(offset),
         nsfw: "false",
