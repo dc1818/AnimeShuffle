@@ -73,7 +73,7 @@ test("clearing reactions and removing saved entries cannot leave stale Undo hist
   await store.initialize();
   await store.savePreferences({});
   await store.react("watch");
-  store.removeSaved(1);
+  await store.removeSaved(1);
   assert.equal(store.getSnapshot().canUndo, false);
   await store.react("good");
   await store.clearLocal();
@@ -527,4 +527,43 @@ test("saving viewing filters immediately replaces discovery and invalidates reco
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
     [14],
   );
+});
+
+test("removing connected watchlist entries waits for confirmation and preserves saves on MAL failure", async () => {
+  let fail = false;
+  const planned = { ...anime, listStatus: { status: "plan_to_watch" } };
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url, options) => {
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session")
+        return ok({ configured: true, connected: true });
+      if (url === "/api/profile") return ok({ id: 7 });
+      if (url.startsWith("/api/list"))
+        return ok({ data: [planned], nextOffset: null });
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [], nextOffset: null });
+      if (url === "/api/plan/remove") {
+        if (fail)
+          return new Response(JSON.stringify({ error: "MAL unavailable" }), {
+            status: 503,
+          });
+        return ok(
+          JSON.parse(options.body).confirmed
+            ? { removed: true }
+            : { confirmationRequired: true },
+        );
+      }
+      throw Error("Unexpected request " + url);
+    },
+  });
+  await store.initialize();
+  assert.equal((await store.removeSaved(1)).confirmationRequired, true);
+  assert.equal(store.getSnapshot().list.length, 1);
+  fail = true;
+  assert.equal((await store.removeSaved(1, true)).removed, false);
+  assert.equal(store.getSnapshot().list.length, 1);
+  fail = false;
+  assert.equal((await store.removeSaved(1, true)).removed, true);
+  assert.equal(store.getSnapshot().list.length, 0);
 });

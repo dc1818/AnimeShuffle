@@ -1,3 +1,4 @@
+import { removeMalPlan } from "./lib/watchlist-removal.mjs";
 import { requestTiming } from "./lib/timing.mjs";
 /**
  * HTTP boundary for local use or a single HTTPS-backed hosted instance.
@@ -361,7 +362,7 @@ const server = http.createServer(async (req, res) => {
     // Serialize mutations per session so two tabs cannot race the existence check.
     if (
       req.method === "POST" &&
-      ["/api/plan", "/api/plan/undo"].includes(u.pathname)
+      ["/api/plan", "/api/plan/undo", "/api/plan/remove"].includes(u.pathname)
     ) {
       const previous = s.mutation || Promise.resolve();
       s.mutation = new Promise((resolve) => {
@@ -396,6 +397,15 @@ const server = http.createServer(async (req, res) => {
         expires: Date.now() + 3600000,
       });
       return json(res, 200, { added: true, receipt });
+    }
+    if (u.pathname === "/api/plan/remove" && req.method === "POST") {
+      auth(s);
+      const b = await body(req);
+      return json(
+        res,
+        200,
+        await removeMalPlan(mal, s, number(b.id), b.confirmed),
+      );
     }
     // Only undo our own addition when MAL still reports its original timestamp/status.
     if (u.pathname === "/api/plan/undo" && req.method === "POST") {

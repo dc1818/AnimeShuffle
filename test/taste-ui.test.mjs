@@ -195,3 +195,75 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("watchlist labels MAL update time and requires a cancellable removal confirmation", async () => {
+  const folder = await mkdtemp(path.resolve(".react-test-"));
+  const outfile = path.join(folder, "Watchlist.mjs");
+  await build({
+    entryPoints: ["src/components/Watchlist.jsx"],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    jsx: "automatic",
+    packages: "external",
+  });
+  const { Watchlist } = await import(pathToFileURL(outfile));
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "http://localhost:5173",
+  });
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  dom.window.HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root"));
+  const anime = {
+    id: 1,
+    title: "Planned show",
+    genres: ["Action"],
+    format: "tv",
+    episodes: 12,
+    status: "finished_airing",
+    listStatus: { status: "plan_to_watch", updated_at: "2026-10-01T12:00:00Z" },
+  };
+  const calls = [];
+  const store = {
+    removeSaved: async (...args) => {
+      calls.push(args);
+      return { removed: true };
+    },
+  };
+  const state = {
+    preferences: defaultPreferences(),
+    reactions: { 1: { anime, action: "watch", at: 1700000000000 } },
+    list: [anime],
+    settings: { autoAdd: false },
+    session: { connected: true },
+  };
+  const button = (text) =>
+    [...document.querySelectorAll("button")].find(
+      (b) => b.textContent === text,
+    );
+  try {
+    await act(async () =>
+      root.render(React.createElement(Watchlist, { state, store })),
+    );
+    assert.match(document.body.textContent, /Found on Anime Shuffle/);
+    assert.match(document.body.textContent, /MAL last updated/);
+    await act(async () => button("Remove").click());
+    assert.equal(calls.length, 0);
+    assert.ok(document.querySelector("dialog[open]"));
+    await act(async () => button("Cancel").click());
+    assert.equal(calls.length, 0);
+    await act(async () => button("Remove").click());
+    await act(async () => button("Remove from both").click());
+    assert.deepEqual(calls, [[1, true]]);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});

@@ -108,6 +108,25 @@ test("local server: OAuth state, private tokens, CSRF, preserved statuses and sa
   ]);
   const results = await Promise.all(concurrent.map((r) => r.json()));
   assert.equal(results.filter((r) => r.added).length, 1);
+  assert.equal(
+    (await post("/api/plan/remove", { id: 4 }, { "X-CSRF-Token": "wrong" }))
+      .status,
+    403,
+  );
+  assert.equal(
+    (await (await post("/api/plan/remove", { id: 4 })).json())
+      .confirmationRequired,
+    true,
+  );
+  assert.equal(
+    (await (await post("/api/plan/remove", { id: 4, confirmed: true })).json())
+      .removed,
+    true,
+  );
+  assert.equal(
+    (await post("/api/plan/remove", { id: 2, confirmed: true })).status,
+    409,
+  );
   assert.equal((await post("/api/logout", {})).status, 200);
   assert.equal((await get("/api/profile")).status, 401);
 });

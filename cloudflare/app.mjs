@@ -1,3 +1,4 @@
+import { removeMalPlan } from "../lib/watchlist-removal.mjs";
 import { requestTiming } from "../lib/timing.mjs";
 /** Persistent Cloudflare API. SQL statements bind every user-controlled value.
  * A single small-installation Durable Object serializes requests, including MAL mutations.
@@ -662,6 +663,12 @@ export function createCloudApp(
             if (keys.length > 30) delete session.receipts[keys[0]];
             response = json({ added: true, receipt });
           }
+        } else if (path === "/api/plan/remove" && req.method === "POST") {
+          auth();
+          const b = await input(req, 32000);
+          response = json(
+            await removeMalPlan(mal, tokenSession, number(b.id), b.confirmed),
+          );
         } else if (path === "/api/plan/undo" && req.method === "POST") {
           auth();
           const b = await input(req, 32000),

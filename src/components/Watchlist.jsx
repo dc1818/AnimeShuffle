@@ -1,5 +1,5 @@
 import { AnimeTitle } from "./AnimeTitle.jsx";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   orderWatchlist,
   combinedWatchlist,
@@ -21,6 +21,12 @@ import { coverUrl } from "./AnimeCard.jsx";
 
 /** Show site saves and MAL plans together while keeping their origin explicit. */
 export function Watchlist({ state, store, onDiscover }) {
+  const [removing, setRemoving] = useState(null);
+  async function remove(anime, confirmed = false) {
+    const result = await store.removeSaved(anime.id, confirmed);
+    if (result?.confirmationRequired) setRemoving(anime);
+    else if (result?.removed) setRemoving(null);
+  }
   const [exportFormat, setExportFormat] = useState("json");
   const [pendingImport, setPendingImport] = useState(null);
   const [importMessage, setImportMessage] = useState("");
@@ -72,7 +78,7 @@ export function Watchlist({ state, store, onDiscover }) {
           Source
           <select value={tab} onChange={(event) => setTab(event.target.value)}>
             <option value="all">All watchlist · {combined.length}</option>
-            <option value="saved">Saved here</option>
+            <option value="saved">Found on Anime Shuffle</option>
             <option value="mal" disabled={!state.session.connected}>
               MyAnimeList Plan to Watch
             </option>
@@ -208,7 +214,7 @@ export function Watchlist({ state, store, onDiscover }) {
                           ? "Watchlist"
                           : tab === "mal"
                             ? "MAL Plan to Watch"
-                            : "Saved here",
+                            : "Found on Anime Shuffle",
                       ),
                 ],
                 {
@@ -268,7 +274,8 @@ export function Watchlist({ state, store, onDiscover }) {
           />
         </label>
         <p>
-          JSON backups restore into Saved here. Existing choices are kept.{" "}
+          JSON backups restore into Found on Anime Shuffle. Existing choices are
+          kept.{" "}
           {state.settings.autoAdd && state.session.connected
             ? "Auto-add is enabled, so new imports will also be added to MAL when no existing MAL status is present."
             : "Importing does not add shows to MyAnimeList while auto-add is off."}{" "}
@@ -289,7 +296,9 @@ export function Watchlist({ state, store, onDiscover }) {
                   const count = await store.importWatchlist(pendingImport.text);
                   setTab("all");
                   setPendingImport(null);
-                  setImportMessage(`Imported ${count} titles into Saved here.`);
+                  setImportMessage(
+                    `Imported ${count} titles into Found on Anime Shuffle.`,
+                  );
                 } catch (error) {
                   setImportMessage(error.message);
                 } finally {
@@ -315,6 +324,14 @@ export function Watchlist({ state, store, onDiscover }) {
         {source.some((entry) => entry.mal && !entry.addedAt) &&
           " · MAL-only entries have no known date added."}
       </p>
+      {removing && (
+        <RemoveWatchlistDialog
+          anime={removing}
+          busy={state.busy}
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => remove(removing, true)}
+        />
+      )}
       <div className="watchlist-grid">
         {items.map(({ anime, addedAt, site, mal }) => (
           <article className="saved-card" key={anime.id}>
@@ -334,6 +351,13 @@ export function Watchlist({ state, store, onDiscover }) {
                   ? `Added ${new Date(addedAt).toLocaleDateString()}`
                   : "Date added unknown"}
               </small>
+              {mal &&
+                Number.isFinite(Date.parse(anime.listStatus?.updated_at)) && (
+                  <small>
+                    MAL last updated{" "}
+                    {new Date(anime.listStatus.updated_at).toLocaleString()}
+                  </small>
+                )}
               <a
                 href={`https://myanimelist.net/anime/${anime.id}`}
                 target="_blank"
@@ -343,20 +367,20 @@ export function Watchlist({ state, store, onDiscover }) {
               </a>
               <small>
                 {site && mal
-                  ? "Saved here · MAL Plan to Watch"
+                  ? "Found on Anime Shuffle · MAL Plan to Watch"
                   : mal
                     ? "MAL Plan to Watch"
-                    : "Saved here"}
+                    : "Found on Anime Shuffle"}
               </small>
+              <button
+                className="quiet"
+                disabled={state.busy}
+                onClick={() => (mal ? setRemoving(anime) : remove(anime))}
+              >
+                Remove
+              </button>
               {site && (
                 <>
-                  <button
-                    className="quiet"
-                    disabled={state.busy}
-                    onClick={() => store.removeSaved(anime.id)}
-                  >
-                    {mal ? "Remove site save" : "Remove saved"}
-                  </button>
                   {state.session.connected &&
                     !state.list.some((a) => a.id === anime.id) && (
                       <button
@@ -392,5 +416,36 @@ export function Watchlist({ state, store, onDiscover }) {
         </div>
       )}
     </section>
+  );
+}
+
+function RemoveWatchlistDialog({ anime, busy, onCancel, onConfirm }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    ref.current.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="dialog"
+      aria-labelledby="remove-watchlist-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onCancel();
+      }}
+    >
+      <h2 id="remove-watchlist-title">Remove from both watchlists?</h2>
+      <p>
+        <AnimeTitle anime={anime} /> will be removed from Anime Shuffle and your
+        MyAnimeList Plan to Watch list. Any notes or other details saved with
+        that MAL entry will also be deleted.
+      </p>
+      <button className="primary" disabled={busy} onClick={onConfirm}>
+        {busy ? "Removing…" : "Remove from both"}
+      </button>
+      <button className="quiet" disabled={busy} onClick={onCancel}>
+        Cancel
+      </button>
+    </dialog>
   );
 }

@@ -899,14 +899,37 @@ export function createAnimeStore({
       await next();
       return entries.length;
     },
-    removeSaved(id) {
-      if (state.busy) return;
-      const reactions = { ...state.reactions };
-      delete reactions[id];
-      // Removing an item invalidates history so an unrelated Undo cannot restore it.
-      history = history.filter((entry) => entry.anime.id !== id);
-      update({ reactions, canUndo: history.length > 0 });
-      persist();
+    async removeSaved(id, confirmed = false) {
+      if (state.busy) return { removed: false };
+      update({ busy: true });
+      try {
+        // Check connected accounts even for site-only saves: MAL may have changed
+        // since the last automatic refresh. No local removal precedes MAL success.
+        if (state.session.connected) {
+          const result = await api("/api/plan/remove", { id, confirmed });
+          if (result.confirmationRequired) return result;
+        }
+        const reactions = { ...state.reactions };
+        delete reactions[id];
+        history = history.filter((entry) => entry.anime.id !== id);
+        update({
+          reactions,
+          list: state.list.filter((a) => a.id !== id),
+          canUndo: history.length > 0,
+          recommendationsReady: false,
+          recommendationPicks: [],
+          recommendationPool: [],
+        });
+        persist();
+        await cloudSync?.flush();
+        notify("Removed from your watchlist.");
+        return { removed: true };
+      } catch (error) {
+        notify(error.message);
+        return { removed: false };
+      } finally {
+        update({ busy: false });
+      }
     },
     async saveToMal(anime) {
       if (state.busy) return;
