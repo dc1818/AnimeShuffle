@@ -1,5 +1,5 @@
 import { AnimeTitle } from "./AnimeTitle.jsx";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LoadingIndicator } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
@@ -7,25 +7,19 @@ import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover }) {
-  const requested = useRef(false);
   const [opened, setOpened] = useState(undefined);
   const [about, setAbout] = useState(null);
   useEffect(() => {
     setAbout(null);
   }, [state.recommendationPicks, state.reactions]);
   useEffect(() => {
-    if (state.recommendationsReady) {
-      requested.current = false;
-      return;
-    }
     if (
-      !requested.current &&
       !state.recommendationsReady &&
       state.ready &&
       state.onboardingComplete &&
       !state.busy
     ) {
-      requested.current = true;
+      // The store guards overlapping requests, including StrictMode effects.
       store.loadRecommendations();
     }
   }, [

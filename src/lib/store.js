@@ -24,6 +24,22 @@ import {
  * makes reaction/Undo behavior testable without rendering a browser page.
  * Only local reactions/settings are persisted; imported MAL data stays in memory.
  */
+// API objects may arrive with different key order. Compare values so polling
+// an unchanged account cannot discard a completed recommendation batch.
+function sameData(a, b) {
+  const stable = (value) =>
+    JSON.stringify(value, (_key, item) =>
+      item && typeof item === "object" && !Array.isArray(item)
+        ? Object.fromEntries(
+            Object.keys(item)
+              .sort()
+              .map((key) => [key, item[key]]),
+          )
+        : item,
+    );
+  return stable(a) === stable(b);
+}
+
 export function createAnimeStore({
   request = fetch,
   storage = localStorage,
@@ -159,30 +175,37 @@ export function createAnimeStore({
   }
   async function readList() {
     lastMalCheck = now();
-    let imported = [],
-      offset = 0;
-    do {
-      const page = await api("/api/list?offset=" + offset);
-      imported.push(...page.data);
-      offset = page.nextOffset;
-      if (imported.length >= 10000 && offset !== null) {
-        notify("Loaded the first 10,000 MAL entries.");
-        break;
+    try {
+      let imported = [],
+        offset = 0;
+      do {
+        const page = await api("/api/list?offset=" + offset);
+        imported.push(...page.data);
+        offset = page.nextOffset;
+        if (imported.length >= 10000 && offset !== null) {
+          notify("Loaded the first 10,000 MAL entries.");
+          break;
+        }
+      } while (offset !== null);
+      // Publish the complete snapshot only after every page succeeds. Unchanged
+      // lists should not discard an already calculated recommendation queue.
+      const canonical = (items) =>
+        JSON.stringify([...items].sort((a, b) => a.id - b.id));
+      if (canonical(imported) !== canonical(state.list)) {
+        update({
+          list: imported,
+          recommendationsReady: false,
+          recommendationPicks: [],
+          recommendationPool: [],
+        });
       }
-    } while (offset !== null);
-    // Publish the complete snapshot only after every page succeeds. Unchanged
-    // lists should not discard an already calculated recommendation queue.
-    const canonical = (items) =>
-      JSON.stringify([...items].sort((a, b) => a.id - b.id));
-    if (canonical(imported) !== canonical(state.list)) {
-      update({
-        list: imported,
-        recommendationsReady: false,
-        recommendationPicks: [],
-        recommendationPool: [],
-      });
+    } finally {
+      // Freshness is measured from completion, including failed attempts. A
+      // paginated refresh lasting over a minute must not restart itself.
+      lastMalCheck = now();
     }
   }
+
   async function checkMalFreshness() {
     if (!state.session.connected || now() - lastMalCheck < 60000) return;
     try {
@@ -593,14 +616,25 @@ export function createAnimeStore({
         storage,
         key: "anime-shuffle:" + profileKey + ":pending-sync",
         onRemote(remote) {
+          const preferences = normalizePreferences(remote.preferences);
+          const reactionsChanged = !sameData(state.reactions, remote.reactions);
+          const preferencesChanged = !sameData(state.preferences, preferences);
+          const onboardingChanged =
+            state.onboardingComplete !== remote.onboardingComplete;
           update({
-            reactions: remote.reactions,
-            settings: remote.settings,
-            preferences: normalizePreferences(remote.preferences),
+            reactions: reactionsChanged ? remote.reactions : state.reactions,
+            settings: sameData(state.settings, remote.settings)
+              ? state.settings
+              : remote.settings,
+            preferences: preferencesChanged ? preferences : state.preferences,
             onboardingComplete: remote.onboardingComplete,
-            recommendationPicks: [],
-            recommendationPool: [],
-            recommendationsReady: false,
+            ...(reactionsChanged || preferencesChanged || onboardingChanged
+              ? {
+                  recommendationPicks: [],
+                  recommendationPool: [],
+                  recommendationsReady: false,
+                }
+              : {}),
           });
           persist(false);
         },

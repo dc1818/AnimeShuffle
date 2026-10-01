@@ -567,3 +567,101 @@ test("removing connected watchlist entries waits for confirmation and preserves 
   assert.equal((await store.removeSaved(1, true)).removed, true);
   assert.equal(store.getSnapshot().list.length, 0);
 });
+
+test("unchanged account polling preserves recommendations while real preference changes invalidate once", async () => {
+  let remote = {
+    revision: 1,
+    reactions: {},
+    settings: { autoAdd: false, dynamic: true },
+    preferences: { favoriteGenres: ["Action"] },
+    onboardingComplete: true,
+  };
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session")
+        return ok({
+          configured: true,
+          cloudSync: true,
+          account: { id: "local-user", provider: "local" },
+          preferences: remote.preferences,
+          onboardingComplete: true,
+        });
+      if (url === "/api/account/state") return ok(remote);
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [anime], nextOffset: null });
+      if (url === "/api/anime/1") return ok(anime);
+      throw Error("Unexpected request " + url);
+    },
+  });
+  await store.initialize();
+  await store.loadRecommendations();
+  const picks = store.getSnapshot().recommendationPicks;
+  assert.ok(picks.length);
+  for (let i = 0; i < 4; i++) await store.syncAccount();
+  assert.equal(store.getSnapshot().recommendationPicks, picks);
+  assert.equal(store.getSnapshot().recommendationsReady, true);
+  remote = {
+    ...remote,
+    revision: 2,
+    settings: { dynamic: false, autoAdd: false },
+  };
+  await store.syncAccount();
+  assert.equal(
+    store.getSnapshot().recommendationPicks,
+    picks,
+    "Theme settings do not reset picks",
+  );
+  remote = {
+    ...remote,
+    revision: 3,
+    preferences: { favoriteGenres: ["Drama"] },
+  };
+  await store.syncAccount();
+  assert.equal(store.getSnapshot().recommendationsReady, false);
+  await store.loadRecommendations();
+  const refreshed = store.getSnapshot().recommendationPicks;
+  await store.syncAccount();
+  assert.equal(store.getSnapshot().recommendationsReady, true);
+  assert.equal(store.getSnapshot().recommendationPicks, refreshed);
+});
+
+test("a slow MAL refresh waits a full interval after finishing before another attempt", async () => {
+  let clock = 100000,
+    reads = 0,
+    slow = false;
+  const store = createAnimeStore({
+    storage: memory(),
+    now: () => clock,
+    request: async (url) => {
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session")
+        return ok({ configured: true, connected: true });
+      if (url === "/api/profile") return ok({ id: 7 });
+      if (url.startsWith("/api/list")) {
+        reads++;
+        if (slow) clock += 90000;
+        return ok({ data: [], nextOffset: null });
+      }
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [anime], nextOffset: null });
+      if (url === "/api/anime/1") return ok(anime);
+      throw Error("Unexpected request " + url);
+    },
+  });
+  await store.initialize();
+  slow = true;
+  clock += 60001;
+  await store.refreshMalIfStale();
+  const completedReads = reads;
+  await store.refreshMalIfStale();
+  assert.equal(
+    reads,
+    completedReads,
+    "Slow completion must not trigger immediate re-polling",
+  );
+  clock += 60001;
+  await store.refreshMalIfStale();
+  assert.equal(reads, completedReads + 1);
+});
