@@ -38,7 +38,14 @@ function Dialog({
     </dialog>
   );
 }
-export function Dialogs({ kind, state, store, onClose, onNavigate }) {
+export function Dialogs({
+  kind,
+  state,
+  store,
+  onClose,
+  onNavigate,
+  authError = "",
+}) {
   if (!kind) return null;
   if (
     state.session.staticMode &&
@@ -109,6 +116,11 @@ export function Dialogs({ kind, state, store, onClose, onNavigate }) {
           Create an Anime Shuffle account, or use your MyAnimeList account to
           sign in and bring your list with you.
         </p>
+        {(authError || state.error) && (
+          <p className="error" role="alert">
+            {authError || state.error}
+          </p>
+        )}
         <button className="primary" onClick={() => onNavigate("register")}>
           Create an Anime Shuffle account
         </button>

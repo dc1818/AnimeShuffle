@@ -425,6 +425,7 @@ export function createCloudApp(
           else if (u.searchParams.has("error") || !u.searchParams.get("code"))
             response = redirect("/?auth_error=denied");
           else {
+            let stage = "token";
             try {
               const tokens = await mal.token({
                 grant_type: "authorization_code",
@@ -432,11 +433,13 @@ export function createCloudApp(
                 code_verifier: pending.verifier,
                 redirect_uri: origin + "/auth/callback",
               });
+              stage = "profile";
               const profile = await mal.request("/users/@me", {
                 session: { tokens },
               });
               if (!Number.isSafeInteger(profile.id) || !profile.name)
                 throw Error("Invalid profile");
+              stage = "account";
               let target = one(
                 "SELECT * FROM accounts WHERE mal_id=?",
                 profile.id,
@@ -470,8 +473,14 @@ export function createCloudApp(
               account = one("SELECT * FROM accounts WHERE id=?", id);
               tokenSession.tokens = tokens;
               response = redirect("/?connected=1");
-            } catch {
-              response = redirect("/?auth_error=exchange");
+            } catch (error) {
+              // Log only fixed categories, never provider bodies, auth codes, or tokens.
+              console.error(
+                "[mal-login-error]",
+                stage,
+                Number(error.status) || 500,
+              );
+              response = redirect("/?auth_error=" + stage);
             }
           }
         } else if (path === "/api/logout" && req.method === "POST") {

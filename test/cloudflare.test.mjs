@@ -205,3 +205,35 @@ test("MAL identity and encrypted connection persist across devices and refreshed
   assert.equal(db.db.prepare("SELECT count(*) AS n FROM accounts").get().n, 1);
   db.db.close();
 });
+
+test("MAL callback failures identify the failing stage without returning provider details", async () => {
+  for (const failedStage of ["token", "profile"]) {
+    const db = storage();
+    const app = createCloudApp(db, env, {
+      interval: 0,
+      fetcher: async (url) => {
+        if (url.includes("/token") && failedStage !== "token")
+          return Response.json({
+            access_token: "PRIVATE",
+            refresh_token: "PRIVATE",
+            expires_in: 3600,
+          });
+        return new Response("PRIVATE_PROVIDER_DETAILS", { status: 401 });
+      },
+    });
+    const a = browser(() => app);
+    const start = await a.request("/auth/start");
+    const state = new URL(
+      start.response.headers.get("location"),
+    ).searchParams.get("state");
+    const result = await a.request(
+      "/auth/callback?state=" + state + "&code=FIXTURE",
+    );
+    assert.equal(
+      result.response.headers.get("location"),
+      "/?auth_error=" + failedStage,
+    );
+    assert.equal((await a.request("/api/session")).body.account, null);
+    db.db.close();
+  }
+});

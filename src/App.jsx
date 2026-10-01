@@ -15,6 +15,7 @@ export function App({ store }) {
   const [view, setView] = useState("discover");
   const [details, setDetails] = useState(false);
   const [dialog, setDialog] = useState(null);
+  const [authError, setAuthError] = useState("");
   const onboardingShown = useRef(false);
   useEffect(() => {
     store.initialize();
@@ -25,7 +26,24 @@ export function App({ store }) {
     const query = new URLSearchParams(location.search);
     if (query.has("setup")) setDialog("settings");
     else if (query.has("auth_error")) {
-      store.notify("MAL connection did not finish. Please try again.");
+      // Keep callback failures visible inside the modal; a background toast is obscured.
+      const code = query.get("auth_error");
+      const messages = {
+        state:
+          "Your sign-in session expired or its cookie was unavailable. Start again from this website in the same browser tab. (MAL_SESSION)",
+        denied:
+          "MyAnimeList authorization was cancelled or not granted. Try again and allow access. (MAL_DENIED)",
+        token:
+          "MyAnimeList could not finish authorization. Check this Worker's MAL credentials and the exact registered callback URL. (MAL_TOKEN)",
+        profile:
+          "Authorization reached MyAnimeList, but Anime Shuffle could not load your MAL profile. Please retry. (MAL_PROFILE)",
+        account:
+          "Your MAL profile was received, but Anime Shuffle could not save or link the account. Check the Worker logs. (MAL_ACCOUNT)",
+      };
+      setAuthError(
+        messages[code] ||
+          "MyAnimeList sign-in did not finish. Please retry and check the Worker logs if it happens again. (MAL_CALLBACK)",
+      );
       setDialog(state.session.account ? "settings" : "welcome");
     } else if (!state.onboardingComplete)
       setDialog(state.session.account ? "preferences" : "welcome");
@@ -316,6 +334,7 @@ export function App({ store }) {
         key={dialog || "none"}
         kind={dialog}
         state={state}
+        authError={authError}
         store={store}
         onClose={closeDialog}
         onNavigate={setDialog}
