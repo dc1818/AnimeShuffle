@@ -106,3 +106,94 @@ test("MAL community scores and content ratings survive normalization without inv
   assert.equal(a.ageRating, "pg_13");
   assert.equal(normalize({ id: 2, title: "Unrated" }).score, null);
 });
+
+test("token exchange sends form-encoded OAuth and PKCE values to MAL", async () => {
+  const client = createMalClient({
+    clientId: "fixture-client",
+    clientSecret: "fixture-secret",
+    fetcher: async (url, options) => {
+      assert.equal(url, "https://myanimelist.net/v1/oauth2/token");
+      assert.equal(options.method, "POST");
+      assert.equal(
+        options.headers["Content-Type"],
+        "application/x-www-form-urlencoded",
+      );
+      assert.deepEqual(Object.fromEntries(options.body), {
+        client_id: "fixture-client",
+        client_secret: "fixture-secret",
+        grant_type: "authorization_code",
+        code: "fixture-code",
+        code_verifier: "fixture-verifier",
+        redirect_uri: "https://shuffle.example/auth/callback",
+      });
+      return response({
+        access_token: "access",
+        refresh_token: "refresh",
+        expires_in: 3600,
+      });
+    },
+  });
+  assert.equal(
+    (
+      await client.token({
+        grant_type: "authorization_code",
+        code: "fixture-code",
+        code_verifier: "fixture-verifier",
+        redirect_uri: "https://shuffle.example/auth/callback",
+      })
+    ).access,
+    "access",
+  );
+});
+
+test("token failures retain safe categories and upstream status without exposing provider details", async () => {
+  for (const [status, body, code] of [
+    [
+      401,
+      { error: "invalid_client", error_description: "PRIVATE" },
+      "token_client",
+    ],
+    [
+      400,
+      { error: "invalid_grant", error_description: "PRIVATE" },
+      "token_grant",
+    ],
+    [
+      400,
+      { error: "invalid_request", error_description: "PRIVATE" },
+      "token_request",
+    ],
+    [403, "<html>PRIVATE</html>", "token_forbidden"],
+    [429, { error: "PRIVATE" }, "token_rate_limit"],
+    [503, { error: "PRIVATE" }, "token_unavailable"],
+    [400, { error: "PRIVATE" }, "token_rejected"],
+    [200, "PRIVATE invalid json", "token_response"],
+  ]) {
+    const client = createMalClient({
+      clientId: "id",
+      clientSecret: "secret",
+      fetcher: async () =>
+        typeof body === "string"
+          ? new Response(body, { status })
+          : response(body, status),
+    });
+    await assert.rejects(client.token({}), (error) => {
+      assert.equal(error.code, code);
+      assert.ok(!error.message.includes("PRIVATE"));
+      assert.ok(!JSON.stringify(error).includes("PRIVATE"));
+      if (status !== 200) assert.equal(error.upstreamStatus, status);
+      return true;
+    });
+  }
+  const client = createMalClient({
+    clientId: "id",
+    fetcher: async () => {
+      throw Error("PRIVATE");
+    },
+  });
+  await assert.rejects(
+    client.token({}),
+    (error) =>
+      error.code === "token_network" && !error.message.includes("PRIVATE"),
+  );
+});

@@ -29,6 +29,24 @@ export function App({ store }) {
       // Keep callback failures visible inside the modal; a background toast is obscured.
       const code = query.get("auth_error");
       const messages = {
+        token_client:
+          "MyAnimeList rejected this app's Client ID or Client Secret. Re-enter both secrets from the same MAL Web application in this Worker's settings, then deploy. (MAL_TOKEN_CLIENT)",
+        token_grant:
+          "MyAnimeList rejected the authorization code, callback URL, or verification code. Check the exact MAL redirect URL and begin a fresh login from Anime Shuffle. (MAL_TOKEN_GRANT)",
+        token_forbidden:
+          "MyAnimeList denied the server's token request with HTTP 403. This alone does not establish a credentials problem. Check the Worker logs and MAL API access. (MAL_TOKEN_FORBIDDEN)",
+        token_network:
+          "The server could not connect to MyAnimeList's token endpoint. Retry later and check the Worker logs if this continues. (MAL_TOKEN_NETWORK)",
+        token_rate_limit:
+          "MyAnimeList is limiting authorization requests. Wait before starting a fresh login. (MAL_TOKEN_RATE_LIMIT)",
+        token_unavailable:
+          "MyAnimeList's token service returned a server error. Please try again later. (MAL_TOKEN_UNAVAILABLE)",
+        token_request:
+          "MyAnimeList rejected the format of the token request. Report this error to the site owner. (MAL_TOKEN_REQUEST)",
+        token_response:
+          "MyAnimeList returned an incomplete or unreadable token response. Report this error to the site owner. (MAL_TOKEN_RESPONSE)",
+        token_rejected:
+          "MyAnimeList rejected the token request without a recognized OAuth error. The Worker logs contain the HTTP status. (MAL_TOKEN_REJECTED)",
         state:
           "Your sign-in session expired or its cookie was unavailable. Start again from this website in the same browser tab. (MAL_SESSION)",
         denied:

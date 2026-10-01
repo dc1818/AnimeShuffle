@@ -475,12 +475,30 @@ export function createCloudApp(
               response = redirect("/?connected=1");
             } catch (error) {
               // Log only fixed categories, never provider bodies, auth codes, or tokens.
+              const tokenErrors = new Set([
+                "token_network",
+                "token_client",
+                "token_grant",
+                "token_forbidden",
+                "token_rate_limit",
+                "token_unavailable",
+                "token_request",
+                "token_response",
+                "token_rejected",
+              ]);
+              const reason =
+                stage === "token" && tokenErrors.has(error.code)
+                  ? error.code
+                  : stage;
               console.error(
                 "[mal-login-error]",
-                stage,
+                reason,
+                "upstream_status",
+                Number(error.upstreamStatus) || "none",
+                "status",
                 Number(error.status) || 500,
               );
-              response = redirect("/?auth_error=" + stage);
+              response = redirect("/?auth_error=" + reason);
             }
           }
         } else if (path === "/api/logout" && req.method === "POST") {

@@ -231,7 +231,8 @@ test("MAL callback failures identify the failing stage without returning provide
     );
     assert.equal(
       result.response.headers.get("location"),
-      "/?auth_error=" + failedStage,
+      "/?auth_error=" +
+        (failedStage === "token" ? "token_rejected" : failedStage),
     );
     assert.equal((await a.request("/api/session")).body.account, null);
     db.db.close();
