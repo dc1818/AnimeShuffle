@@ -15,6 +15,7 @@ export function App({ store }) {
     store.getSnapshot,
   );
   const [view, setView] = useState("discover");
+  const [freshnessTick, setFreshnessTick] = useState(0);
   const [details, setDetails] = useState(false);
   const [dialog, setDialog] = useState(null);
   const [authError, setAuthError] = useState("");
@@ -104,15 +105,27 @@ export function App({ store }) {
   }, [dialog, view, store]);
   useEffect(() => {
     const sync = () => {
-      if (document.visibilityState !== "hidden") store.syncAccount?.();
+      if (document.visibilityState !== "hidden") {
+        store.syncAccount?.();
+        setFreshnessTick((tick) => tick + 1);
+      }
     };
+    const timer = window.setInterval(sync, 60000);
+    document.addEventListener("visibilitychange", sync);
     window.addEventListener("focus", sync);
     window.addEventListener("online", sync);
     return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("focus", sync);
       window.removeEventListener("online", sync);
     };
   }, [store]);
+  useEffect(() => {
+    // A tab change during another operation is retried as soon as it completes.
+    if (state.ready && !state.busy && document.visibilityState !== "hidden")
+      store.refreshMalIfStale?.();
+  }, [store, view, freshnessTick, state.ready, state.busy]);
   function closeDialog() {
     // Closing the welcome screen continues as a guest; it does not skip preferences.
     if (!store.getSnapshot().onboardingComplete) {

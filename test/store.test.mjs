@@ -408,3 +408,66 @@ test("recommendations retrieve off-chart MAL neighbors while enforcing known-sho
     "retrieved neighbor details are reused during ranking",
   );
 });
+
+test("MAL freshness imports external plans, throttles reads, and keeps unchanged picks", async () => {
+  let clock = 100000,
+    reads = 0,
+    entries = [],
+    fail = false;
+  const store = createAnimeStore({
+    storage: memory(),
+    now: () => clock,
+    request: async (url) => {
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session")
+        return ok({ configured: true, connected: true });
+      if (url === "/api/profile") return ok({ id: 7 });
+      if (url.startsWith("/api/list")) {
+        reads++;
+        if (fail)
+          return new Response(JSON.stringify({ error: "Unavailable" }), {
+            status: 503,
+          });
+        return ok({ data: entries, nextOffset: null });
+      }
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [anime, { ...anime, id: 2 }], nextOffset: null });
+      if (url.startsWith("/api/anime/"))
+        return ok({ ...anime, id: Number(url.split("/").pop()) });
+      throw Error("Unexpected request " + url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  await store.loadRecommendations();
+  const picks = store.getSnapshot().recommendationPicks;
+  assert.ok(picks.length > 0);
+  clock += 60001;
+  await Promise.all([store.refreshMalIfStale(), store.refreshMalIfStale()]);
+  assert.equal(reads, 2);
+  assert.equal(
+    store.getSnapshot().recommendationPicks,
+    picks,
+    "Unchanged MAL list preserves picks",
+  );
+  entries = [{ ...anime, listStatus: { status: "plan_to_watch", score: 0 } }];
+  clock += 60001;
+  await store.refreshMalIfStale();
+  assert.equal(store.getSnapshot().list[0].id, 1);
+  assert.notEqual(store.getSnapshot().current?.id, 1);
+  assert.equal(store.getSnapshot().recommendationsReady, false);
+  await store.loadRecommendations();
+  assert.ok(store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1));
+  fail = true;
+  clock += 60001;
+  await store.refreshMalIfStale();
+  const attempts = reads;
+  await store.refreshMalIfStale();
+  assert.equal(reads, attempts, "Failures are throttled");
+  assert.equal(
+    store.getSnapshot().list[0].id,
+    1,
+    "Failed reads preserve the previous list",
+  );
+  assert.match(store.getSnapshot().message, /last synced list/);
+});

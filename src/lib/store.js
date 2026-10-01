@@ -28,6 +28,7 @@ export function createAnimeStore({
   request = fetch,
   storage = localStorage,
   staticMode = false,
+  now = Date.now,
   diagnostics = createDiagnostics({ storage }),
 } = {}) {
   let state = {
@@ -67,6 +68,7 @@ export function createAnimeStore({
   let offsets = { popular: 0, top: 0, season: 0 },
     sourceIndex = 0;
   let initialization;
+  let lastMalCheck = -Infinity;
   const expandedSeeds = new Map();
   const details = new Map(),
     listeners = new Set();
@@ -155,6 +157,7 @@ export function createAnimeStore({
     });
   }
   async function readList() {
+    lastMalCheck = now();
     let imported = [],
       offset = 0;
     do {
@@ -166,12 +169,51 @@ export function createAnimeStore({
         break;
       }
     } while (offset !== null);
-    update({
-      list: imported,
-      recommendationsReady: false,
-      recommendationPicks: [],
-      recommendationPool: [],
-    });
+    // Publish the complete snapshot only after every page succeeds. Unchanged
+    // lists should not discard an already calculated recommendation queue.
+    const canonical = (items) =>
+      JSON.stringify([...items].sort((a, b) => a.id - b.id));
+    if (canonical(imported) !== canonical(state.list)) {
+      update({
+        list: imported,
+        recommendationsReady: false,
+        recommendationPicks: [],
+        recommendationPool: [],
+      });
+    }
+  }
+  async function checkMalFreshness() {
+    if (!state.session.connected || now() - lastMalCheck < 60000) return;
+    try {
+      await readList();
+    } catch (error) {
+      // Throttle failures too, retaining the last complete list for offline use.
+      notify(
+        "Couldn't refresh MyAnimeList. Using your last synced list for now. " +
+          error.message,
+      );
+    }
+  }
+  async function refreshMalIfStale() {
+    // App retries after busy work finishes; never overlap a read with a MAL write.
+    if (
+      !state.ready ||
+      state.busy ||
+      !state.session.connected ||
+      now() - lastMalCheck < 60000
+    )
+      return;
+    update({ busy: true });
+    try {
+      await checkMalFreshness();
+      if (
+        state.current &&
+        state.list.some((anime) => anime.id === state.current.id)
+      )
+        await next();
+    } finally {
+      update({ busy: false });
+    }
   }
   // Share verified public details across both feeds, with a bounded freshness window.
   async function animeDetails(id) {
@@ -258,6 +300,7 @@ export function createAnimeStore({
     });
     try {
       await yieldToBrowser();
+      await checkMalFreshness();
       // Keep the first card fast; expand from explicit feedback on subsequent discoveries.
       if (state.current && Object.keys(state.reactions).length >= 3)
         await expandFromTaste(1, 2);
@@ -488,6 +531,7 @@ export function createAnimeStore({
   }
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
+    lastMalCheck = -Infinity;
     cloudSync?.dispose();
     cloudSync = null;
     update({ syncError: "", malSyncError: "", malSyncProgress: null });
@@ -603,6 +647,7 @@ export function createAnimeStore({
     });
     try {
       await yieldToBrowser();
+      await checkMalFreshness();
       const taste = buildRecommendationTaste();
       if (!taste) {
         update({
@@ -712,6 +757,7 @@ export function createAnimeStore({
         update({ busy: false });
       }
     },
+    refreshMalIfStale,
     loadRecommendations,
     async searchAnime(query) {
       const term = query.trim();
