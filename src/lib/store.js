@@ -38,6 +38,7 @@ export function createAnimeStore({
     reactions: {},
     current: null,
     reason: "",
+    detailReason: "",
     busy: true,
     ready: false,
     discoveryLoading: false,
@@ -346,6 +347,7 @@ export function createAnimeStore({
         }
         update({
           current: anime,
+          detailReason: pick.detailReason,
           reason: state.preview
             ? pick.reason.replace("of 8", "of 7")
             : pick.reason,
@@ -398,6 +400,7 @@ export function createAnimeStore({
       anime,
       before: state.reactions[anime.id],
       reason: state.reason,
+      detailReason: state.detailReason,
       receipt: null,
     };
     update({
@@ -516,6 +519,7 @@ export function createAnimeStore({
       reactions,
       current: entry.anime,
       reason: entry.reason,
+      detailReason: entry.detailReason,
       error: "",
       busy: false,
       canUndo: history.length > 0,
@@ -525,7 +529,12 @@ export function createAnimeStore({
   }
   async function skip() {
     if (state.busy || !state.current) return;
-    recordHistory({ anime: state.current, reason: state.reason, skip: true });
+    recordHistory({
+      anime: state.current,
+      reason: state.reason,
+      detailReason: state.detailReason,
+      skip: true,
+    });
     skipped.add(state.current.id);
     await next();
   }

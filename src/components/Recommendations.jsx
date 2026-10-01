@@ -11,6 +11,9 @@ export function Recommendations({ state, store, onDiscover }) {
   const [opened, setOpened] = useState(undefined);
   const [about, setAbout] = useState(null);
   useEffect(() => {
+    setAbout(null);
+  }, [state.recommendationPicks, state.reactions]);
+  useEffect(() => {
     if (state.recommendationsReady) {
       requested.current = false;
       return;
@@ -226,7 +229,7 @@ export function Recommendations({ state, store, onDiscover }) {
                           <div className="recommendation-details">
                             <AnimeDetails
                               anime={pick.anime}
-                              reason={pick.reason}
+                              reason={pick.detailReason || pick.reason}
                               onClose={() => setAbout(null)}
                             />
                           </div>

@@ -17,6 +17,9 @@ export function App({ store }) {
   const [view, setView] = useState("discover");
   const [freshnessTick, setFreshnessTick] = useState(0);
   const [details, setDetails] = useState(false);
+  useEffect(() => {
+    setDetails(false);
+  }, [state.current?.id, state.discoveryLoading, view]);
   const [dialog, setDialog] = useState(null);
   const [authError, setAuthError] = useState("");
   const onboardingShown = useRef(false);
@@ -298,7 +301,7 @@ export function App({ store }) {
                 {details && (
                   <AnimeDetails
                     anime={state.current}
-                    reason={state.reason}
+                    reason={state.detailReason || state.reason}
                     onClose={() => setDetails(false)}
                   />
                 )}

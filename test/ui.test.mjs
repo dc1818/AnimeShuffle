@@ -214,18 +214,24 @@ for (const staticMode of [false, true])
       );
       assert.equal(Object.keys(store.getSnapshot().reactions).length, 0);
       for (const action of ["good", "bad", "nope"]) {
+        await click("More about this anime");
         await act(async () =>
           document.querySelector(".reaction." + action).click(),
         );
+        assert.equal(document.getElementById("details-card"), null);
         assert.equal(store.getSnapshot().reactions[1].action, action);
         await click("Undo");
       }
+      await click("More about this anime");
       await click("Skip");
+      assert.equal(document.getElementById("details-card"), null);
       assert.notEqual(
         document.getElementById("anime-title").textContent,
         "Cowboy Bebop",
       );
+      await click("More about this anime");
       await click("Undo");
+      assert.equal(document.getElementById("details-card"), null);
       assert.equal(
         document.getElementById("anime-title").textContent,
         "Cowboy Bebop",

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  detailedExplanation,
   preferenceWeight,
   preferenceSignals,
   buildTaste,
@@ -111,4 +112,39 @@ test("unrated completed and dropped MAL shows shape taste and supersede old plan
     scoreAnime(anime(21, ["Action"]), explicit) > 0,
     "a direct Good remains authoritative",
   );
+});
+
+test("details distinguish planned, finished and personally rated anime and explain shortlist order", () => {
+  const candidate = anime(9, ["Action"]);
+  for (const [status, score, phrase] of [
+    ["plan_to_watch", 0, "planned to watch"],
+    ["completed", 0, "finished"],
+    ["completed", 9, "rated 9/10"],
+  ]) {
+    const taste = buildTaste(
+      {},
+      [
+        anime(1, ["Action"], {
+          title: "Known show",
+          listStatus: { status, score },
+        }),
+      ],
+      {},
+      [],
+      false,
+    );
+    const text = detailedExplanation(candidate, taste, {
+      mode: "recommendations",
+    });
+    assert.ok(text.includes(phrase));
+    assert.match(text, /Known show/);
+    assert.match(text, /higher place/);
+    if (!score) assert.doesNotMatch(text, /you liked|you enjoyed|rated/);
+  }
+  const cold = detailedExplanation(
+    candidate,
+    buildTaste({}, [], {}, [], false),
+    { cold: true },
+  );
+  assert.match(cold, /starting point/);
 });

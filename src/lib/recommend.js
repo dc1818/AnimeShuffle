@@ -90,6 +90,7 @@ export function buildTaste(
       anime: { ...old?.anime, ...enrich(r.anime) },
       ...signals,
       source: "reaction",
+      action: r.action,
     });
   }
   const genres = new Map(),
@@ -147,6 +148,82 @@ function explanation(anime, taste) {
   return best.length
     ? `More ${best.join(" and ")} for your watchlist.`
     : "Something a little different to try.";
+}
+/** Explain observable taste connections without presenting model scores as certainty. */
+export function detailedExplanation(
+  anime,
+  taste,
+  { mode = "discover", cold = false, explore = false } = {},
+) {
+  if (cold)
+    return "We’re trying a mix of genres and styles to find out what you enjoy. This is a starting point rather than a close personal match yet. Your Good, Bad, Would watch and Won’t watch choices help shape what comes next.";
+  const genres = (anime.genres || [])
+    .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
+    .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
+    .slice(0, 2);
+  const related = [...taste.records.values()]
+    .filter((r) => r.anime.id !== anime.id && r.weight > 0.1)
+    .map((r) => ({
+      ...r,
+      shared: (anime.genres || []).filter((g) => r.anime.genres?.includes(g)),
+    }))
+    .filter((r) => r.shared.length)
+    .sort(
+      (a, b) => b.shared.length - a.shared.length || b.weight - a.weight,
+    )[0];
+  const parts = [];
+  if (explore)
+    parts.push(
+      "A small change of pace: Discover occasionally tries a different direction so you can find favorites outside your usual choices.",
+    );
+  if (related) {
+    const title = englishTitle(related.anime) || primaryTitle(related.anime);
+    const rating = related.anime.listStatus?.score;
+    const status = related.anime.listStatus?.status;
+    let connection = "you’ve shown interest in";
+    if (related.source === "favorite") connection = "you picked as a favorite";
+    else if (related.action === "good") connection = "you marked Good";
+    else if (related.action === "watch") connection = "you want to watch";
+    else if (related.source === "list" && rating >= 6)
+      connection = `you rated ${rating}/10 on MyAnimeList`;
+    else if (status === "watching") connection = "you’re currently watching";
+    else if (status === "plan_to_watch") connection = "you’ve planned to watch";
+    else if (status === "completed") connection = "you’ve finished";
+    parts.push(
+      `It shares ${related.shared.slice(0, 2).join(" and ")} with ${title}, which ${connection}.`,
+    );
+  }
+  if (genres.length && !related)
+    parts.push(
+      `Its ${genres.join(" and ")} side fits the kinds of anime you’ve been drawn to.`,
+    );
+  const words = new Set(terms(anime));
+  const storyMatch = taste.anchors
+    .map((r) => ({
+      ...r,
+      overlap: r.terms.filter((word) => words.has(word)).length,
+    }))
+    .filter((r) => r.anime.id !== anime.id && r.overlap > 1)
+    .sort((a, b) => b.overlap - a.overlap)[0];
+  if (storyMatch)
+    parts.push(
+      `The story description also resembles ${englishTitle(storyMatch.anime) || primaryTitle(storyMatch.anime)}, another anime you liked. It may be worth a look even if the artwork or setting feels different.`,
+    );
+  if (!related && !genres.length && !storyMatch)
+    parts.push(
+      "There isn’t a strong connection to your favorites yet, so consider this a chance to try something different.",
+    );
+  if (mode === "recommendations")
+    parts.push(
+      related || genres.length || storyMatch
+        ? "Your shortlist weighs those connections alongside your other likes and dislikes, with some variety between the picks. A higher place means a closer overall match among the shows available to recommend."
+        : "More choices in Discover will help make this shortlist more personal.",
+    );
+  else if (!explore)
+    parts.push(
+      "Discover mixes familiar interests with new possibilities; your next reaction helps narrow down what you’d enjoy watching.",
+    );
+  return parts.join(" ");
 }
 function similarity(a, b) {
   const one = new Set(a.genres || []),
@@ -258,7 +335,11 @@ export function chooseNext(
   if (cold) reason = "Let’s find something you’ll enjoy.";
   else if (explore) reason = "How about something a little different?";
   else reason = explanation(anime, taste);
-  return { anime, reason };
+  return {
+    anime,
+    reason,
+    detailReason: detailedExplanation(anime, taste, { cold, explore }),
+  };
 }
 
 /**
@@ -303,6 +384,9 @@ export function rankRecommendations(
     selected.push({
       ...pick,
       reason: explanation(pick.anime, taste),
+      detailReason: detailedExplanation(pick.anime, taste, {
+        mode: "recommendations",
+      }),
       tier: selected.length + 1,
     });
   }
