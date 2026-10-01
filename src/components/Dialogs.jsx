@@ -1,3 +1,5 @@
+import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
+import { missingMalPlans } from "../lib/watchlist.js";
 import { useEffect, useRef } from "react";
 import { AccountForm, ViewingPreferences } from "./Onboarding.jsx";
 import { Icon } from "./Icon.jsx";
@@ -263,22 +265,41 @@ export function Dialogs({
           Connect MyAnimeList
         </a>
       )}
-      <div className="setting-row">
-        <div>
-          <strong>Auto-add to MAL Plan to Watch</strong>
-          <p>“Would watch” also adds new entries to your MAL list.</p>
-        </div>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label="Auto-add to MAL Plan to Watch"
-          disabled={!state.session.connected || state.busy}
-          checked={state.settings.autoAdd}
-          onChange={(event) =>
-            store.setSettings({ autoAdd: event.target.checked })
-          }
-        />
-      </div>
+      <MalWatchlistOption
+        enabled={state.settings.autoAdd}
+        disabled={!state.session.connected || state.busy}
+        onChange={store.setAutoAdd}
+      />
+      {state.session.connected && (
+        <>
+          <p>
+            Your MAL watching, completed, and dropped entries inform
+            recommendations even without ratings. Plan to Watch appears in your
+            site watchlist.
+          </p>
+          <button
+            className="outline full-width"
+            disabled={
+              state.busy || !missingMalPlans(state.reactions, state.list).length
+            }
+            onClick={store.syncSavedToMal}
+          >
+            Add missing site saves to MAL (
+            {missingMalPlans(state.reactions, state.list).length})
+          </button>
+          {state.malSyncProgress && (
+            <p role="status">
+              Adding to MAL · {state.malSyncProgress.done} of{" "}
+              {state.malSyncProgress.total}
+            </p>
+          )}
+          {state.malSyncError && (
+            <p className="form-error" role="alert">
+              {state.malSyncError}
+            </p>
+          )}
+        </>
+      )}
       <div className="setting-row">
         <div>
           <strong>Cover-inspired background</strong>

@@ -1,3 +1,4 @@
+import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { useState } from "react";
 import { TasteSetup } from "./TasteSetup.jsx";
 import {
@@ -124,6 +125,7 @@ export function AccountForm({ mode, store, onNavigate, onComplete }) {
 /** Empty selections mean “any”; multiple choices are ORed within each category. */
 export function ViewingPreferences({ state, store, onComplete }) {
   const [value, setValue] = useState(state.preferences);
+  const [autoAdd, setAutoAdd] = useState(state.settings.autoAdd);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   function toggle(field, id) {
@@ -139,7 +141,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
     setPending(true);
     setError("");
     try {
-      await store.savePreferences(preferences);
+      await store.savePreferences(preferences, { autoAdd });
       onComplete();
     } catch (failure) {
       setError(failure.message);
@@ -156,6 +158,19 @@ export function ViewingPreferences({ state, store, onComplete }) {
       </span>
       <h2>What are you in the mood for?</h2>
       <p>Pick as many as you like. You can change these in Settings anytime.</p>
+      {state.session.connected && (
+        <>
+          <p>
+            Your MAL Plan to Watch is already in Watchlist. Watching, completed,
+            and dropped shows help tailor your picks, even without ratings.
+          </p>
+          <MalWatchlistOption
+            enabled={autoAdd}
+            onChange={setAutoAdd}
+            disabled={pending || state.busy}
+          />
+        </>
+      )}
       <TasteSetup
         value={value}
         setValue={setValue}

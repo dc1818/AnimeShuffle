@@ -76,3 +76,35 @@ test("unknown/adult labels and skipped shows do not enter feed", () => {
   assert.equal(chooseNext([anime(1, [], { nsfw: "gray" })]), null);
   assert.equal(chooseNext([anime(1)], { skipped: new Set([1]) }), null);
 });
+
+test("unrated completed and dropped MAL shows shape taste and supersede old plans", () => {
+  const completed = {
+    ...anime(11, ["Romance"]),
+    listStatus: { status: "completed", score: 0 },
+  };
+  const dropped = {
+    ...anime(12, ["Action"]),
+    listStatus: { status: "dropped", score: 0 },
+  };
+  const taste = buildTaste({ 12: { anime: dropped, action: "watch" } }, [
+    completed,
+    dropped,
+  ]);
+  assert.ok(
+    scoreAnime(anime(20, ["Romance"]), taste) >
+      scoreAnime(anime(21, ["Action"]), taste),
+  );
+  assert.ok(
+    preferenceWeight({
+      ...dropped,
+      listStatus: { status: "dropped", score: 10 },
+    }) < 0,
+  );
+  const explicit = buildTaste({ 12: { anime: dropped, action: "good" } }, [
+    dropped,
+  ]);
+  assert.ok(
+    scoreAnime(anime(21, ["Action"]), explicit) > 0,
+    "a direct Good remains authoritative",
+  );
+});

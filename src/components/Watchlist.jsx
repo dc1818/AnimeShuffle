@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   orderWatchlist,
+  combinedWatchlist,
   watchlistText,
   watchlistBackup,
   parseWatchlistBackup,
@@ -17,35 +18,22 @@ import { releaseLabel } from "../lib/release.js";
 import { Icon } from "./Icon.jsx";
 import { coverUrl } from "./AnimeCard.jsx";
 
-/** Local saved picks and imported MAL entries remain separate sources of truth. */
+/** Show site saves and MAL plans together while keeping their origin explicit. */
 export function Watchlist({ state, store, onDiscover }) {
   const [exportFormat, setExportFormat] = useState("json");
   const [pendingImport, setPendingImport] = useState(null);
   const [importMessage, setImportMessage] = useState("");
   const [importing, setImporting] = useState(false);
-  const [tab, setTab] = useState("saved");
+  const [tab, setTab] = useState("all");
   const [sort, setSort] = useState("match");
   const [query, setQuery] = useState("");
   const [release, setRelease] = useState("all");
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [genre, setGenre] = useState("all");
-  const saved = Object.values(state.reactions)
-    .filter((r) => r.action === "watch")
-    .sort((a, b) => b.at - a.at)
-    .map((r) => ({ anime: r.anime, addedAt: r.at || null }));
-  const planned = state.list.filter(
-    (a) => a.listStatus?.status === "plan_to_watch",
+  const combined = combinedWatchlist(state.reactions, state.list);
+  const source = combined.filter(
+    (entry) => tab === "all" || (tab === "mal" ? entry.mal : entry.site),
   );
-  const source =
-    tab === "mal"
-      ? planned.map((anime) => ({
-          anime,
-          addedAt:
-            state.reactions[anime.id]?.action === "watch"
-              ? state.reactions[anime.id].at
-              : null,
-        }))
-      : saved;
   const items = orderWatchlist(source, {
     ...state,
     preferences,
@@ -63,7 +51,8 @@ export function Watchlist({ state, store, onDiscover }) {
           <h1 id="watchlist-heading">Watchlist</h1>
           <p>
             Your next watch, ordered by your taste. Unreleased shows come after
-            available picks in Best match.
+            available picks in Best match. Your site saves and MAL Plan to Watch
+            appear together, with duplicates combined.
           </p>
         </div>
         {state.session.connected && (
@@ -77,22 +66,17 @@ export function Watchlist({ state, store, onDiscover }) {
           </button>
         )}
       </div>
-      <div className="subtabs">
-        <button
-          className={tab === "saved" ? "selected" : ""}
-          onClick={() => setTab("saved")}
-        >
-          Saved here <span>{saved.length}</span>
-        </button>
-        <button
-          className={tab === "mal" ? "selected" : ""}
-          disabled={!state.session.connected}
-          onClick={() => setTab("mal")}
-        >
-          MAL Plan to Watch <span>{planned.length}</span>
-        </button>
-      </div>
       <div className="watchlist-controls">
+        <label>
+          Source
+          <select value={tab} onChange={(event) => setTab(event.target.value)}>
+            <option value="all">All watchlist · {combined.length}</option>
+            <option value="saved">Saved here</option>
+            <option value="mal" disabled={!state.session.connected}>
+              MyAnimeList Plan to Watch
+            </option>
+          </select>
+        </label>
         <label>
           Search titles
           <input
@@ -219,7 +203,11 @@ export function Watchlist({ state, store, onDiscover }) {
                     ? watchlistBackup(entries)
                     : watchlistText(
                         entries,
-                        tab === "mal" ? "MAL Plan to Watch" : "Saved here",
+                        tab === "all"
+                          ? "Watchlist"
+                          : tab === "mal"
+                            ? "MAL Plan to Watch"
+                            : "Saved here",
                       ),
                 ],
                 {
@@ -279,9 +267,11 @@ export function Watchlist({ state, store, onDiscover }) {
           />
         </label>
         <p>
-          JSON backups restore into Saved here. Existing choices are kept.
-          Importing does not add shows to MyAnimeList. Text exports are for
-          reading.
+          JSON backups restore into Saved here. Existing choices are kept.{" "}
+          {state.settings.autoAdd && state.session.connected
+            ? "Auto-add is enabled, so new imports will also be added to MAL when no existing MAL status is present."
+            : "Importing does not add shows to MyAnimeList while auto-add is off."}{" "}
+          Text exports are for reading.
         </p>
         {pendingImport && (
           <div>
@@ -296,7 +286,7 @@ export function Watchlist({ state, store, onDiscover }) {
                 setImporting(true);
                 try {
                   const count = await store.importWatchlist(pendingImport.text);
-                  setTab("saved");
+                  setTab("all");
                   setPendingImport(null);
                   setImportMessage(`Imported ${count} titles into Saved here.`);
                 } catch (error) {
@@ -321,11 +311,11 @@ export function Watchlist({ state, store, onDiscover }) {
       </div>
       <p className="watchlist-count">
         {items.length} of {source.length} saved titles
-        {tab === "mal" &&
-          " · Date added is known only for titles you saved here; MAL import dates are not guessed."}
+        {source.some((entry) => entry.mal && !entry.addedAt) &&
+          " · MAL-only entries have no known date added."}
       </p>
       <div className="watchlist-grid">
-        {items.map(({ anime, addedAt }) => (
+        {items.map(({ anime, addedAt, site, mal }) => (
           <article className="saved-card" key={anime.id}>
             <div className="saved-image">
               <img src={coverUrl(anime)} alt={anime.title} loading="lazy" />
@@ -348,14 +338,21 @@ export function Watchlist({ state, store, onDiscover }) {
               >
                 View on MAL ↗
               </a>
-              {tab === "saved" && (
+              <small>
+                {site && mal
+                  ? "Saved here · MAL Plan to Watch"
+                  : mal
+                    ? "MAL Plan to Watch"
+                    : "Saved here"}
+              </small>
+              {site && (
                 <>
                   <button
                     className="quiet"
                     disabled={state.busy}
                     onClick={() => store.removeSaved(anime.id)}
                   >
-                    Remove saved
+                    {mal ? "Remove site save" : "Remove saved"}
                   </button>
                   {state.session.connected &&
                     !state.list.some((a) => a.id === anime.id) && (

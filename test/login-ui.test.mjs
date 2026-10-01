@@ -88,6 +88,17 @@ test("MAL callback opens preferences for a verified account and shows failures i
           assert.equal(store.getSnapshot().session.account.id, "mal:7");
           assert.equal(modal.querySelector('a[href="/auth/start"]'), null);
           assert.match(modal.textContent, /Start shuffling/);
+          assert.ok(
+            modal.querySelector(
+              '[aria-label="Auto-add watchlist to MyAnimeList"]',
+            ),
+          );
+          assert.equal(
+            modal.querySelector(
+              '[aria-label="Auto-add watchlist to MyAnimeList"]',
+            ).checked,
+            false,
+          );
         } else {
           assert.match(
             modal.querySelector('[role="alert"]').textContent,

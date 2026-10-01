@@ -110,3 +110,42 @@ test("JSON backups round trip and reject invalid input without trusting image UR
   );
   assert.equal(unsafe[0].anime.image, "");
 });
+
+test("combined watchlist merges MAL plans without duplicate reactions and excludes subsequent progress", async () => {
+  const { combinedWatchlist, missingMalPlans, watchlistBackup } =
+    await import("../src/lib/watchlist.js");
+  const anime = (id) => ({ id, title: `Anime ${id}`, genres: ["Action"] });
+  const list = [
+    { ...anime(1), listStatus: { status: "plan_to_watch" } },
+    { ...anime(2), listStatus: { status: "plan_to_watch" } },
+    { ...anime(3), listStatus: { status: "completed" } },
+    { ...anime(4), listStatus: { status: "dropped" } },
+    { ...anime(6), listStatus: { status: "plan_to_watch" } },
+  ];
+  const reactions = Object.fromEntries(
+    [1, 3, 4, 5].map((id) => [
+      id,
+      { anime: anime(id), action: "watch", at: 123 },
+    ]),
+  );
+  reactions[6] = { anime: anime(6), action: "good", at: 456 };
+  const entries = combinedWatchlist(reactions, list);
+  assert.deepEqual(
+    entries.map((e) => e.anime.id),
+    [1, 2, 5],
+  );
+  assert.equal(entries[0].site, true);
+  assert.equal(entries[0].mal, true);
+  assert.equal(entries[0].addedAt, 123);
+  assert.equal(entries[1].addedAt, null);
+  assert.deepEqual(
+    missingMalPlans(reactions, list).map((e) => e.anime.id),
+    [5],
+  );
+  assert.equal(JSON.parse(watchlistBackup(entries)).entries.length, 3);
+  assert.equal(
+    reactions[2],
+    undefined,
+    "MAL import must not fabricate an explicit reaction",
+  );
+});

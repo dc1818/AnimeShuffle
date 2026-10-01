@@ -3,6 +3,7 @@ import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
 import { Recommendations } from "./components/Recommendations.jsx";
 import { Watchlist } from "./components/Watchlist.jsx";
+import { combinedWatchlist } from "./lib/watchlist.js";
 import { Dialogs } from "./components/Dialogs.jsx";
 
 /** Page-level UI state stays in React; domain commands live in the injected store. */
@@ -123,9 +124,7 @@ export function App({ store }) {
       );
     } else setDialog(null);
   }
-  const savedCount = Object.values(state.reactions).filter(
-    (r) => r.action === "watch",
-  ).length;
+  const savedCount = combinedWatchlist(state.reactions, state.list).length;
   return (
     <>
       <div className="ambient" aria-hidden="true">
@@ -133,6 +132,20 @@ export function App({ store }) {
         <i />
         <i />
       </div>
+      {state.malSyncProgress && (
+        <div className="notice" role="status">
+          Adding saved shows to MAL · {state.malSyncProgress.done} of{" "}
+          {state.malSyncProgress.total}
+        </div>
+      )}
+      {state.malSyncError && (
+        <div className="sync-warning" role="alert">
+          {state.malSyncError}
+          <button disabled={state.busy} onClick={store.syncSavedToMal}>
+            Retry MAL sync
+          </button>
+        </div>
+      )}
       {state.syncError && (
         <div className="sync-warning" role="status">
           {state.syncError}{" "}

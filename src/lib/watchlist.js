@@ -1,6 +1,44 @@
 import { buildTaste, scoreAnime } from "./recommend.js";
 import { releaseLabel } from "./release.js";
 import { runtimeLabel, matchesPreferences } from "./preferences.js";
+/** One visible watchlist, merged by MAL ID without fabricating local reactions.
+ * MAL progress removes stale planned saves; explicit seen/dislike reactions hide plans.
+ */
+export function combinedWatchlist(reactions = {}, list = []) {
+  const mal = new Map(list.map((anime) => [anime.id, anime]));
+  const entries = new Map();
+  for (const anime of list) {
+    const reaction = reactions[anime.id];
+    if (
+      anime.listStatus?.status === "plan_to_watch" &&
+      (!reaction || reaction.action === "watch")
+    )
+      entries.set(anime.id, { anime, addedAt: null, site: false, mal: true });
+  }
+  for (const reaction of Object.values(reactions)) {
+    if (reaction.action !== "watch") continue;
+    const anime = mal.get(reaction.anime.id);
+    if (
+      anime?.listStatus?.status &&
+      anime.listStatus.status !== "plan_to_watch"
+    )
+      continue;
+    entries.set(reaction.anime.id, {
+      anime: anime ? { ...reaction.anime, ...anime } : reaction.anime,
+      addedAt: reaction.at || null,
+      site: true,
+      mal: anime?.listStatus?.status === "plan_to_watch",
+    });
+  }
+  return [...entries.values()];
+}
+export function missingMalPlans(reactions = {}, list = []) {
+  const known = new Set(list.map((anime) => anime.id));
+  return combinedWatchlist(reactions, list).filter(
+    (entry) => entry.site && !known.has(entry.anime.id),
+  );
+}
+
 /** Unknown runtimes/dates stay last for both directions. No fabricated MAL added dates. */
 export function orderWatchlist(
   entries,

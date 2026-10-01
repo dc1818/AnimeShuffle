@@ -25,12 +25,6 @@ After changing the interface, run `npm ci && npm run build && npm run build:page
 - Expandable details with MAL community scores and age ratings when available, cover-based background colors, and a mobile layout.
 - Skip, Undo, and keyboard shortcuts.
 
-## Public hosting
-
-For persistent accounts and cross-device watchlists on Cloudflare, follow [CLOUDFLARE.md](CLOUDFLARE.md). It includes deployment, migration backups, MAL redirects, and phone installation. Cloudflare stores signed-in data in SQLite and keeps encrypted connections across deployments. The local Node version and Pages demo remain available.
-
-See [HOSTING.md](HOSTING.md) for the Render deployment setup, private environment variables, persistent storage, and every MyAnimeList registration field. The full website and API run together; GitHub Pages remains a guest demo.
-
 ## Getting started
 
 Install [Node.js 22 or newer](https://nodejs.org/), then clone the repository or download it using **Code → Download ZIP**.
@@ -111,9 +105,9 @@ Each reaction moves to the next anime. **Would watch** saves the title to your l
 
 ### Watchlists
 
-**Saved here** contains your local picks. **MAL Plan to Watch** shows the planned entries imported from your account. Use **Refresh MAL** to reload your list.
+Watchlist combines your site saves and MAL Plan to Watch, with each anime shown once. The **Source** dropdown can show all entries, only Saved here, or only MAL Plan to Watch. Entries completed or dropped on MAL no longer appear as pending watches. Use **Refresh MAL** to load your latest progress and update recommendations.
 
-In Settings, you can enable **Auto-add to MAL Plan to Watch**. It's off by default. When enabled, Would watch also adds new titles to MAL. You can add individual saved titles manually instead.
+During first-time setup or in Settings, enable **Auto-add watchlist to MyAnimeList** to add existing site saves and future Would watch choices to MAL Plan to Watch. It is off by default. Imports also sync while enabled. Existing MAL statuses are always preserved. You can add missing site saves manually without enabling automatic additions. Failed syncs show a retry option.
 
 Before adding a title, the server checks whether it already has a MAL status and preserves existing entries. Removing a local saved title doesn't remove it from MAL.
 
@@ -140,7 +134,7 @@ Cards show MAL release status. Good and Bad are disabled for Not yet aired title
 
 Suggestions use genre and format preferences, with some variety mixed in to avoid repeating the same kinds of shows.
 
-When MAL is connected, **Currently Watching** and **Plan to Watch** entries help establish your interests. Completed shows provide a weaker signal. Unrated shows still count; a missing rating isn't treated as a dislike. If you do rate shows, scores are considered relative to your own average.
+When MAL is connected, **Currently Watching** and **Plan to Watch** entries help establish your interests. Completed shows provide a positive signal without needing a rating; dropped shows indicate less interest in similar titles. A previous Would watch choice does not override later completed or dropped progress. Unrated shows still count; a missing rating isn't treated as a dislike. If you do rate shows, scores are considered relative to your own average.
 
 Direct reactions take priority over those inferred preferences. About 20% of later picks explore outside the usual ranking. Titles already on your MAL list or already reacted to are excluded from discovery. Direct sequels are filtered when their listed prequel isn't known as watched or currently watching.
 
@@ -185,7 +179,7 @@ Edit files in `src/`, then run `npm run build` and refresh the browser. The buil
 
 ## Local data
 
-The following applies to the Node server. The [Cloudflare deployment](CLOUDFLARE.md) stores accounts, sessions, preferences, and reactions in durable SQL storage and syncs them across signed-in devices. Guest data stays in the browser.
+The following applies to the local Node server. Hosted accounts use persistent storage for sessions, preferences, and reactions, with synchronization across signed-in devices. Guest data stays in the browser.
 
 Reactions and saved picks are stored in your browser, separately for guests and each signed-in account. They do not sync between browsers. Imported MAL lists stay in memory.
 
@@ -197,7 +191,7 @@ You can clear local reactions under **Privacy & local data** without changing yo
 
 ## Current limitations
 
-The Node server defaults to local development. For public hosting with persistent account data, use the Cloudflare setup above.
+The Node server defaults to local development. The hosted version supports persistent accounts and synchronization across signed-in devices.
 
 - Account, preference, and session tests run locally. MAL tests use mocked responses, and component tests use jsdom. Live OAuth and visual browser checks are still pending.
 - MAL lists refresh on connection or manually, not continuously.
@@ -220,7 +214,7 @@ Anime data and cover images come from MyAnimeList. Anime Shuffle is not affiliat
 
 ### Watchlist ordering and filters
 
-Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Export entire list downloads every title in the active Saved here or MAL Plan to Watch tab, even if filters hide some titles. Search titles and use dropdowns to filter by genre, format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
+Watchlist defaults to Best match, with unreleased titles after available titles. It has no recommendation tiers or medal colors. Sort by newest/oldest date added or shortest/longest total runtime. Unknown values stay last; original MAL added dates are not supplied by this app and are never guessed. Export entire list downloads every title in the selected watchlist source, even if filters hide some titles. Search titles and use dropdowns to filter by genre, format, episode count, release status, finished shows and unknown metadata. Watchlist filters do not alter Discover preferences.
 
 Reactions on Recommendations keep the current batch in place and grey out the chosen row with a confirmation label. Would watch saves the anime in Watchlist immediately. Undo re-enables the row; Refresh picks builds a new batch excluding all saved or reacted anime.
 
@@ -228,6 +222,6 @@ Reactions on Recommendations keep the current batch in place and grey out the ch
 
 In Watchlist, choose **JSON · Backup and import** and click **Export entire list**. Keep this file to restore the list on another browser or device. To restore it, choose the file under **Import watchlist backup**, review the number of new titles, then click **Import**.
 
-Imports keep existing reactions and MAL progress, skip duplicate titles, and add new entries to **Saved here**. They do not write to MAL, even when automatic MAL additions are enabled. Original saved dates are preserved when known. Imported shows are excluded from Discover and future recommendation batches.
+Imports keep existing reactions and MAL progress, skip duplicate titles, and add new entries to **Saved here**. They also add missing titles to MAL when auto-add is enabled and MAL is connected; leave auto-add off to restore only the site watchlist. Original saved dates are preserved when known. Imported shows are excluded from Discover and future recommendation batches.
 
 Choose **Text · Readable list** for a plain text list of titles, links, dates and runtimes. Text files are for reading; use JSON for importing. JSON imports accept Anime Shuffle version 1 backups up to 5 MB and 10,000 entries. Backups include anime information only, never login credentials or MAL tokens.

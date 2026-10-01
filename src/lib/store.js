@@ -1,5 +1,9 @@
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
-import { parseWatchlistBackup, newWatchlistEntries } from "./watchlist.js";
+import {
+  parseWatchlistBackup,
+  newWatchlistEntries,
+  missingMalPlans,
+} from "./watchlist.js";
 import { createCloudSync } from "./cloud-sync.js";
 import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
@@ -41,6 +45,8 @@ export function createAnimeStore({
     onboardingComplete: false,
     settings: { autoAdd: false, dynamic: true },
     syncError: "",
+    malSyncProgress: null,
+    malSyncError: "",
     message: "",
     error: "",
   };
@@ -131,7 +137,12 @@ export function createAnimeStore({
         break;
       }
     } while (offset !== null);
-    update({ list: imported });
+    update({
+      list: imported,
+      recommendationsReady: false,
+      recommendationPicks: [],
+      recommendationPool: [],
+    });
   }
   async function refill() {
     if (state.preview) return false;
@@ -272,7 +283,12 @@ export function createAnimeStore({
         );
       }
     } catch (error) {
-      notify("Saved locally. " + error.message);
+      update({
+        malSyncError:
+          "Your site watchlist is saved, but MAL sync stopped. " +
+          error.message,
+      });
+      notify("Saved to your site watchlist. " + error.message);
     }
     recordHistory(entry);
     recent = [...recent, anime].slice(-8);
@@ -280,16 +296,52 @@ export function createAnimeStore({
   }
   async function addToMal(anime) {
     const result = await api("/api/plan", { id: anime.id });
+    const existing = state.list.find((entry) => entry.id === anime.id);
     update({
       list: [
         ...state.list.filter((a) => a.id !== anime.id),
         {
           ...anime,
-          listStatus: { status: result.status || "plan_to_watch", score: 0 },
+          ...existing,
+          listStatus: {
+            score: 0,
+            ...existing?.listStatus,
+            status: result.status || "plan_to_watch",
+          },
         },
       ],
     });
     return result;
+  }
+  /** Only opt-in sends site saves to MAL. Each server write rechecks MAL status,
+   * so a stale import can never turn a completed/dropped show back into a plan.
+   * Stop on the first failure; a retry refreshes MAL before resuming missing titles.
+   */
+  async function syncWatchlistToMal(refresh = true) {
+    if (!state.session.connected || state.preview) return;
+    update({ malSyncError: "" });
+    try {
+      if (refresh) await readList();
+      const entries = missingMalPlans(state.reactions, state.list);
+      let done = 0;
+      update({ malSyncProgress: { done, total: entries.length } });
+      for (const { anime } of entries) {
+        await addToMal(anime);
+        update({ malSyncProgress: { done: ++done, total: entries.length } });
+      }
+      if (done)
+        notify(
+          `Synced ${done} saved shows with MAL. Existing MAL statuses were kept.`,
+        );
+    } catch (error) {
+      update({
+        malSyncError:
+          "Your site watchlist is saved, but MAL sync stopped. " +
+          error.message,
+      });
+    } finally {
+      update({ malSyncProgress: null });
+    }
   }
   /** Server receipts authorize Undo only for entries created by this session. */
   async function undo() {
@@ -332,7 +384,7 @@ export function createAnimeStore({
   async function adoptSession(session) {
     cloudSync?.dispose();
     cloudSync = null;
-    update({ syncError: "" });
+    update({ syncError: "", malSyncError: "", malSyncProgress: null });
     history = [];
     recent = [];
     skipped = new Set();
@@ -402,6 +454,8 @@ export function createAnimeStore({
         update({ syncError: "Account sync is unavailable. " + error.message });
       }
     }
+    if (state.settings.autoAdd && state.session.connected)
+      await syncWatchlistToMal(false);
     pool = state.preview ? [...demo] : [];
     // Onboarding precedes discovery, including for authenticated first-time visitors.
     if (state.onboardingComplete) await next();
@@ -547,7 +601,7 @@ export function createAnimeStore({
         update({ busy: false });
       }
     },
-    async savePreferences(input) {
+    async savePreferences(input, settings = {}) {
       if (state.busy) throw new Error("Please wait for the current request.");
       const preferences = normalizePreferences(input);
       update({ busy: true });
@@ -555,6 +609,10 @@ export function createAnimeStore({
         if (state.session.account)
           await api("/api/account/preferences", { preferences });
         update({
+          settings:
+            typeof settings.autoAdd === "boolean" && state.session.connected
+              ? { ...state.settings, autoAdd: settings.autoAdd }
+              : state.settings,
           preferences,
           onboardingComplete: true,
           canUndo: false,
@@ -565,6 +623,8 @@ export function createAnimeStore({
         history = [];
         skipped.clear();
         persist();
+        await cloudSync?.flush();
+        if (state.settings.autoAdd) await syncWatchlistToMal();
         await next();
       } finally {
         update({ busy: false });
@@ -582,6 +642,35 @@ export function createAnimeStore({
         return next();
       }
     },
+    async setAutoAdd(enabled) {
+      if (state.busy || !state.session.connected) return;
+      update({
+        busy: true,
+        settings: { ...state.settings, autoAdd: enabled },
+        malSyncError: "",
+      });
+      persist();
+      try {
+        await cloudSync?.flush();
+        if (enabled) await syncWatchlistToMal();
+      } catch (error) {
+        update({
+          malSyncError:
+            "The MAL auto-add setting has not synced. " + error.message,
+        });
+      } finally {
+        update({ busy: false });
+      }
+    },
+    async syncSavedToMal() {
+      if (state.busy || !state.session.connected) return;
+      update({ busy: true });
+      try {
+        await syncWatchlistToMal();
+      } finally {
+        update({ busy: false });
+      }
+    },
     setSettings(patch) {
       update({ settings: { ...state.settings, ...patch } });
       persist();
@@ -597,7 +686,7 @@ export function createAnimeStore({
       const reactions = { ...state.reactions };
       for (const { anime, addedAt } of entries)
         reactions[anime.id] = { action: "watch", anime, at: addedAt };
-      // Backups restore this browser's saved list; they never write to MAL automatically.
+      // Imported saves follow the same explicit MAL auto-add choice as other watchlist additions.
       history = [];
       update({
         reactions,
@@ -607,6 +696,10 @@ export function createAnimeStore({
         recommendationsReady: false,
       });
       persist();
+      if (state.settings.autoAdd && state.session.connected) {
+        update({ busy: true });
+        await syncWatchlistToMal();
+      }
       await next();
       return entries.length;
     },
@@ -640,7 +733,14 @@ export function createAnimeStore({
       update({ busy: true });
       try {
         await readList();
-        notify("MAL list refreshed.");
+        if (
+          state.current &&
+          state.list.some((anime) => anime.id === state.current.id)
+        )
+          await next();
+        notify(
+          "MAL list refreshed. Watchlist and recommendations now use your latest progress.",
+        );
       } catch (error) {
         notify(error.message);
       } finally {

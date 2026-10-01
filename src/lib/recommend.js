@@ -10,15 +10,21 @@ export const reactionWeight = { good: 3, bad: -3, watch: 1.8, nope: -1.3 };
 export function preferenceWeight(entry, meanScore = 7) {
   const s = entry.listStatus || {},
     score = Number(s.score) || 0;
-  if (score > 0)
-    return Math.max(-2.5, Math.min(3, (score - meanScore) * 0.7 + 0.5));
+  const ratedWeight = Math.max(
+    -2.5,
+    Math.min(3, (score - meanScore) * 0.7 + 0.5),
+  );
+  // Dropping is negative interest even when an old numeric rating was positive.
+  if (s.status === "dropped")
+    return score > 0 ? Math.min(-0.8, ratedWeight) : -1;
+  if (score > 0) return ratedWeight;
   return (
     {
       watching: 1.6,
       plan_to_watch: 1.1,
-      completed: 0.6,
+      completed: 1,
       on_hold: 0,
-      dropped: -0.25,
+      dropped: -1,
     }[s.status] || 0
   );
 }
@@ -31,6 +37,9 @@ export function buildTaste(reactions, list, preferences) {
   const mean = rated.length
     ? rated.reduce((s, a) => s + a.listStatus.score, 0) / rated.length
     : 7;
+  const statuses = new Map(
+    list.map((anime) => [anime.id, anime.listStatus?.status]),
+  );
   const records = new Map(
     list.map((a) => [
       a.id,
@@ -40,12 +49,17 @@ export function buildTaste(reactions, list, preferences) {
   // A chosen favorite is explicit evidence, stronger than an unrated MAL status.
   for (const anime of initial.favoriteAnime)
     records.set(anime.id, { anime, weight: 3, source: "favorite" });
-  for (const [id, r] of Object.entries(reactions))
+  for (const [id, r] of Object.entries(reactions)) {
+    // A past plan is superseded by subsequent MAL progress. Good/Bad stay authoritative.
+    const status = statuses.get(Number(id));
+    if (r.action === "watch" && ["completed", "dropped"].includes(status))
+      continue;
     records.set(Number(id), {
       anime: r.anime,
       weight: reactionWeight[r.action] || 0,
       source: "reaction",
     });
+  }
   for (const { anime, weight, source } of records.values()) {
     const gs = anime.genres || [];
     const w = weight / Math.sqrt(Math.max(1, gs.length));

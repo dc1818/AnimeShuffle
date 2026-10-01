@@ -155,3 +155,117 @@ test("import saves once, preserves reactions, excludes Discover and survives rel
   await assert.rejects(restored.importWatchlist("bad JSON"));
   assert.deepEqual(restored.getSnapshot().reactions, before);
 });
+
+for (const setup of ["settings", "onboarding"])
+  test(`MAL ${setup} opt-in syncs missing site saves, loads all statuses, and retains failures for retry`, async () => {
+    const account = { id: "local:sync", name: "Viewer", provider: "local" };
+    const storage = memory();
+    const item = (id) => ({ ...anime, id, title: `Anime ${id}` });
+    const reactions = Object.fromEntries(
+      [1, 2, 3, 4, 5].map((id) => [
+        id,
+        { anime: item(id), action: "watch", at: 123 },
+      ]),
+    );
+    storage.setItem("anime-shuffle:local:sync", JSON.stringify({ reactions }));
+    let list = [
+      { ...item(1), listStatus: { status: "plan_to_watch", score: 0 } },
+      { ...item(2), listStatus: { status: "completed", score: 0 } },
+      { ...item(3), listStatus: { status: "dropped", score: 0 } },
+    ];
+    let failed = true;
+    const writes = [],
+      offsets = [];
+    const store = createAnimeStore({
+      storage,
+      request: async (url, options) => {
+        if (url === "/api/session")
+          return Response.json({
+            account,
+            configured: true,
+            connected: true,
+            csrf: "fixture",
+            preferences: {},
+            onboardingComplete: false,
+          });
+        if (url === "/api/profile")
+          return Response.json({ id: 7, name: "Viewer" });
+        if (url.startsWith("/api/list")) {
+          const offset = Number(
+            new URL(url, "https://test").searchParams.get("offset"),
+          );
+          offsets.push(offset);
+          return Response.json(
+            offset === 0
+              ? { data: list.slice(0, 1), nextOffset: 100 }
+              : { data: list.slice(1), nextOffset: null },
+          );
+        }
+        if (url === "/api/account/preferences") return Response.json({});
+        if (url.startsWith("/api/catalog"))
+          return Response.json({ data: [], nextOffset: null });
+        if (url === "/api/plan") {
+          const { id } = JSON.parse(options.body);
+          writes.push(id);
+          if (id === 5 && failed)
+            return Response.json({ error: "Try later" }, { status: 503 });
+          list.push({
+            ...item(id),
+            listStatus: { status: "plan_to_watch", score: 0 },
+          });
+          return Response.json({ added: true, status: "plan_to_watch" });
+        }
+        throw Error("Unexpected " + url);
+      },
+    });
+    await store.initialize();
+    assert.deepEqual(writes, []);
+    assert.deepEqual(
+      store.getSnapshot().list.map((a) => a.listStatus.status),
+      ["plan_to_watch", "completed", "dropped"],
+    );
+    if (setup === "settings") await store.setAutoAdd(true);
+    else await store.savePreferences({}, { autoAdd: true });
+    assert.deepEqual(writes, [4, 5]);
+    assert.equal(store.getSnapshot().settings.autoAdd, true);
+    assert.equal(
+      JSON.parse(storage.getItem("anime-shuffle:local:sync")).settings.autoAdd,
+      true,
+    );
+    assert.match(store.getSnapshot().malSyncError, /Try later/);
+    failed = false;
+    await store.syncSavedToMal();
+    assert.deepEqual(
+      writes,
+      [4, 5, 5],
+      "retry must not repeat successful additions or change existing MAL entries",
+    );
+    assert.equal(store.getSnapshot().malSyncError, "");
+    assert.ok(offsets.includes(100));
+    await store.setAutoAdd(false);
+    assert.equal(store.getSnapshot().settings.autoAdd, false);
+    assert.equal(writes.length, 3, "disabling auto-add does not alter MAL");
+    const { watchlistBackup } = await import("../src/lib/watchlist.js");
+    await store.importWatchlist(
+      watchlistBackup([{ anime: item(8), addedAt: 123 }]),
+    );
+    assert.equal(
+      writes.length,
+      3,
+      "connected imports stay local while auto-add is off",
+    );
+    await store.setAutoAdd(true);
+    assert.equal(
+      writes.at(-1),
+      8,
+      "enabling auto-add includes previously imported site saves",
+    );
+    await store.importWatchlist(
+      watchlistBackup([{ anime: item(9), addedAt: 123 }]),
+    );
+    assert.equal(
+      writes.at(-1),
+      9,
+      "new imports follow explicit auto-add consent",
+    );
+  });
