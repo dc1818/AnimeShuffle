@@ -297,12 +297,16 @@ export function rankRecommendations(
         bestScore = adjusted;
       }
     }
+    const varietyAdjusted =
+      available[best].score < Math.max(...available.map((p) => p.score));
     const [pick] = available.splice(best, 1);
     selected.push({
       ...pick,
       reason: explanation(pick.anime, taste),
       detailReason: detailedExplanation(pick.anime, taste, {
         mode: "recommendations",
+        tier: selected.length + 1,
+        varietyAdjusted,
       }),
       tier: selected.length + 1,
     });

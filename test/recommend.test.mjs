@@ -131,19 +131,19 @@ test("details distinguish planned, finished and personally rated anime without i
       ],
       {},
       [],
-      false,
+      true,
     );
     const text = detailedExplanation(candidate, taste, {
       mode: "recommendations",
     });
     assert.ok(text.includes(phrase));
     assert.match(text, /Known show/);
-    assert.match(text, /There isn’t a specific story parallel/);
+    assert.match(text, /Action/);
     if (!score) assert.doesNotMatch(text, /you liked|you enjoyed|rated/);
   }
   const cold = detailedExplanation(
     candidate,
-    buildTaste({}, [], {}, [], false),
+    buildTaste({}, [], {}, [], true),
     { cold: true },
   );
   assert.match(cold, /starting point/i);
@@ -158,14 +158,14 @@ test("extended reasons name supported story connections without inventing settin
   const candidate = anime(2, ["Drama"], {
     title: "Candidate",
     synopsis:
-      "An army fights a war against deadly creatures as mankind struggles to survive.",
+      "Soldiers fight a war against deadly creatures as humanity struggles to survive.",
   });
   const taste = buildTaste(
     { 1: { anime: favorite, action: "good" } },
     [],
     {},
     [favorite, candidate],
-    false,
+    true,
   );
   for (const mode of ["discover", "recommendations"]) {
     const text = detailedExplanation(candidate, taste, { mode });
@@ -191,4 +191,44 @@ test("extended reasons name supported story connections without inventing settin
     detailedExplanation(negated, taste),
     /Both stories|armed conflict/,
   );
+});
+
+test("recommendation explanations combine positively scored genres, studio and personal ratings", () => {
+  const known = anime(1, ["Action", "Fantasy"], {
+    title: "Known favorite",
+    studios: ["Studio A"],
+    listStatus: { status: "completed", score: 9 },
+  });
+  const candidate = anime(2, ["Action", "Fantasy"], { studios: ["Studio A"] });
+  const taste = buildTaste({}, [known], {}, [known, candidate]);
+  const text = detailedExplanation(candidate, taste, {
+    mode: "recommendations",
+    tier: 1,
+  });
+  assert.match(text, /9\/10/);
+  assert.match(text, /Action/);
+  assert.match(text, /Fantasy/);
+  assert.match(text, /Studio A/);
+  assert.match(text, /strongest overall match/);
+  assert.equal(text.match(/You rated/g).length, 1);
+});
+
+test("a shared studio with negative learned contribution is not presented as a reason to watch", () => {
+  const liked = anime(1, ["Action"], { title: "Liked", studios: ["Studio A"] });
+  const reactions = { 1: { action: "good", anime: liked } };
+  for (let id = 2; id < 12; id++)
+    reactions[id] = {
+      action: "bad",
+      anime: anime(id, ["Horror"], { studios: ["Studio A"] }),
+    };
+  const candidate = anime(20, ["Action"], { studios: ["Studio A"] });
+  const taste = buildTaste(reactions, [], { favoriteGenres: ["Action"] }, [
+    candidate,
+  ]);
+  assert.ok(taste.model.explain(candidate).groups.studio < 0);
+  const text = detailedExplanation(candidate, taste, {
+    mode: "recommendations",
+  });
+  assert.match(text, /Action/);
+  assert.doesNotMatch(text, /Studio A/);
 });

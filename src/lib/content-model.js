@@ -110,7 +110,36 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
           );
       }
   }
+  const combinedScore = (e, i) =>
+    0.65 * Math.tanh(e / 2) + 0.35 * Math.tanh(i / 2);
   return {
+    trainedIds: new Set(examples.map((r) => r.anime.id)),
+    // Leave-one-feature-out score differences use the very same trained heads
+    // as ranking. These are contributions to a match, not confidence percentages.
+    explain(a) {
+      const f = features(a),
+        e = dot(enjoyment, f),
+        i = dot(interest, f);
+      const baseline = combinedScore(e, i);
+      const groups = new Map();
+      const contributions = f.map(([key, value]) => {
+        const de = (enjoyment.get(key) || 0) * value;
+        const di = (interest.get(key) || 0) * value;
+        const group = key.split(":")[0];
+        const sum = groups.get(group) || [0, 0];
+        groups.set(group, [sum[0] + de, sum[1] + di]);
+        return { key, contribution: baseline - combinedScore(e - de, i - di) };
+      });
+      return {
+        contributions,
+        groups: Object.fromEntries(
+          [...groups].map(([key, [de, di]]) => [
+            key,
+            baseline - combinedScore(e - de, i - di),
+          ]),
+        ),
+      };
+    },
     score(a) {
       const f = features(a);
       const enjoymentScore = Math.tanh(dot(enjoyment, f) / 2);

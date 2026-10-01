@@ -113,3 +113,43 @@ test("candidate scoring responds to a changed personal MAL rating and supports m
   assert.equal(rankRecommendations(pool, { list: swapped })[0].anime.id, 1);
   assert.ok(Number.isFinite(scoreAnime(anime(3, ""), buildTaste({}, list))));
 });
+
+test("explanation contributions equal the actual score change when a feature is removed", () => {
+  const known = {
+    id: 1,
+    title: "Favorite",
+    genres: ["Action"],
+    format: "tv",
+    studios: ["Studio A"],
+  };
+  const taste = buildTaste({ 1: { action: "good", anime: known } }, [], {}, [
+    known,
+  ]);
+  const candidate = { ...known, id: 2 };
+  const analysis = taste.model.explain(candidate);
+  const genre = analysis.contributions.find((c) => c.key === "genre:Action");
+  const actual =
+    taste.model.score(candidate).score -
+    taste.model.score({ ...candidate, genres: [] }).score;
+  assert.ok(Math.abs(genre.contribution - actual) < 1e-12);
+  assert.ok(genre.contribution > 0);
+  const studio = analysis.contributions.find(
+    (c) => c.key === "studio:Studio A",
+  );
+  const fullScore = taste.model.score(candidate).score;
+  const withoutStudio = taste.model.score({ ...candidate, studios: [] }).score;
+  assert.ok(
+    Math.abs(studio.contribution - (fullScore - withoutStudio)) < 1e-12,
+  );
+  assert.ok(
+    studio.contribution > 0,
+    "Ranking keeps the studio contribution alongside the genre",
+  );
+  assert.ok(fullScore > withoutStudio);
+  taste.model.explain(candidate);
+  assert.equal(
+    taste.model.score(candidate).score,
+    fullScore,
+    "Explaining cannot change the ranking score",
+  );
+});

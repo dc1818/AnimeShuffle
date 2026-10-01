@@ -122,7 +122,12 @@ function positiveRecords(taste) {
     positiveCache.set(
       taste,
       [...taste.records.values()]
-        .filter((r) => r.weight > 0.1)
+        .filter(
+          (r) =>
+            r.weight > 0.1 &&
+            (!taste.model?.trainedIds ||
+              taste.model.trainedIds.has(r.anime.id)),
+        )
         .sort((a, b) => b.weight - a.weight)
         .slice(0, 400),
     );
@@ -188,46 +193,130 @@ export function storyConnection(anime, taste) {
     )[0];
 }
 
-/** The explanation is a supported content comparison, not a claim that a
- * feature caused a particular model score. No settings/artwork contrast is invented. */
+/** Combine genuine positive score contributions with concrete examples from
+ * the training history. Shared metadata alone never earns a positive rationale. */
 export function explainPick(
   anime,
   taste,
-  { cold = false, explore = false, mode = "discover" } = {},
+  {
+    cold = false,
+    explore = false,
+    mode = "discover",
+    tier,
+    varietyAdjusted = false,
+  } = {},
 ) {
-  const match = storyConnection(anime, taste);
-  if (match) {
-    return `${personalConnection(match.record)} Both stories involve ${match.shared
-      .slice(0, 2)
-      .map((t) => t.description)
-      .join(" and ")}.`;
-  }
+  if (cold) return "A starting point while we get to know your taste.";
+  const analysis = taste.model?.explain(anime);
+  if (!analysis)
+    return "More choices in Discover will help us find a personal match.";
+  const contributing = (prefix) =>
+    analysis.contributions
+      .filter((c) => c.key.startsWith(prefix + ":") && c.contribution > 0.00001)
+      .sort((a, b) => b.contribution - a.contribution)
+      .map((c) => c.key.slice(prefix.length + 1));
+  const genres = contributing("genre").slice(0, 3);
+  const studios = contributing("studio");
   const positive = positiveRecords(taste).filter(
     (r) => r.anime.id !== anime.id,
   );
-  const studioMatch = positive.find((r) =>
-    (anime.studios || []).some((s) => r.anime.studios?.includes(s)),
-  );
-  if (studioMatch) {
-    const studios = (anime.studios || []).filter((s) =>
-      studioMatch.anime.studios?.includes(s),
+  const parts = [],
+    mentioned = new Set();
+  const introduce = (record) => {
+    if (!mentioned.has(record.anime.id)) {
+      parts.push(personalConnection(record));
+      mentioned.add(record.anime.id);
+    }
+  };
+  const match = storyConnection(anime, taste);
+  const words = contributing("text");
+  const supportedThemes =
+    match?.shared.filter((theme) =>
+      words.some(
+        (word) =>
+          new RegExp("\\b" + word + "\\b", "i").test(theme.sentence) &&
+          new RegExp("\\b" + word + "\\b", "i").test(
+            match.record.anime.synopsis || "",
+          ),
+      ),
+    ) || [];
+  if (match && analysis.groups.text > 0.00001 && supportedThemes.length) {
+    introduce(match.record);
+    parts.push(
+      `Both stories involve ${supportedThemes
+        .slice(0, 2)
+        .map((t) => t.description)
+        .join(" and ")}.`,
     );
-    return `${personalConnection(studioMatch)} This is another production from ${studios.join(" and ")}.`;
   }
-  const genres = (anime.genres || [])
-    .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
-    .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
-    .slice(0, 2);
-  if (genres.length) {
+  if (genres.length && analysis.groups.genre > 0.00001) {
     const related = positive
-      .filter((r) => genres.some((g) => r.anime.genres?.includes(g)))
-      .sort((a, b) => b.weight - a.weight)[0];
-    return `${related ? personalConnection(related) + " " : ""}This pick follows your interest in ${genres.join(" and ")}. There isn’t a specific story parallel to point to from the available descriptions.`;
+      .map((record) => ({
+        record,
+        shared: genres.filter((g) => record.anime.genres?.includes(g)),
+      }))
+      .filter((r) => r.shared.length)
+      .sort(
+        (a, b) =>
+          b.shared.length - a.shared.length ||
+          b.record.weight - a.record.weight,
+      )[0];
+    if (related) {
+      const already = mentioned.has(related.record.anime.id);
+      if (!already) introduce(related.record);
+      parts.push(
+        `The ${related.shared.join(" and ")} mix you found in ${title(related.record.anime)} is part of the appeal here${genres.filter((g) => !related.shared.includes(g)).length ? `, along with your interest in ${genres.filter((g) => !related.shared.includes(g)).join(" and ")}` : ""}.`,
+      );
+    } else
+      parts.push(
+        `Your interest in ${genres.join(" and ")} makes this a promising pick.`,
+      );
   }
-  if (cold) return "A starting point while we get to know your taste.";
+  if (studios.length && analysis.groups.studio > 0.00001) {
+    const related = positive.find((r) =>
+      studios.some((studio) => r.anime.studios?.includes(studio)),
+    );
+    if (related) {
+      const shared = studios.filter((studio) =>
+        related.anime.studios?.includes(studio),
+      );
+      const already = mentioned.has(related.anime.id);
+      if (!already) introduce(related);
+      parts.push(
+        `${shared.join(" and ")} also made ${title(related.anime)}, so the studio is another connection.`,
+      );
+    }
+  }
+  if (mode === "recommendations" && analysis.groups.format > 0.00001) {
+    const formats = {
+      tv: "TV series",
+      ona: "web series",
+      movie: "movies",
+      ova: "OVAs",
+      special: "specials",
+      music: "music videos",
+    };
+    if (formats[anime.format])
+      parts.push(
+        `You’ve also tended to respond well to ${formats[anime.format]}.`,
+      );
+  }
+  if (!parts.length) {
+    if (explore)
+      return "A change of pace from your usual picks—something to try outside your familiar favorites.";
+    return "This is a tentative pick. A few more choices in Discover will help find closer matches.";
+  }
+  if (
+    mode === "recommendations" &&
+    tier === 1 &&
+    taste.model.score(anime).score > 0
+  )
+    parts.push(
+      "Together, these connections make it your strongest overall match in this batch.",
+    );
+  else if (mode === "recommendations" && varietyAdjusted)
+    parts.push("It also brings a different mix of genres to your shortlist.");
   if (explore)
-    return "A change of pace from your usual picks—something to try outside your familiar favorites.";
-  return mode === "recommendations"
-    ? "This is a tentative pick. A few more choices in Discover will help find closer matches."
-    : "Something new to try while we get a better feel for what you like.";
+    parts.unshift("A change of pace, with a few familiar connections.");
+  return parts.join(" ");
 }
