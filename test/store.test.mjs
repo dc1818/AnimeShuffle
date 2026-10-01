@@ -457,7 +457,9 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   assert.notEqual(store.getSnapshot().current?.id, 1);
   assert.equal(store.getSnapshot().recommendationsReady, false);
   await store.loadRecommendations();
-  assert.ok(store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1));
+  assert.ok(
+    store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1),
+  );
   fail = true;
   clock += 60001;
   await store.refreshMalIfStale();
@@ -470,4 +472,59 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
     "Failed reads preserve the previous list",
   );
   assert.match(store.getSnapshot().message, /last synced list/);
+});
+
+test("saving viewing filters immediately replaces discovery and invalidates recommendations", async () => {
+  const catalog = [
+    { ...anime, id: 10, episodes: 12, status: "finished_airing" },
+    { ...anime, id: 11, episodes: 80, status: "finished_airing" },
+    { ...anime, id: 12, episodes: 12, status: "currently_airing" },
+    { ...anime, id: 13, episodes: 0, status: "finished_airing" },
+    {
+      ...anime,
+      id: 14,
+      format: "movie",
+      episodes: 1,
+      status: "finished_airing",
+    },
+  ];
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session") return ok({ configured: true });
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: catalog, nextOffset: null });
+      if (url.startsWith("/api/anime/"))
+        return ok(catalog.find((a) => a.id === Number(url.split("/").pop())));
+      throw Error("Unexpected request " + url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  await store.loadRecommendations();
+  assert.ok(store.getSnapshot().recommendationPicks.length > 1);
+  const filters = {
+    favoriteGenres: ["Action"],
+    formats: ["series"],
+    lengths: ["short"],
+    finishedOnly: true,
+    includeUnknown: false,
+  };
+  await store.savePreferences(filters);
+  assert.equal(store.getSnapshot().current.id, 10);
+  assert.equal(store.getSnapshot().recommendationsReady, false);
+  assert.equal(store.getSnapshot().recommendationPicks.length, 0);
+  await store.loadRecommendations();
+  assert.deepEqual(
+    store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
+    [10],
+  );
+  await store.savePreferences({ ...filters, formats: ["movies"] });
+  assert.equal(store.getSnapshot().current.id, 14);
+  await store.loadRecommendations();
+  assert.deepEqual(
+    store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
+    [14],
+  );
 });

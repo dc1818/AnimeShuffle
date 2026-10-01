@@ -124,6 +124,11 @@ export function AccountForm({ mode, store, onNavigate, onComplete }) {
 
 /** Empty selections mean “any”; multiple choices are ORed within each category. */
 export function ViewingPreferences({ state, store, onComplete }) {
+  // Returning accounts only edit feed filters here; keep their learned taste
+  // and the separate Settings auto-add choice intact.
+  const initialSetup = !state.onboardingComplete;
+  const showTasteSetup =
+    initialSetup || !(state.session.account || state.session.connected);
   const [value, setValue] = useState(state.preferences);
   const [autoAdd, setAutoAdd] = useState(state.settings.autoAdd);
   const [pending, setPending] = useState(false);
@@ -141,7 +146,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
     setPending(true);
     setError("");
     try {
-      await store.savePreferences(preferences, { autoAdd });
+      await store.savePreferences(preferences, initialSetup ? { autoAdd } : {});
       onComplete();
     } catch (failure) {
       setError(failure.message);
@@ -158,7 +163,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       </span>
       <h2>What are you in the mood for?</h2>
       <p>Pick as many as you like. You can change these in Settings anytime.</p>
-      {state.session.connected && (
+      {initialSetup && state.session.connected && (
         <>
           <p>
             Your MAL Plan to Watch is already in Watchlist. Watching, completed,
@@ -171,13 +176,15 @@ export function ViewingPreferences({ state, store, onComplete }) {
           />
         </>
       )}
-      <TasteSetup
-        value={value}
-        setValue={setValue}
-        store={store}
-        disabled={pending || state.busy}
-        preview={state.preview}
-      />
+      {showTasteSetup && (
+        <TasteSetup
+          value={value}
+          setValue={setValue}
+          store={store}
+          disabled={pending || state.busy}
+          preview={state.preview}
+        />
+      )}
       <fieldset className="preference-group" disabled={pending || state.busy}>
         <legend>What would you like to watch?</legend>
         <button
@@ -279,7 +286,13 @@ export function ViewingPreferences({ state, store, onComplete }) {
         disabled={pending || state.busy}
         onClick={() => save(value)}
       >
-        {pending ? "Finding your anime…" : "Start shuffling"}
+        {pending
+          ? initialSetup
+            ? "Finding your anime…"
+            : "Updating your picks…"
+          : initialSetup
+            ? "Start shuffling"
+            : "Save preferences"}
       </button>
       {!state.onboardingComplete && (
         <button

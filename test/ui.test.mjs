@@ -240,7 +240,7 @@ for (const staticMode of [false, true])
           .find((element) => element.textContent.startsWith("Movies"))
           .click(),
       );
-      await click("Start shuffling");
+      await click("Save preferences");
       assert.equal(store.getSnapshot().current.format, "movie");
       assert.ok(
         document

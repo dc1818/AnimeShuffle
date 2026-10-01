@@ -81,3 +81,92 @@ test("favorite autocomplete shows covers, selects three, supports removal and ge
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("returning accounts edit viewing filters without repeating onboarding or changing auto-add", async () => {
+  const folder = await mkdtemp(path.resolve(".react-test-"));
+  const outfile = path.join(folder, "Onboarding.mjs");
+  await build({
+    entryPoints: ["src/components/Onboarding.jsx"],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    jsx: "automatic",
+    packages: "external",
+  });
+  const { ViewingPreferences } = await import(pathToFileURL(outfile));
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "http://localhost:5173",
+  });
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root"));
+  const preferences = {
+    ...defaultPreferences(),
+    favoriteGenres: ["Action"],
+    favoriteAnime: [{ id: 1, title: "Favorite" }],
+  };
+  let saved;
+  const store = {
+    savePreferences: async (...args) => {
+      saved = args;
+    },
+    searchAnime: async () => [],
+  };
+  const state = {
+    preferences,
+    settings: { autoAdd: true },
+    session: { connected: true, account: { id: "mal:7" } },
+    onboardingComplete: true,
+  };
+  try {
+    await act(async () =>
+      root.render(
+        React.createElement(ViewingPreferences, {
+          state,
+          store,
+          onComplete() {},
+        }),
+      ),
+    );
+    assert.doesNotMatch(
+      document.body.textContent,
+      /Pick three anime|What genres|Auto-add watchlist/,
+    );
+    for (const text of [
+      "What would you like to watch?",
+      "How long a series?",
+      "Finished shows only",
+      "Include unknown lengths or formats",
+    ])
+      assert.ok(document.body.textContent.includes(text));
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Save preferences")
+        .click(),
+    );
+    assert.deepEqual(
+      saved,
+      [preferences, {}],
+      "Hidden taste and auto-add choices are preserved",
+    );
+    await act(async () =>
+      root.render(
+        React.createElement(ViewingPreferences, {
+          state: { ...state, onboardingComplete: false },
+          store,
+          onComplete() {},
+        }),
+      ),
+    );
+    assert.match(document.body.textContent, /Pick three anime/);
+    assert.match(document.body.textContent, /What genres/);
+    assert.match(document.body.textContent, /Auto-add watchlist/);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
