@@ -58,6 +58,7 @@ export function AnimeCard({
   reason,
   saved = false,
   selectedGenres = [],
+  onPreferences,
 }) {
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
@@ -163,7 +164,7 @@ export function AnimeCard({
             </span>
           ))}
         </div>
-        <GenreFocus genres={selectedGenres} />
+        <GenreFocus genres={selectedGenres} onChange={onPreferences} />
         <p className="synopsis">
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>

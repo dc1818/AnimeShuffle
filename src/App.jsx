@@ -272,6 +272,7 @@ export function App({ store }) {
             state={state}
             store={store}
             onDiscover={() => setView("discover")}
+            onPreferences={() => setDialog("preferences")}
           />
         ) : view === "watchlist" ? (
           <Watchlist
@@ -308,6 +309,7 @@ export function App({ store }) {
                   key={state.current.id}
                   anime={state.current}
                   selectedGenres={state.preferences.favoriteGenres}
+                  onPreferences={() => setDialog("preferences")}
                   busy={state.busy}
                   canUndo={state.canUndo}
                   detailsOpen={details}

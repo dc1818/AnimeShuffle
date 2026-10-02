@@ -1997,3 +1997,23 @@ main.wide-main {
   color: #a8e0ee;
   font-weight: 600;
 }
+
+.genre-focus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.genre-change {
+  padding: 5px 9px;
+  border: 1px solid rgba(121, 186, 207, 0.45);
+  border-radius: 6px;
+  background: rgba(121, 186, 207, 0.1);
+  color: #a8e0ee;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.genre-change:hover {
+  background: rgba(121, 186, 207, 0.2);
+  border-color: #79bacf;
+}

@@ -6,7 +6,7 @@ import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
 import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
-export function Recommendations({ state, store, onDiscover }) {
+export function Recommendations({ state, store, onDiscover, onPreferences }) {
   const [opened, setOpened] = useState(undefined);
   const [about, setAbout] = useState(null);
   const aboutAvailable = state.recommendationPicks.some(
@@ -214,6 +214,7 @@ export function Recommendations({ state, store, onDiscover }) {
                         <AnimeCard
                           anime={pick.anime}
                           selectedGenres={state.preferences.favoriteGenres}
+                          onPreferences={onPreferences}
                           reason={pick.reason}
                           saved={pick.saved}
                           compact
