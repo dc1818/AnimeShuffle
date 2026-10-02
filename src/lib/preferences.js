@@ -72,6 +72,7 @@ export const defaultPreferences = () => ({
   lengths: [],
   finishedOnly: false,
   includeUnknown: true,
+  childrenTitles: "auto",
 });
 
 /** Shared by client and server; discard unknown keys rather than persisting arbitrary input. */
@@ -132,6 +133,9 @@ export function normalizePreferences(value = {}) {
     lengths: clean(value?.lengths, LENGTH_OPTIONS),
     finishedOnly: value?.finishedOnly === true,
     includeUnknown: value?.includeUnknown !== false,
+    childrenTitles: ["auto", "include", "hide"].includes(value?.childrenTitles)
+      ? value.childrenTitles
+      : "auto",
   };
 }
 

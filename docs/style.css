@@ -1953,3 +1953,22 @@ main.wide-main {
   margin-top: 0.25em;
   overflow-wrap: anywhere;
 }
+
+.audience-preference {
+  display: grid;
+  gap: 8px;
+  margin: 20px 0;
+}
+.audience-preference select {
+  background: #12232e;
+  color: #e3eef5;
+  border: 1px solid #456171;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  max-width: 100%;
+}
+.audience-preference small {
+  color: #aebcc9;
+  line-height: 1.5;
+}

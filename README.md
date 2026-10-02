@@ -46,7 +46,7 @@ The recommender learns **enjoyment** and **interest in watching** separately. Go
 
 Two regularized logistic models use genres, synopsis terms, studios, format, and runtime. Their scores are combined with a diversity adjustment. Discover occasionally explores beyond the closest matches; Recommendations focuses on the strongest candidates. Candidates come from MAL charts, seasonal listings, and recommendations associated with anime you like.
 
-The app filters out known titles and checks direct prequel relationships before suggesting sequels. Explanations use the features that contributed positively to a pick. **Time spent looking at a card is never used.**
+The app filters out known titles and checks direct prequel relationships before suggesting sequels. Children’s titles default to Automatic: MAL’s Kids tag requires positive audience interest, with a limit of one in five Discover choices and two per recommendation batch. Unrated completed children’s shows alone do not establish current interest. Viewing preferences also offer Include and Hide overrides. All-ages ratings alone are not filtered, and the app does not infer or store your age. Explanations use the features that contributed positively to a pick. **Time spent looking at a card is never used.**
 
 This is a content-based recommender. It doesn't compare your behavior with other users, and synopsis matching uses shared terms rather than a full understanding of the story. Recommendation quality depends on the available metadata and your feedback.
 

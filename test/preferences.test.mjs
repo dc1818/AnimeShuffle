@@ -100,6 +100,7 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
       lengths: [],
       finishedOnly: false,
       includeUnknown: false,
+      childrenTitles: "auto",
     },
   );
 });

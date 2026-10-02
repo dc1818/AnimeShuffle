@@ -157,6 +157,49 @@ export function recommendationSeeds(reactions, list, preferences) {
     .sort((a, b) => b.weight - a.weight || a.anime.id - b.anime.id)
     .map((r) => r.anime);
 }
+/** Audience preference is about the title, never an inferred age for the viewer.
+ * A general-audience rating, art style or young protagonist is not a Kids tag. */
+export function isChildrenTitle(anime) {
+  return (anime.genres || []).some((genre) => genre.toLowerCase() === "kids");
+}
+function childrenInterest(reactions, list, preferences) {
+  let positive = 0,
+    negative = 0;
+  const detailedReactions = Object.fromEntries(
+    Object.entries(reactions).filter(([, reaction]) => reaction?.anime?.id),
+  );
+  const { records } = buildTaste(
+    detailedReactions,
+    list,
+    preferences,
+    [],
+    false,
+  );
+  for (const r of records.values()) {
+    if (!isChildrenTitle(r.anime)) continue;
+    if (r.action === "bad" || r.action === "nope") {
+      negative++;
+      continue;
+    }
+    if (
+      r.source === "favorite" ||
+      r.action === "good" ||
+      r.action === "watch"
+    ) {
+      positive++;
+      continue;
+    }
+    const status = r.anime.listStatus?.status;
+    const score = Number(r.anime.listStatus?.score) || 0;
+    if (status === "dropped" || (score > 0 && score <= 4)) negative++;
+    else if (score >= 7) positive += 1;
+    else if (["watching", "plan_to_watch"].includes(status) && !score)
+      positive += 0.5;
+    // Unrated completed shows may be old childhood viewing, not current interest.
+  }
+  return positive >= 1 && positive > negative;
+}
+
 /** Exclude known titles, unsafe/unknown content labels, and unmet direct prequels. */
 export function isEligible(
   a,
@@ -171,6 +214,10 @@ export function isEligible(
 /** Build membership sets once per candidate batch, rather than once per anime. */
 function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
   const initial = normalizePreferences(preferences);
+  const allowChildren =
+    initial.childrenTitles === "include" ||
+    (initial.childrenTitles === "auto" &&
+      childrenInterest(reactions, list, initial));
   const favorites = new Set(initial.favoriteAnime.map((a) => a.id));
   const statuses = new Map(list.map((a) => [a.id, a.listStatus?.status]));
   const seen = new Set(
@@ -190,6 +237,7 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
       (a.nsfw !== "white" && !a.demo)
     )
       return false;
+    if (!allowChildren && isChildrenTitle(a)) return false;
     if (!matchesPreferences(a, initial)) return false;
     const status = statuses.get(a.id);
     if (status && !(allowPlan && status === "plan_to_watch")) return false;
@@ -208,9 +256,15 @@ export function chooseNext(
     preferences,
   } = {},
 ) {
-  const available = pool.filter(
-    eligibilityFilter(reactions, list, skipped, false, preferences),
-  );
+  const audienceMode = normalizePreferences(preferences).childrenTitles;
+  const available = pool
+    .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
+    .filter(
+      (anime) =>
+        audienceMode !== "auto" ||
+        !isChildrenTitle(anime) ||
+        !recent.slice(-4).some(isChildrenTitle),
+    );
   if (!available.length) return null;
   const taste = buildTaste(reactions, list, preferences, pool),
     count = Object.keys(reactions).length;
@@ -276,11 +330,18 @@ export function rankRecommendations(
     .filter(eligibilityFilter(reactions, list, new Set(), false, preferences))
     .map((anime) => ({ anime, ...taste.model.score(anime), saved: false }));
   const selected = [];
+  const audienceMode = normalizePreferences(preferences).childrenTitles;
   // Greedy diversity reranking: first place is the strongest match, later places balance variety.
   while (selected.length < limit && available.length) {
     let best = 0,
       bestScore = -Infinity;
     for (let i = 0; i < available.length; i++) {
+      if (
+        audienceMode === "auto" &&
+        isChildrenTitle(available[i].anime) &&
+        selected.filter((pick) => isChildrenTitle(pick.anime)).length >= 2
+      )
+        continue;
       const adjusted =
         available[i].score -
         0.06 *
@@ -297,6 +358,7 @@ export function rankRecommendations(
         bestScore = adjusted;
       }
     }
+    if (bestScore === -Infinity) break;
     const varietyAdjusted =
       available[best].score < Math.max(...available.map((p) => p.score));
     const [pick] = available.splice(best, 1);

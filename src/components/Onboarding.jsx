@@ -139,6 +139,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       p.lengths.length ||
       p.finishedOnly ||
       !p.includeUnknown ||
+      (p.childrenTitles && p.childrenTitles !== "auto") ||
       state.settings.autoAdd,
     );
   });
@@ -258,6 +259,28 @@ export function ViewingPreferences({ state, store, onComplete }) {
           title's own runtime.
         </small>
       </fieldset>
+      <label className="audience-preference">
+        <strong>Children’s titles</strong>
+        <select
+          aria-label="Children’s titles"
+          value={value.childrenTitles || "auto"}
+          disabled={pending || state.busy}
+          onChange={(event) =>
+            setValue((current) => ({
+              ...current,
+              childrenTitles: event.target.value,
+            }))
+          }
+        >
+          <option value="auto">Automatic · follow my taste</option>
+          <option value="hide">Hide children’s titles</option>
+          <option value="include">Include children’s titles</option>
+        </select>
+        <small>
+          Automatic includes occasional children’s titles only when your choices
+          show interest. All-ages ratings alone aren’t filtered.
+        </small>
+      </label>
       <div className="setting-row">
         <div>
           <strong>Finished shows only</strong>

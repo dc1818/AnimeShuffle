@@ -598,6 +598,7 @@ export function createAnimeStore({
       skip: true,
     });
     skipped.add(state.current.id);
+    recent = [...recent, state.current].slice(-8);
     await next();
   }
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
