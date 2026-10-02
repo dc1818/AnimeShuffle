@@ -238,6 +238,12 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
     )
       return false;
     if (!allowChildren && isChildrenTitle(a)) return false;
+    // Selected viewing genres match any one genre, not every selected genre.
+    if (
+      initial.favoriteGenres.length &&
+      !(a.genres || []).some((genre) => initial.favoriteGenres.includes(genre))
+    )
+      return false;
     if (!matchesPreferences(a, initial)) return false;
     const status = statuses.get(a.id);
     if (status && !(allowPlan && status === "plan_to_watch")) return false;

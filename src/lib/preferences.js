@@ -1,5 +1,5 @@
 import { titleFields } from "./titles.js";
-// Genre interests train ranking; they are not hard exclusions in Discover.
+// Selected genres guide ranking and restrict Discover/Recommendations.
 export const GENRES = [
   "Action",
   "Adventure",

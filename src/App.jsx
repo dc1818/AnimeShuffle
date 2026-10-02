@@ -5,6 +5,7 @@ import { LoadingIndicator } from "./components/LoadingIndicator.jsx";
 import { Recommendations } from "./components/Recommendations.jsx";
 import { Watchlist } from "./components/Watchlist.jsx";
 import { combinedWatchlist } from "./lib/watchlist.js";
+import { GenreFocus } from "./components/GenrePreferences.jsx";
 import { Dialogs } from "./components/Dialogs.jsx";
 import { BACKGROUND_REFRESH_MS } from "./lib/refresh-policy.js";
 
@@ -267,6 +268,9 @@ export function App({ store }) {
         </div>
       )}
       <main className={view === "recommendations" ? "wide-main" : undefined}>
+        {state.ready && state.onboardingComplete && view !== "watchlist" && (
+          <GenreFocus genres={state.preferences.favoriteGenres} />
+        )}
         {view === "recommendations" ? (
           <Recommendations
             state={state}

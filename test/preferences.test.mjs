@@ -127,8 +127,10 @@ test("favorites seed taste, are bounded and never reappear as discovery candidat
       scoreAnime(anime(12, { genres: ["Romance"] }), taste),
   );
   assert.equal(
-    chooseNext([anime(1), anime(5)], { preferences, random: () => 0.5 }).anime
-      .id,
+    chooseNext([anime(1), anime(5, { genres: ["Action"] })], {
+      preferences,
+      random: () => 0.5,
+    }).anime.id,
     5,
   );
   for (const action of ["good", "bad", "watch", "nope"]) {
@@ -140,4 +142,42 @@ test("favorites seed taste, are bounded and never reappear as discovery candidat
       5,
     );
   }
+});
+
+test("viewing genres restrict both feeds with any-match semantics and Any genre clears the filter", async () => {
+  const { chooseNext, rankRecommendations, isEligible } =
+    await import("../src/lib/recommend.js");
+  const action = {
+    id: 201,
+    title: "Action",
+    genres: ["Action"],
+    nsfw: "white",
+    format: "tv",
+  };
+  const drama = { ...action, id: 202, title: "Drama", genres: ["Drama"] };
+  const comedy = { ...action, id: 203, title: "Comedy", genres: ["Comedy"] };
+  const preferences = { favoriteGenres: ["Action", "Drama"] };
+  assert.equal(
+    isEligible(comedy, {}, [], new Set(), false, preferences),
+    false,
+  );
+  assert.equal(isEligible(action, {}, [], new Set(), false, preferences), true);
+  assert.equal(isEligible(drama, {}, [], new Set(), false, preferences), true);
+  assert.deepEqual(
+    rankRecommendations([action, drama, comedy], { preferences })
+      .map((p) => p.anime.id)
+      .sort(),
+    [201, 202],
+  );
+  assert.equal(chooseNext([comedy], { preferences }), null);
+  assert.equal(
+    chooseNext([comedy], { preferences: { favoriteGenres: [] } }).anime.id,
+    203,
+  );
+  assert.equal(
+    rankRecommendations([action, drama, comedy], {
+      preferences: { favoriteGenres: [] },
+    }).length,
+    3,
+  );
 });

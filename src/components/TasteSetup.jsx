@@ -1,10 +1,17 @@
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useState } from "react";
-import { GENRES } from "../lib/preferences.js";
+import { GenrePreferences } from "./GenrePreferences.jsx";
 import { coverUrl } from "./AnimeCard.jsx";
 
 /** Debounce MAL searches and discard late responses when the query changes. */
-export function TasteSetup({ value, setValue, store, disabled, preview }) {
+export function TasteSetup({
+  value,
+  setValue,
+  store,
+  disabled,
+  preview,
+  showGenres = true,
+}) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState([]);
@@ -51,27 +58,14 @@ export function TasteSetup({ value, setValue, store, disabled, preview }) {
   }
   return (
     <fieldset className="preference-group taste-setup" disabled={disabled}>
-      <legend>What genres do you like?</legend>
-      <p>These guide your taste without hiding other genres.</p>
-      <div className="genre-choices">
-        {GENRES.map((genre) => (
-          <button
-            key={genre}
-            className="quiet"
-            aria-pressed={value.favoriteGenres.includes(genre)}
-            onClick={() =>
-              setValue((p) => ({
-                ...p,
-                favoriteGenres: p.favoriteGenres.includes(genre)
-                  ? p.favoriteGenres.filter((g) => g !== genre)
-                  : [...p.favoriteGenres, genre],
-              }))
-            }
-          >
-            {genre}
-          </button>
-        ))}
-      </div>
+      <legend>Favorite anime</legend>
+      {showGenres && (
+        <GenrePreferences
+          value={value}
+          setValue={setValue}
+          disabled={disabled}
+        />
+      )}
       <label htmlFor="favorite-search">
         <strong>
           Pick three anime you like ({value.favoriteAnime.length}/3)

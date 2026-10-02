@@ -1972,3 +1972,23 @@ main.wide-main {
   color: #aebcc9;
   line-height: 1.5;
 }
+
+.genre-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border: 1px solid #35566a;
+  border-radius: 10px;
+  background: #12232e;
+  color: #afc5d1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.genre-focus strong {
+  color: #e3eef5;
+  font-weight: 600;
+}

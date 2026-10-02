@@ -1,5 +1,6 @@
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { useState } from "react";
+import { GenrePreferences } from "./GenrePreferences.jsx";
 import { TasteSetup } from "./TasteSetup.jsx";
 import {
   FORMAT_OPTIONS,
@@ -197,6 +198,11 @@ export function ViewingPreferences({ state, store, onComplete }) {
           />
         </>
       )}
+      <GenrePreferences
+        value={value}
+        setValue={setValue}
+        disabled={pending || state.busy}
+      />
       {showTasteSetup && (
         <TasteSetup
           value={value}
@@ -204,6 +210,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
           store={store}
           disabled={pending || state.busy}
           preview={state.preview}
+          showGenres={false}
         />
       )}
       <fieldset className="preference-group" disabled={pending || state.busy}>

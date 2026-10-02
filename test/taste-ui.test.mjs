@@ -133,9 +133,11 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     );
     assert.doesNotMatch(
       document.body.textContent,
-      /Pick three anime|What genres|Auto-add watchlist/,
+      /Pick three anime|Auto-add watchlist/,
     );
     for (const text of [
+      "What genres do you like?",
+      "Any genre",
       "What would you like to watch?",
       "How long a series?",
       "Finished shows only",
@@ -150,8 +152,31 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     assert.deepEqual(
       saved,
       [preferences, {}],
-      "Hidden taste and auto-add choices are preserved",
+      "Favorite anime and auto-add choices are preserved",
     );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Any genre")
+        .click(),
+    );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Save preferences")
+        .click(),
+    );
+    assert.deepEqual(saved[0].favoriteGenres, []);
+    assert.deepEqual(saved[0].favoriteAnime, preferences.favoriteAnime);
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Drama")
+        .click(),
+    );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Save preferences")
+        .click(),
+    );
+    assert.deepEqual(saved[0].favoriteGenres, ["Drama"]);
     await act(async () =>
       root.render(
         React.createElement(ViewingPreferences, {
