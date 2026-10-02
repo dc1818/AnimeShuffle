@@ -1981,12 +1981,19 @@ main.wide-main {
 }
 
 .genre-focus {
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 8px 0 12px;
-  color: #afc5d1;
+  padding: 7px 10px;
+  background: rgba(121, 186, 207, 0.08);
+  border: 1px solid rgba(121, 186, 207, 0.25);
+  border-radius: 8px;
+  color: #bed7e2;
   font-size: 12px;
   line-height: 1.5;
 }
 .genre-focus strong {
-  color: #c4d8e3;
-  font-weight: 500;
+  color: #a8e0ee;
+  font-weight: 600;
 }
