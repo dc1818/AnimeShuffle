@@ -40,17 +40,10 @@ export function GenrePreferences({ value, setValue, disabled }) {
 }
 
 export function GenreFocus({ genres = [] }) {
+  if (!genres.length) return null;
   return (
-    <div className="genre-focus" aria-label="Current genre preferences">
-      <span>
-        {genres.length ? (
-          <>
-            Only showing anime in: <strong>{genres.join(", ")}</strong>.
-          </>
-        ) : (
-          <>Any genre · picks follow your taste.</>
-        )}
-      </span>
-    </div>
+    <p className="genre-focus" aria-label="Current genre preferences">
+      Only showing anime in: <strong>{genres.join(", ")}</strong>.
+    </p>
   );
 }

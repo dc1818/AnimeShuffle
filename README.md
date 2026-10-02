@@ -21,7 +21,7 @@ Start with favorite genres and a few anime you like, then browse individual card
 | **Would watch** | Add this to my watchlist. |
 | **Won't watch** | I'm not interested in watching this. |
 
-Skip a title without rating it, or undo your last choice. Good and Bad are disabled for anime that haven't aired yet. Viewing preferences let you choose genres (or Any genre), formats, series lengths, and whether to include ongoing or upcoming releases. Selected genres restrict Discover and Recommendations to anime matching at least one choice. A reminder on both pages shows the active genres. Genre controls are available in preferences for guests and signed-in users.
+Skip a title without rating it, or undo your last choice. Good and Bad are disabled for anime that haven't aired yet. Viewing preferences let you choose genres (or Any genre), formats, series lengths, and whether to include ongoing or upcoming releases. Selected genres restrict Discover and Recommendations to anime matching at least one choice. Cards on both pages show a small reminder of active genre selections; Any genre shows no reminder. Genre controls are available in preferences for guests and signed-in users.
 
 ### Recommendations
 

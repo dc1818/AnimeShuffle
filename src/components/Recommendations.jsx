@@ -213,6 +213,7 @@ export function Recommendations({ state, store, onDiscover }) {
                       <>
                         <AnimeCard
                           anime={pick.anime}
+                          selectedGenres={state.preferences.favoriteGenres}
                           reason={pick.reason}
                           saved={pick.saved}
                           compact

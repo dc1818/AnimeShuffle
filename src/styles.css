@@ -1767,13 +1767,20 @@ main.wide-main {
 .genre-choices {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 10px;
   margin: 12px 0 24px;
+}
+.genre-choices button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  margin: 0;
+  padding: 8px 14px;
 }
 .genre-choices button[aria-pressed="true"] {
   background: #284e62;
   color: #d1f5ff;
-  border-color: #79bacf;
+  border-color: #95d9ef;
+  box-shadow: 0 0 0 2px #95d9ef;
 }
 .taste-setup > label {
   display: block;
@@ -1974,21 +1981,12 @@ main.wide-main {
 }
 
 .genre-focus {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  margin: 0 0 18px;
-  padding: 10px 14px;
-  border: 1px solid #35566a;
-  border-radius: 10px;
-  background: #12232e;
+  margin: 8px 0 12px;
   color: #afc5d1;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .genre-focus strong {
-  color: #e3eef5;
-  font-weight: 600;
+  color: #c4d8e3;
+  font-weight: 500;
 }

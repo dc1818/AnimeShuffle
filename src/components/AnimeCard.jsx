@@ -1,3 +1,4 @@
+import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
@@ -56,6 +57,7 @@ export function AnimeCard({
   tier,
   reason,
   saved = false,
+  selectedGenres = [],
 }) {
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
@@ -161,6 +163,7 @@ export function AnimeCard({
             </span>
           ))}
         </div>
+        <GenreFocus genres={selectedGenres} />
         <p className="synopsis">
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
