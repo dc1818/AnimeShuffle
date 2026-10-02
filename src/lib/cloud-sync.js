@@ -24,6 +24,9 @@ export function createCloudSync({ api, storage, key, onRemote, onStatus }) {
     }
   }
   function apply(remote) {
+    // A background GET can finish after a newer local write was acknowledged.
+    // Do not roll the account back to that older revision.
+    if (remote.revision < revision) return;
     const reactions = { ...remote.reactions };
     for (const [id, value] of Object.entries(pending)) {
       if (value === null) delete reactions[id];

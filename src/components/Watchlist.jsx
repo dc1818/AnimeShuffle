@@ -193,57 +193,63 @@ export function Watchlist({ state, store, onDiscover }) {
             <option value="txt">Text · Readable list</option>
           </select>
         </label>
-        <button
-          className="outline"
-          disabled={!source.length}
-          onClick={() => {
-            // Export the whole active list, even when its visible view is filtered.
-            const entries = orderWatchlist(source, {
-              ...state,
-              preferences: defaultPreferences(),
-              tastePreferences: state.preferences,
-              sort,
-            });
-            const url = URL.createObjectURL(
-              new Blob(
-                [
-                  exportFormat === "json"
-                    ? watchlistBackup(entries)
-                    : watchlistText(
-                        entries,
-                        tab === "all"
-                          ? "Watchlist"
-                          : tab === "mal"
-                            ? "MAL Plan to Watch"
-                            : "Found on Anime Shuffle",
-                      ),
-                ],
-                {
-                  type:
+        <div
+          className="watchlist-transfer"
+          role="group"
+          aria-label="Import or export watchlist"
+        >
+          <button
+            className="outline"
+            disabled={!source.length}
+            onClick={() => {
+              // Export the whole active list, even when its visible view is filtered.
+              const entries = orderWatchlist(source, {
+                ...state,
+                preferences: defaultPreferences(),
+                tastePreferences: state.preferences,
+                sort,
+              });
+              const url = URL.createObjectURL(
+                new Blob(
+                  [
                     exportFormat === "json"
-                      ? "application/json"
-                      : "text/plain;charset=utf-8",
-                },
-              ),
-            );
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `anime-shuffle-watchlist.${exportFormat}`;
-            document.body.append(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-          }}
-        >
-          Export entire list
-        </button>
-        <button
-          className="outline"
-          disabled={state.busy || importing}
-          onClick={() => importFile.current?.click()}
-        >
-          Import JSON
-        </button>
+                      ? watchlistBackup(entries)
+                      : watchlistText(
+                          entries,
+                          tab === "all"
+                            ? "Watchlist"
+                            : tab === "mal"
+                              ? "MAL Plan to Watch"
+                              : "Found on Anime Shuffle",
+                        ),
+                  ],
+                  {
+                    type:
+                      exportFormat === "json"
+                        ? "application/json"
+                        : "text/plain;charset=utf-8",
+                  },
+                ),
+              );
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `anime-shuffle-watchlist.${exportFormat}`;
+              document.body.append(link);
+              link.click();
+              link.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}
+          >
+            Export entire list
+          </button>
+          <button
+            className="outline"
+            disabled={state.busy || importing}
+            onClick={() => importFile.current?.click()}
+          >
+            Import JSON
+          </button>
+        </div>
         <input
           ref={importFile}
           hidden

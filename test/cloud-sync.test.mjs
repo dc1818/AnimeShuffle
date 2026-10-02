@@ -68,3 +68,53 @@ test("sync merges independent device changes and retains failed writes for reloa
   assert.ok(remote.reactions[3]);
   sync.dispose();
 });
+
+test("a slow background snapshot cannot erase a reaction acknowledged during the read", async () => {
+  let release,
+    delay = false,
+    latest;
+  let remote = {
+    revision: 0,
+    reactions: {},
+    settings: {},
+    preferences: {},
+    onboardingComplete: true,
+  };
+  const sync = createCloudSync({
+    storage: memory(),
+    key: "race",
+    onStatus() {},
+    onRemote: (value) => {
+      latest = value;
+    },
+    api: async (_path, body) => {
+      if (body) {
+        for (const { id, reaction } of body.changes)
+          remote.reactions[id] = reaction;
+        return { revision: ++remote.revision };
+      }
+      const snapshot = structuredClone(remote);
+      if (delay)
+        await new Promise((resolve) => {
+          release = resolve;
+        });
+      return snapshot;
+    },
+  });
+  await sync.initialize();
+  delay = true;
+  const background = sync.refresh();
+  await new Promise((resolve) => setImmediate(resolve));
+  const reaction = { action: "watch", anime: { id: 1, title: "One" } };
+  sync.queue({ reactions: { 1: reaction }, settings: {} });
+  await sync.flush();
+  const before = latest;
+  release();
+  await background;
+  assert.equal(
+    latest,
+    before,
+    "The old revision is not published over current local state",
+  );
+  assert.deepEqual(remote.reactions[1], reaction);
+});

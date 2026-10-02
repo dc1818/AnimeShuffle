@@ -223,3 +223,20 @@ test("persistent caching is public-only and coalesces queued duplicate reads", a
   assert.equal(saved.size, 1);
   assert.equal(saved.has("/users/@me"), false);
 });
+
+test("missing synopsis boilerplate is not treated as an anime description", () => {
+  const placeholder =
+    "No synopsis information has been added to this title. Help improve our database by adding a synopsis";
+  assert.equal(
+    normalize({ id: 1, title: "Unknown", synopsis: placeholder }).synopsis,
+    "",
+  );
+  assert.equal(
+    normalize({
+      id: 1,
+      title: "Known",
+      synopsis: "A detective searches for a missing friend.",
+    }).synopsis,
+    "A detective searches for a missing friend.",
+  );
+});

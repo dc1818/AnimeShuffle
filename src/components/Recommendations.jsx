@@ -9,9 +9,13 @@ import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 export function Recommendations({ state, store, onDiscover }) {
   const [opened, setOpened] = useState(undefined);
   const [about, setAbout] = useState(null);
+  const aboutAvailable = state.recommendationPicks.some(
+    (pick) => pick.anime.id === about,
+  );
+  const aboutReaction = state.reactions[about]?.action;
   useEffect(() => {
-    setAbout(null);
-  }, [state.recommendationPicks, state.reactions]);
+    if (!aboutAvailable || aboutReaction) setAbout(null);
+  }, [aboutAvailable, aboutReaction]);
   useEffect(() => {
     if (
       !state.recommendationsReady &&
@@ -136,8 +140,7 @@ export function Recommendations({ state, store, onDiscover }) {
           {state.recommendationError && (
             <p role="alert">{state.recommendationError}</p>
           )}
-          {!state.busy &&
-            state.recommendationsReady &&
+          {state.recommendationsReady &&
             !picks.length &&
             !state.recommendationError && (
               <div className="empty">
@@ -238,7 +241,7 @@ export function Recommendations({ state, store, onDiscover }) {
               );
             })}
           </div>
-          {!state.busy && state.recommendationsReady && picks.length < 25 && (
+          {state.recommendationsReady && picks.length < 25 && (
             <p className="shortlist-note">
               {picks.length} eligible {picks.length === 1 ? "match" : "matches"}{" "}
               available.{" "}

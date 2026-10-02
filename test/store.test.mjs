@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { BACKGROUND_REFRESH_MS } from "../src/lib/refresh-policy.js";
 import { createAnimeStore } from "../src/lib/store.js";
 const anime = {
   id: 1,
@@ -442,7 +443,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   await store.loadRecommendations();
   const picks = store.getSnapshot().recommendationPicks;
   assert.ok(picks.length > 0);
-  clock += 60001;
+  clock += BACKGROUND_REFRESH_MS + 1;
   await Promise.all([store.refreshMalIfStale(), store.refreshMalIfStale()]);
   assert.equal(reads, 2);
   assert.equal(
@@ -451,7 +452,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
     "Unchanged MAL list preserves picks",
   );
   entries = [{ ...anime, listStatus: { status: "plan_to_watch", score: 0 } }];
-  clock += 60001;
+  clock += BACKGROUND_REFRESH_MS + 1;
   await store.refreshMalIfStale();
   assert.equal(store.getSnapshot().list[0].id, 1);
   assert.notEqual(store.getSnapshot().current?.id, 1);
@@ -461,7 +462,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
     store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1),
   );
   fail = true;
-  clock += 60001;
+  clock += BACKGROUND_REFRESH_MS + 1;
   await store.refreshMalIfStale();
   const attempts = reads;
   await store.refreshMalIfStale();
@@ -652,7 +653,7 @@ test("a slow MAL refresh waits a full interval after finishing before another at
       if (url === "/api/profile") return ok({ id: 7 });
       if (url.startsWith("/api/list")) {
         reads++;
-        if (slow) clock += 90000;
+        if (slow) clock += BACKGROUND_REFRESH_MS + 30000;
         return ok({ data: [], nextOffset: null });
       }
       if (url.startsWith("/api/catalog"))
@@ -663,7 +664,7 @@ test("a slow MAL refresh waits a full interval after finishing before another at
   });
   await store.initialize();
   slow = true;
-  clock += 60001;
+  clock += BACKGROUND_REFRESH_MS + 1;
   await store.refreshMalIfStale();
   const completedReads = reads;
   await store.refreshMalIfStale();
@@ -672,7 +673,7 @@ test("a slow MAL refresh waits a full interval after finishing before another at
     completedReads,
     "Slow completion must not trigger immediate re-polling",
   );
-  clock += 60001;
+  clock += BACKGROUND_REFRESH_MS + 1;
   await store.refreshMalIfStale();
   assert.equal(reads, completedReads + 1);
 });
@@ -708,16 +709,19 @@ test("populated recommendations never restart from changing MAL metadata or repe
   await store.savePreferences({ favoriteGenres: ["Action"] });
   await store.loadRecommendations();
   assert.ok(store.getSnapshot().recommendationPicks.length);
+  const originalPicks = store.getSnapshot().recommendationPicks;
   let loadingStarts = 0,
-    loading = false;
+    loading = false,
+    busyStarts = 0;
   const unsubscribe = store.subscribe(() => {
+    if (store.getSnapshot().busy) busyStarts++;
     const next = store.getSnapshot().recommendationsLoading;
     if (next && !loading) loadingStarts++;
     loading = next;
   });
   for (let i = 0; i < 5; i++) {
     updates++;
-    clock += 60001;
+    clock += BACKGROUND_REFRESH_MS + 1;
     const before = network;
     await store.refreshMalIfStale();
     assert.equal(
@@ -727,9 +731,18 @@ test("populated recommendations never restart from changing MAL metadata or repe
     );
     await store.loadRecommendations();
     assert.equal(store.getSnapshot().recommendationsReady, true);
-    assert.ok(store.getSnapshot().recommendationPicks.length);
+    assert.equal(
+      store.getSnapshot().recommendationPicks,
+      originalPicks,
+      "Metadata updates keep rows, ranks and explanations stable",
+    );
   }
   assert.equal(loadingStarts, 0);
+  assert.equal(
+    busyStarts,
+    0,
+    "Background MAL checks never disable reaction buttons",
+  );
   const before = network;
   await Promise.all([store.loadRecommendations(), store.loadRecommendations()]);
   assert.equal(network, before);
@@ -740,4 +753,78 @@ test("populated recommendations never restart from changing MAL metadata or repe
     "Explicit Refresh picks still generates one batch",
   );
   unsubscribe();
+});
+
+test("background account reads leave loaded cards interactive and do not unlock foreground work", async () => {
+  let release,
+    delay = false,
+    reads = 0;
+  const remote = {
+    revision: 0,
+    reactions: {},
+    settings: { autoAdd: false, dynamic: true },
+    preferences: { favoriteGenres: ["Action"] },
+    onboardingComplete: true,
+  };
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url, options) => {
+      const ok = (value) => new Response(JSON.stringify(value));
+      if (url === "/api/session")
+        return ok({
+          configured: true,
+          cloudSync: true,
+          account: { id: "local", provider: "local" },
+          preferences: remote.preferences,
+          onboardingComplete: true,
+        });
+      if (url === "/api/account/state") {
+        if (options.method === "POST")
+          return ok({ revision: ++remote.revision });
+        reads++;
+        const snapshot = structuredClone(remote);
+        if (delay)
+          await new Promise((resolve) => {
+            release = resolve;
+          });
+        return ok(snapshot);
+      }
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [anime, { ...anime, id: 2 }], nextOffset: null });
+      if (url.startsWith("/api/anime/"))
+        return ok({ ...anime, id: Number(url.split("/").pop()) });
+      throw Error(url);
+    },
+  });
+  await store.initialize();
+  await store.loadRecommendations();
+  delay = true;
+  const before = reads;
+  const background = store.syncAccount({ background: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  const duplicate = store.syncAccount({ background: true });
+  assert.equal(reads, before + 1);
+  assert.equal(
+    store.getSnapshot().busy,
+    false,
+    "Loaded reaction buttons remain enabled during a slow read",
+  );
+  const target = store.getSnapshot().recommendationPicks[0].anime;
+  const reaction = store.react("watch", target);
+  assert.equal(
+    store.getSnapshot().reactions[target.id]?.action,
+    "watch",
+    "Click is accepted while polling",
+  );
+  assert.equal(store.getSnapshot().busy, true);
+  release();
+  await Promise.all([background, duplicate]);
+  assert.equal(
+    store.getSnapshot().busy,
+    true,
+    "Finishing background work cannot unlock the active user operation",
+  );
+  await reaction;
+  assert.equal(store.getSnapshot().busy, false);
+  assert.equal(store.getSnapshot().reactions[target.id]?.action, "watch");
 });

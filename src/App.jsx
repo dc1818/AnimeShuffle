@@ -6,6 +6,7 @@ import { Recommendations } from "./components/Recommendations.jsx";
 import { Watchlist } from "./components/Watchlist.jsx";
 import { combinedWatchlist } from "./lib/watchlist.js";
 import { Dialogs } from "./components/Dialogs.jsx";
+import { BACKGROUND_REFRESH_MS } from "./lib/refresh-policy.js";
 
 /** Page-level UI state stays in React; domain commands live in the injected store. */
 export function App({ store }) {
@@ -15,6 +16,8 @@ export function App({ store }) {
     store.getSnapshot,
   );
   const [view, setView] = useState("discover");
+  const activeView = useRef(view);
+  activeView.current = view;
   const [freshnessTick, setFreshnessTick] = useState(0);
   const [details, setDetails] = useState(false);
   useEffect(() => {
@@ -108,12 +111,12 @@ export function App({ store }) {
   }, [dialog, view, store]);
   useEffect(() => {
     const sync = () => {
-      if (document.visibilityState !== "hidden") {
+      if (document.visibilityState !== "hidden" && navigator.onLine !== false) {
         store.syncAccount?.({ background: true });
         setFreshnessTick((tick) => tick + 1);
       }
     };
-    const timer = window.setInterval(sync, 60000);
+    const timer = window.setInterval(sync, BACKGROUND_REFRESH_MS);
     document.addEventListener("visibilitychange", sync);
     window.addEventListener("focus", sync);
     window.addEventListener("online", sync);
@@ -126,9 +129,24 @@ export function App({ store }) {
   }, [store]);
   useEffect(() => {
     // A tab change during another operation is retried as soon as it completes.
-    if (state.ready && !state.busy && document.visibilityState !== "hidden")
-      store.refreshMalIfStale?.();
-  }, [store, view, freshnessTick, state.ready, state.busy]);
+    if (
+      state.ready &&
+      !state.busy &&
+      document.visibilityState !== "hidden" &&
+      navigator.onLine !== false
+    )
+      store.refreshMalIfStale?.({
+        refreshDiscovery: () => activeView.current === "discover",
+      });
+  }, [
+    store,
+    view,
+    freshnessTick,
+    state.ready,
+    state.busy,
+    state.list,
+    state.reactions,
+  ]);
   function closeDialog() {
     // Closing the welcome screen continues as a guest; it does not skip preferences.
     if (!store.getSnapshot().onboardingComplete) {

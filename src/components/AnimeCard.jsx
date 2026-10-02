@@ -3,6 +3,7 @@ import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
+import { synopsisText } from "../lib/synopsis.js";
 
 // Pages cannot proxy images; its sample covers load directly from MAL.
 export const coverUrl = (anime) => {
@@ -161,7 +162,7 @@ export function AnimeCard({
           ))}
         </div>
         <p className="synopsis">
-          {anime.synopsis || "Open the MyAnimeList page for more information."}
+          {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
         <button
           id={compact ? `details-toggle-${anime.id}` : "details-toggle"}
@@ -260,7 +261,7 @@ export function AnimeDetails({ anime, reason, onClose }) {
         <AnimeTitle anime={anime} />
       </h2>
       <p className="full-synopsis">
-        {anime.synopsis || "No synopsis available."}
+        {synopsisText(anime.synopsis) || "No synopsis available."}
       </p>
       <dl className="detail-facts">
         {Object.entries(facts).map(([name, value]) => (

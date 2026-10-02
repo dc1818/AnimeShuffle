@@ -1,4 +1,5 @@
 import { matchesTitle } from "./titles.js";
+import { BACKGROUND_REFRESH_MS } from "./refresh-policy.js";
 import { createDiagnostics } from "./diagnostics.js";
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import {
@@ -87,6 +88,9 @@ export function createAnimeStore({
   let initialization;
   let lastMalCheck = -Infinity;
   let lastAccountCheck = -Infinity;
+  let malRefresh = null,
+    accountRefresh = null,
+    malWriteVersion = 0;
   const expandedSeeds = new Map();
   const details = new Map(),
     listeners = new Set();
@@ -102,6 +106,8 @@ export function createAnimeStore({
     if (staticMode)
       throw new Error("Accounts and MyAnimeList require the server version.");
     const read = data === undefined;
+    // A list fetched before a write must never undo that write in local state.
+    if (!read && url.startsWith("/api/plan")) malWriteVersion++;
     // Share identical reads; mutations are never deduplicated or automatically retried.
     if (read && pendingReads.has(url)) return pendingReads.get(url);
     const pending = (async () => {
@@ -174,15 +180,24 @@ export function createAnimeStore({
       },
     });
   }
-  // Background sync may change eligibility, but must not start another network
-  // recommendation batch. Reuse only the details already verified for this batch.
+  // Keep the current batch, ranks and explanations stable during background sync.
+  // Remove newly ineligible picks without reshuffling the remaining rows. Reacted
+  // rows stay muted until the user explicitly requests another batch.
   function reconcileRecommendationBatch(patch) {
     if (!state.recommendationsReady) return {};
     const nextState = { ...state, ...patch };
-    const picks = rankRecommendations(state.recommendationPool, {
-      ...nextState,
-      metadata: pool,
-    });
+    const picks = state.recommendationPicks.filter(
+      ({ anime }) =>
+        nextState.reactions[anime.id] ||
+        isEligible(
+          anime,
+          nextState.reactions,
+          nextState.list,
+          new Set(),
+          false,
+          nextState.preferences,
+        ),
+    );
     return {
       recommendationsReady: true,
       recommendationPicks: sameData(picks, state.recommendationPicks)
@@ -191,6 +206,8 @@ export function createAnimeStore({
     };
   }
   async function readList() {
+    const writeVersion = malWriteVersion;
+    const session = state.session;
     lastMalCheck = now();
     try {
       let imported = [],
@@ -208,7 +225,11 @@ export function createAnimeStore({
       // lists should not discard an already calculated recommendation queue.
       const canonical = (items) =>
         JSON.stringify([...items].sort((a, b) => a.id - b.id));
-      if (canonical(imported) !== canonical(state.list)) {
+      if (
+        session === state.session &&
+        writeVersion === malWriteVersion &&
+        canonical(imported) !== canonical(state.list)
+      ) {
         update({
           list: imported,
           ...reconcileRecommendationBatch({ list: imported }),
@@ -216,43 +237,46 @@ export function createAnimeStore({
       }
     } finally {
       // Freshness is measured from completion, including failed attempts. A
-      // paginated refresh lasting over a minute must not restart itself.
+      // paginated refresh lasting beyond the interval must not restart itself.
       lastMalCheck = now();
     }
   }
 
   async function checkMalFreshness() {
-    if (!state.session.connected || now() - lastMalCheck < 60000) return;
-    try {
-      await readList();
-    } catch (error) {
-      // Throttle failures too, retaining the last complete list for offline use.
-      notify(
-        "Couldn't refresh MyAnimeList. Using your last synced list for now. " +
-          error.message,
-      );
-    }
-  }
-  async function refreshMalIfStale() {
-    // App retries after busy work finishes; never overlap a read with a MAL write.
+    if (malRefresh) return malRefresh;
     if (
-      !state.ready ||
-      state.busy ||
       !state.session.connected ||
-      now() - lastMalCheck < 60000
+      now() - lastMalCheck < BACKGROUND_REFRESH_MS
     )
       return;
-    update({ busy: true });
-    try {
-      await checkMalFreshness();
-      if (
-        state.current &&
-        state.list.some((anime) => anime.id === state.current.id)
-      )
-        await next();
-    } finally {
-      update({ busy: false });
-    }
+    malRefresh = readList()
+      .catch((error) => {
+        // Throttle failures too, retaining the last complete list for offline use.
+        notify(
+          "Couldn't refresh MyAnimeList. Using your last synced list for now. " +
+            error.message,
+        );
+      })
+      .finally(() => {
+        malRefresh = null;
+      });
+    return malRefresh;
+  }
+  async function refreshMalIfStale({ refreshDiscovery = true } = {}) {
+    // Read-only polling does not lock reaction buttons. Overlapping triggers
+    // share a request; readList rejects snapshots overtaken by a MAL write.
+    if (!state.ready || state.busy) return;
+    await checkMalFreshness();
+    if (
+      (typeof refreshDiscovery === "function"
+        ? refreshDiscovery()
+        : refreshDiscovery) &&
+      !state.busy &&
+      state.current &&
+      (state.reactions[state.current.id] ||
+        state.list.some((anime) => anime.id === state.current.id))
+    )
+      await next();
   }
   // Share verified public details across both feeds, with a bounded freshness window.
   async function animeDetails(id) {
@@ -811,19 +835,28 @@ export function createAnimeStore({
   }
   return {
     async syncAccount({ background = false } = {}) {
+      if (accountRefresh) return accountRefresh;
       if (!cloudSync || state.busy) return;
-      if (background && now() - lastAccountCheck < 60000) return;
-      update({ busy: true });
-      try {
-        await cloudSync.refresh();
-        update({ syncError: "" });
-        if (state.current && state.reactions[state.current.id]) await next();
-      } catch (error) {
-        update({ syncError: "Account sync is unavailable. " + error.message });
-      } finally {
-        lastAccountCheck = now();
-        update({ busy: false });
-      }
+      if (background && now() - lastAccountCheck < BACKGROUND_REFRESH_MS)
+        return;
+      if (!background) update({ busy: true });
+      accountRefresh = (async () => {
+        try {
+          await cloudSync.refresh();
+          update({ syncError: "" });
+          if (!background && state.current && state.reactions[state.current.id])
+            await next();
+        } catch (error) {
+          update({
+            syncError: "Account sync is unavailable. " + error.message,
+          });
+        } finally {
+          lastAccountCheck = now();
+          accountRefresh = null;
+          if (!background) update({ busy: false });
+        }
+      })();
+      return accountRefresh;
     },
     refreshMalIfStale,
     loadRecommendations,

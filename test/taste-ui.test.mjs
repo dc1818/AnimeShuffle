@@ -285,3 +285,104 @@ test("watchlist labels MAL update time and requires a cancellable removal confir
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("recommendation details and page markup stay stable after equivalent background snapshots", async () => {
+  const folder = await mkdtemp(path.resolve(".react-test-"));
+  const outfile = path.join(folder, "Recommendations.mjs");
+  await build({
+    entryPoints: ["src/components/Recommendations.jsx"],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    jsx: "automatic",
+    packages: "external",
+  });
+  const { Recommendations } = await import(pathToFileURL(outfile));
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "http://localhost:5173",
+  });
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root"));
+  const anime = {
+    id: 1,
+    title: "One",
+    genres: ["Action"],
+    format: "tv",
+    status: "finished_airing",
+    synopsis:
+      "No synopsis information has been added to this title. Help improve our database by adding a synopsis",
+  };
+  let state = {
+    ready: true,
+    busy: false,
+    onboardingComplete: true,
+    preferences: { ...defaultPreferences(), favoriteGenres: ["Action"] },
+    reactions: {},
+    list: [],
+    recommendationsReady: true,
+    recommendationPicks: [
+      {
+        anime,
+        tier: 1,
+        reason: "A match for you.",
+        detailReason: "A familiar adventure.",
+      },
+    ],
+  };
+  const store = {
+    loadRecommendations() {
+      throw Error("Unexpected reload");
+    },
+  };
+  const render = () =>
+    root.render(
+      React.createElement(Recommendations, { state, store, onDiscover() {} }),
+    );
+  try {
+    await act(async () => render());
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((button) => button.textContent.includes("More about this anime"))
+        .click(),
+    );
+    const details = document.querySelector(".details-card");
+    assert.ok(details);
+    assert.equal(
+      document.querySelector(".synopsis").textContent,
+      "No synopsis available.",
+    );
+    assert.equal(
+      document.querySelector(".full-synopsis").textContent,
+      "No synopsis available.",
+    );
+    const markup = document.getElementById("root").innerHTML;
+    for (let i = 0; i < 5; i++) {
+      state = {
+        ...state,
+        reactions: {},
+        list: [...state.list],
+        recommendationPicks: [...state.recommendationPicks],
+      };
+      await act(async () => render());
+      assert.equal(document.getElementById("root").innerHTML, markup);
+      assert.equal(
+        document.querySelector(".details-card"),
+        details,
+        "The details card was not remounted",
+      );
+      assert.ok(
+        [...document.querySelectorAll(".reaction")].every(
+          (button) => !button.disabled,
+        ),
+      );
+    }
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
