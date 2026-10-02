@@ -12,6 +12,7 @@ import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
 import {
   chooseNext,
+  buildTaste,
   recommendationSeeds,
   isEligible,
   rankRecommendations,
@@ -136,7 +137,13 @@ export function createAnimeStore({
               },
           body: read ? undefined : JSON.stringify(data),
           // A hung read must release the loading UI. Server requests have their own deadline.
-          ...(read ? { signal: AbortSignal.timeout(45000) } : {}),
+          ...(read
+            ? {
+                signal: AbortSignal.timeout(
+                  url.startsWith("/api/taste?") ? 2500 : 45000,
+                ),
+              }
+            : {}),
         });
         if (!response.ok) {
           const error = new Error(result.error || "Request failed.");
@@ -288,10 +295,75 @@ export function createAnimeStore({
   async function animeDetails(id) {
     const cached = details.get(id);
     if (cached?.expires > Date.now()) return cached.anime;
-    const anime = await api("/api/anime/" + id);
+    const anime = {
+      ...(pool.find((a) => a.id === id) || {}),
+      ...(await api("/api/anime/" + id)),
+    };
     if (details.size >= 250) details.delete(details.keys().next().value);
     details.set(id, { anime, expires: Date.now() + 1800000 });
     return anime;
+  }
+  let tasteCheckedAt = 0;
+  async function refreshTasteMetadata(force = false) {
+    if (state.preview || (!force && Date.now() - tasteCheckedAt < 300000))
+      return;
+    // Enrich both liked and disliked examples; broad MAL lists must not crowd out
+    // explicit reactions or highly informative personal ratings.
+    const records = [
+      ...buildTaste(
+        state.reactions,
+        state.list,
+        state.preferences,
+        pool,
+        false,
+      ).records.values(),
+    ].sort(
+      (a, b) =>
+        Math.max(Math.abs(b.enjoyment), Math.abs(b.interest)) -
+          Math.max(Math.abs(a.enjoyment), Math.abs(a.interest)) ||
+        a.anime.id - b.anime.id,
+    );
+    const groups = [
+      records.filter((r) => r.enjoyment > 0.4),
+      records.filter((r) => r.enjoyment < 0 || r.interest < 0),
+      records.filter(
+        (r) => r.enjoyment >= 0 && r.enjoyment <= 0.4 && r.interest >= 0,
+      ),
+    ];
+    const history = [];
+    for (
+      let index = 0;
+      history.length < 50 && groups.some((group) => group[index]);
+      index++
+    )
+      for (const group of groups)
+        if (group[index] && history.length < 50)
+          history.push(group[index].anime);
+    const all = [...history, ...pool];
+    const ids = [...new Set(all.map((a) => a?.id).filter(Boolean))].slice(
+      0,
+      150,
+    );
+    if (!ids.length) return;
+    tasteCheckedAt = Date.now();
+    try {
+      // Snapshot only: never wait for review fetches, poll, or repaint a loaded batch.
+      const data = await api("/api/taste?ids=" + ids.join(","));
+      for (const a of all) {
+        if (!a || !ids.includes(a.id)) continue;
+        const enriched = {
+          ...a,
+          ...(pool.find((item) => item.id === a.id) || {}),
+          reviewTaste: data.profiles?.[a.id],
+          communityTaste: data.community?.[a.id] || [],
+        };
+        mergePool(enriched);
+        if (details.has(a.id))
+          details.set(a.id, { ...details.get(a.id), anime: enriched });
+      }
+    } catch {
+      /* Optional enrichment must never interrupt discovery. */
+    }
   }
   function mergePool(anime) {
     const index = pool.findIndex((a) => a.id === anime.id);
@@ -373,6 +445,7 @@ export function createAnimeStore({
       // Keep the first card fast; expand from explicit feedback on subsequent discoveries.
       if (state.current && Object.keys(state.reactions).length >= 3)
         await expandFromTaste(1, 2);
+      await refreshTasteMetadata();
       let pagesLoaded = 0;
       for (let attempt = 0; attempt < 40; attempt++) {
         if (attempt && attempt % 6 === 0) await yieldToBrowser();
@@ -651,6 +724,8 @@ export function createAnimeStore({
     update({ syncError: "", malSyncError: "", malSyncProgress: null });
     history = [];
     expandedSeeds.clear();
+    details.clear();
+    tasteCheckedAt = 0;
     recent = [];
     skipped = new Set();
     offsets = { popular: 0, top: 0, season: 0 };
@@ -789,6 +864,7 @@ export function createAnimeStore({
           )
             break;
         }
+      await refreshTasteMetadata(true);
       const candidates = new Map(pool.map((a) => [a.id, a]));
       for (const a of state.list)
         if (a.listStatus?.status === "plan_to_watch") candidates.set(a.id, a);

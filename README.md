@@ -14,11 +14,11 @@ Connect MyAnimeList to start with your existing watch history and Plan to Watch 
 
 Start with favorite genres and a few anime you like, then browse individual cards with cover art, English titles where available, and expandable details. Choose one of four reactions:
 
-| Reaction | What it means |
-| --- | --- |
-| **Good** | I've seen this and liked it. |
-| **Bad** | I've seen this and didn't like it. |
-| **Would watch** | Add this to my watchlist. |
+| Reaction        | What it means                        |
+| --------------- | ------------------------------------ |
+| **Good**        | I've seen this and liked it.         |
+| **Bad**         | I've seen this and didn't like it.   |
+| **Would watch** | Add this to my watchlist.            |
 | **Won't watch** | I'm not interested in watching this. |
 
 Skip a title without rating it, or undo your last choice. Good and Bad are disabled for anime that haven't aired yet. Viewing preferences let you choose genres (or Any genre), formats, series lengths, and whether to include ongoing or upcoming releases. Selected genres restrict Discover and Recommendations to anime matching at least one choice. Cards on both pages show a small reminder of active genre selections; Any genre shows no reminder. Genre controls are available in preferences for guests and signed-in users.
@@ -48,22 +48,28 @@ Two regularized logistic models use genres, synopsis terms, narrative aspects, s
 
 The app filters out known titles and checks direct prequel relationships before suggesting sequels. Children’s titles are off by default. Enabling them still requires clear positive interest in children’s shows, with a limit of one in ten Discover choices and one per recommendation batch. Unrated childhood viewing alone does not establish current interest. Kids tags and MAL’s children-specific rating are checked; an all-ages rating alone is not filtered. The app does not infer or store your age. Explanations use the features that contributed positively to a pick. **Time spent looking at a card is never used.**
 
-This is a content-based recommender. It doesn't compare your behavior with other users, and synopsis matching uses shared terms and conservative story cues rather than a full understanding of the story. It cannot reliably judge visual style or infer that a particular villain is why you liked a show. Recommendation quality depends on the available metadata and your feedback.
+Public MAL reviews from [Jikan](https://jikan.moe/) add supporting clues about pacing, visual style, animation, music, dialogue, and characterization. Background jobs sample one page of completed, non-spoiler reviews per anime. An attribute needs agreement from at least three distinct reviewers; contradictory descriptions reduce or remove it. Reviews are subjective, so these features have less weight than your own reactions. Only fixed, non-plot descriptions can appear in explanations. Raw review text and reviewer identities are never cached or sent to the browser.
+
+The hosted app also learns small item-to-item correlations from saved site reactions, requiring at least five other accounts with overlapping choices. Private MAL lists and guest history are not pooled. Sparse or constant samples contribute nothing. Both kinds of enrichment fall back to the existing content model when unavailable and never replace an already loaded recommendation batch.
+
+Synopsis and review analysis use conservative text rules. They can recognize explicit descriptions but do not reliably understand irony or implied motivations. They cannot establish why a particular character appealed to you. Recommendation quality depends on the available evidence and your feedback; more attributes do not automatically mean better picks.
 
 ## Built with
 
-| Layer | Technology |
-| --- | --- |
-| Interface | React, JavaScript, responsive CSS |
-| Frontend build | esbuild |
-| Hosted backend | Cloudflare Workers and a SQLite-backed Durable Object |
-| Local backend | Node.js |
-| Anime data and authentication | MyAnimeList API and OAuth |
-| Tests | Node's test runner, jsdom, and Miniflare |
+| Layer                         | Technology                                                    |
+| ----------------------------- | ------------------------------------------------------------- |
+| Interface                     | React, JavaScript, responsive CSS                             |
+| Frontend build                | esbuild                                                       |
+| Hosted backend                | Cloudflare Workers and a SQLite-backed Durable Object         |
+| Local backend                 | Node.js                                                       |
+| Anime data and authentication | MyAnimeList API and OAuth; Jikan for public review enrichment |
+| Tests                         | Node's test runner, jsdom, and Miniflare                      |
 
 On the hosted app, signed-in preferences, reactions, and watchlists persist across devices. Guest data stays in the browser. MAL authorization happens on MyAnimeList; credentials and tokens stay on the backend.
 
 Public anime metadata is cached, concurrent reads are shared, and background synchronization keeps loaded cards visible. Background checks use a five-minute freshness window while the page is visible and online; manual refresh is also available.
+
+Review enrichment runs automatically on the backend. Cloudflare uses persistent Durable Object alarms; the Node server uses a persistent SQLite queue. Requests are spaced at least 1.5 seconds apart, capped at 600 per UTC day, and backed off after upstream errors. Profiles refresh after 14 days; empty samples retry after two days. Set `JIKAN_REVIEWS=false` to disable the integration. Set `RECOMMENDATION_DEBUG=true` for backend timing/sample-count logs; logs omit review text and account information. No additional API key is needed.
 
 ## Run locally
 
@@ -97,25 +103,25 @@ The Node server stores account records in `.data/`. The hosted Cloudflare app us
 
 ## Development
 
-| Command | Purpose |
-| --- | --- |
-| `npm run build` | Build the frontend into `dist/` |
-| `npm start` | Start the local Node server |
-| `npm test` | Run component, recommendation, API, and persistence tests |
-| `npm run check` | Check server and core logic syntax |
-| `npm run build:pages` | Build the standalone sample demo into `docs/` |
-| `npm run dev:cloudflare` | Build and run the Cloudflare development environment |
+| Command                  | Purpose                                                   |
+| ------------------------ | --------------------------------------------------------- |
+| `npm run build`          | Build the frontend into `dist/`                           |
+| `npm start`              | Start the local Node server                               |
+| `npm test`               | Run component, recommendation, API, and persistence tests |
+| `npm run check`          | Check server and core logic syntax                        |
+| `npm run build:pages`    | Build the standalone sample demo into `docs/`             |
+| `npm run dev:cloudflare` | Build and run the Cloudflare development environment      |
 
 Edit `src/` and rebuild to see frontend changes. The checked-in `dist/` supports the runnable local app; `docs/` serves the GitHub Pages demo. Regenerate both after frontend changes rather than editing generated files.
 
-| Directory | Contents |
-| --- | --- |
-| `src/components/` | Discover cards, recommendation leaderboard, watchlist, and settings |
-| `src/lib/` | Application state, recommendation models, filtering, and synchronization |
-| `lib/` | Shared MAL adapter, local accounts, and server utilities |
-| `cloudflare/` | Worker routes, persistent storage, and hosted authentication |
-| `public/` | Static assets, app manifest, and policy pages |
-| `test/` | Automated tests and API fixtures |
+| Directory         | Contents                                                                 |
+| ----------------- | ------------------------------------------------------------------------ |
+| `src/components/` | Discover cards, recommendation leaderboard, watchlist, and settings      |
+| `src/lib/`        | Application state, recommendation models, filtering, and synchronization |
+| `lib/`            | Shared MAL adapter, local accounts, and server utilities                 |
+| `cloudflare/`     | Worker routes, persistent storage, and hosted authentication             |
+| `public/`         | Static assets, app manifest, and policy pages                            |
+| `test/`           | Automated tests and API fixtures                                         |
 
 Tests cover rating behavior, title exclusions, backup validation, OAuth handling, account isolation, synchronization races, and UI state. External MAL responses are mocked in automated tests; recommendation quality still requires feedback from real use.
 

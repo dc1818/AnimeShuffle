@@ -1,3 +1,4 @@
+import { reviewFeatures } from "./taste-traits.js";
 import { narrativeFeatures } from "./story-aspects.js";
 /** Sparse content model trained only from explicit choices and MAL history.
  * Two regularized logistic heads estimate enjoyment and watch interest separately.
@@ -49,6 +50,13 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       [...examples.map((r) => r.anime), ...corpus].map((a) => [a.id, a]),
     ).values(),
   ];
+  const hasCommunity = docs.some(
+    (a) =>
+      Array.isArray(a.communityTaste) &&
+      a.communityTaste.some(
+        (n) => Number.isInteger(n.support) && n.support >= 5,
+      ),
+  );
   const frequency = new Map();
   for (const a of docs)
     for (const t of terms(a)) frequency.set(t, (frequency.get(t) || 0) + 1);
@@ -56,6 +64,26 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
   function features(a) {
     if (cache.has(a)) return cache.get(a);
     const f = [];
+    // A small collaborative feature family. Self features teach each known item;
+    // candidate neighbors carry only aggregate, sufficiently supported correlations.
+    if (hasCommunity && Number.isSafeInteger(a.id))
+      f.push(["community:" + a.id, 0.25]);
+    for (const neighbor of (a.communityTaste || []).slice(0, 20)) {
+      if (
+        !Number.isSafeInteger(neighbor.id) ||
+        neighbor.id === a.id ||
+        !Number.isInteger(neighbor.support) ||
+        neighbor.support < 5 ||
+        !Number.isFinite(neighbor.affinity) ||
+        Math.abs(neighbor.affinity) > 1
+      )
+        continue;
+      f.push([
+        "community:" + neighbor.id,
+        (0.25 * neighbor.affinity) /
+          Math.sqrt(Math.max(1, a.communityTaste.length)),
+      ]);
+    }
     for (const g of a.genres || [])
       // Broad labels should not drown out plot/context differences. In particular,
       // liking one Mecha title is weak evidence for every robot-centered show.
@@ -63,7 +91,25 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
         "genre:" + g,
         (g === "Mecha" ? 0.15 : 0.65) / Math.sqrt(a.genres.length),
       ]);
-    f.push(...narrativeFeatures(a).features);
+    const narrative = narrativeFeatures(a);
+    f.push(...narrative.features);
+    const reviews = reviewFeatures(a);
+    f.push(...reviews.features);
+    // Bounded interactions let a visual/style preference depend on story context.
+    // Sparse or absent reviews add no negative evidence.
+    const strongest = [...reviews.traits]
+      .sort((a, b) => b[1].strength - a[1].strength || a[0].localeCompare(b[0]))
+      .slice(0, 4);
+    const context = [...narrative.aspects]
+      .sort((a, b) => b[1].strength - a[1].strength || a[0].localeCompare(b[0]))
+      .slice(0, 4);
+    const blendNorm = Math.sqrt(strongest.length * context.length) || 1;
+    for (const [key, value] of strongest)
+      for (const [aspect, cue] of context)
+        f.push([
+          `reviewblend:${key}:${aspect}`,
+          (0.3 * value.strength * cue.strength) / blendNorm,
+        ]);
     if (a.format && a.format !== "unknown") f.push(["format:" + a.format, 0.2]);
     for (const studio of a.studios || [])
       f.push(["studio:" + studio, 0.3 / Math.sqrt(a.studios.length)]);

@@ -1,3 +1,9 @@
+import {
+  createReviewEnrichment,
+  reviewStore,
+} from "./lib/review-enrichment.mjs";
+import { DatabaseSync } from "node:sqlite";
+import { mkdirSync } from "node:fs";
 import { removeMalPlan } from "./lib/watchlist-removal.mjs";
 import { requestTiming } from "./lib/timing.mjs";
 /**
@@ -30,6 +36,44 @@ const { port: PORT, origin } = config;
 const clientId = process.env.MAL_CLIENT_ID || "",
   clientSecret = process.env.MAL_CLIENT_SECRET || "";
 const malClient = createMalClient({ clientId, clientSecret });
+const reviewDirectory =
+  process.env.ANIME_SHUFFLE_DATA_DIR || path.join(root, ".data");
+mkdirSync(reviewDirectory, { recursive: true });
+const reviewDb = new DatabaseSync(
+  path.join(reviewDirectory, "review-cache.sqlite"),
+);
+let reviewTimer,
+  reviewAt = 0;
+const reviews = createReviewEnrichment({
+  enabled: process.env.JIKAN_REVIEWS !== "false",
+  store: reviewStore({
+    exec(query, ...args) {
+      const statement = reviewDb.prepare(query);
+      if (statement.columns().length) return statement.all(...args);
+      statement.run(...args);
+      return [];
+    },
+  }),
+  schedule(at) {
+    if (reviewTimer && reviewAt <= at) return;
+    clearTimeout(reviewTimer);
+    reviewAt = at;
+    reviewTimer = setTimeout(
+      () => {
+        reviewTimer = null;
+        void reviews.run();
+      },
+      Math.max(0, at - Date.now()),
+    );
+    reviewTimer.unref();
+  },
+  log: (event) => {
+    if (process.env.RECOMMENDATION_DEBUG === "true")
+      console.log(JSON.stringify(event));
+  },
+});
+// Resume durable jobs after a local restart, without holding up server startup.
+void reviews.run();
 const sessions = new Map();
 const accounts = createAccountStore(
   process.env.ANIME_SHUFFLE_DATA_DIR || path.join(root, ".data"),
@@ -325,6 +369,23 @@ const server = http.createServer(async (req, res) => {
           .filter((a) => a.nsfw === "white"),
       });
     }
+    if (u.pathname === "/api/taste") {
+      const ids = [
+        ...new Set((u.searchParams.get("ids") || "").split(",").map(Number)),
+      ];
+      if (
+        ids.length > 150 ||
+        ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > 10000000)
+      )
+        throw new AppError("Invalid anime identifiers.");
+      for (const id of ids.slice(0, 50)) reviews.enqueue(id, 3);
+      return json(res, 200, {
+        profiles: Object.fromEntries(
+          ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
+        ),
+        community: {},
+      });
+    }
     if (u.pathname === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 5000);
       const source = u.searchParams.get("source") || "popular";
@@ -347,7 +408,7 @@ const server = http.createServer(async (req, res) => {
       }
       const data = await mal.request(endpoint + "?" + q, { publicCache: true });
       return json(res, 200, {
-        data: (data.data || []).map((x) => normalize(x.node)),
+        data: (data.data || []).map((x) => reviews.attach(normalize(x.node))),
         nextOffset: data.paging?.next ? offset + 50 : null,
       });
     }
@@ -357,7 +418,7 @@ const server = http.createServer(async (req, res) => {
         `/anime/${id}?fields=${encodeURIComponent(fields)}`,
         { publicCache: true },
       );
-      return json(res, 200, normalize(a));
+      return json(res, 200, reviews.attach(normalize(a), 2));
     }
     // Serialize mutations per session so two tabs cannot race the existence check.
     if (

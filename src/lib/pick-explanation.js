@@ -1,3 +1,4 @@
+import { reviewTraits } from "./taste-traits.js";
 import {
   storyAspects as evidence,
   narrativeFeatures,
@@ -116,6 +117,34 @@ export function explainPick(
       parts.push(
         `It also involves ${aspect.description}. If that was what caught your eye in the show you saved, this could be worth trying next.`,
       );
+  }
+  // Review prose never reaches the UI. Only allowlisted, non-plot attributes
+  // with multi-review support and an actual positive model contribution qualify.
+  const ownReviews = reviewTraits(anime);
+  for (const key of contributing("review").slice(0, 2)) {
+    const cue = ownReviews.get(key);
+    const related = positive.filter((r) => reviewTraits(r.anime).has(key));
+    if (!cue || !related.length) continue;
+    const anchor = related.find((r) => r.enjoyment > 0.4) || related[0];
+    introduce(anchor);
+    parts.push(
+      `Several MAL reviewers describe ${cue.description}. That also comes up in reviews of ${title(anchor.anime)}. ${anchor.enjoyment > 0.4 ? "If that was part of its appeal for you, this may be worth a look." : "Since that show is still a prospective choice, this is a tentative connection."}`,
+    );
+  }
+  const communityLinks = contributing("community").map(Number);
+  const neighbor = positive.find(
+    (r) =>
+      r.enjoyment > 0.4 &&
+      communityLinks.includes(r.anime.id) &&
+      anime.communityTaste?.some(
+        (n) => n.id === r.anime.id && n.support >= 5 && n.affinity > 0,
+      ),
+  );
+  if (neighbor && analysis.groups.community > 0.00001) {
+    introduce(neighbor);
+    parts.push(
+      `Across other Anime Shuffle accounts, reactions to this title tend to line up with reactions to ${title(neighbor.anime)}. That adds a small supporting connection to your own choices.`,
+    );
   }
   const mechContribution = analysis.contributions.find(
     (c) => c.key === "mecha:" + ownNarrative.focus,

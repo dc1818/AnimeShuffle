@@ -1,3 +1,8 @@
+import { communitySimilarities } from "../lib/community-taste.mjs";
+import {
+  createReviewEnrichment,
+  reviewStore,
+} from "../lib/review-enrichment.mjs";
 import { removeMalPlan } from "../lib/watchlist-removal.mjs";
 import { requestTiming } from "../lib/timing.mjs";
 /** Persistent Cloudflare API. SQL statements bind every user-controlled value.
@@ -61,6 +66,20 @@ export function createCloudApp(
   sql.exec(
     "CREATE TABLE IF NOT EXISTS public_mal_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, value TEXT NOT NULL)",
   );
+  const reviews = createReviewEnrichment({
+    store: reviewStore(sql),
+    fetcher,
+    enabled: env.JIKAN_REVIEWS !== "false",
+    schedule: async (at) => {
+      if (!storage.setAlarm) return;
+      const current = await storage.getAlarm();
+      if (current === null || current > at) await storage.setAlarm(at);
+    },
+    log: (event) => {
+      if (env.RECOMMENDATION_DEBUG === "true")
+        console.log(JSON.stringify(event));
+    },
+  });
   const malClient = createMalClient({
     clientId: env.MAL_CLIENT_ID,
     clientSecret: env.MAL_CLIENT_SECRET,
@@ -95,6 +114,26 @@ export function createCloudApp(
       },
     },
   });
+  // Cache aggregates, never per-user data. Reactions are bounded before pair work.
+  let communityCache = null,
+    communityAt = 0,
+    communityFor = null;
+  function communitySnapshot(accountId) {
+    if (
+      communityCache &&
+      communityFor === accountId &&
+      Date.now() - communityAt < 300000
+    )
+      return communityCache;
+    const rows = all(
+      "SELECT account_id,anime_id,json_extract(value,'$.action') AS action FROM reactions WHERE account_id != ? ORDER BY account_id,anime_id LIMIT 10000",
+      accountId || "",
+    );
+    communityCache = communitySimilarities(rows);
+    communityAt = Date.now();
+    communityFor = accountId;
+    return communityCache;
+  }
   function rateLimit(key, max, window) {
     const row = one("SELECT * FROM limits WHERE key=?", key);
     const count = row && row.expires > Date.now() ? row.count + 1 : 1;
@@ -167,6 +206,7 @@ export function createCloudApp(
     return n;
   }
   return {
+    alarm: () => reviews.run(),
     async fetch(req) {
       const measured = requestTiming(
         malClient,
@@ -600,6 +640,32 @@ export function createCloudApp(
               .map((x) => normalize(x.node))
               .filter((a) => a.nsfw === "white"),
           });
+        } else if (path === "/api/taste" && req.method === "GET") {
+          const ids = [
+            ...new Set(
+              (u.searchParams.get("ids") || "").split(",").map(Number),
+            ),
+          ];
+          if (
+            ids.length > 150 ||
+            ids.some(
+              (id) => !Number.isSafeInteger(id) || id <= 0 || id > 10000000,
+            )
+          )
+            throw new AppError("Invalid anime identifiers.");
+          // Cache-only read: this endpoint never waits for Jikan or accepts review text.
+          for (const id of ids.slice(0, 50)) reviews.enqueue(id, 3);
+          const community = communitySnapshot(session.accountId);
+          response = json({
+            profiles: Object.fromEntries(
+              ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
+            ),
+            community: Object.fromEntries(
+              ids
+                .filter((id) => community[id])
+                .map((id) => [id, community[id]]),
+            ),
+          });
         } else if (path === "/api/catalog" && req.method === "GET") {
           const offset = number(u.searchParams.get("offset") || 0, 5000),
             source = u.searchParams.get("source") || "popular";
@@ -622,16 +688,19 @@ export function createCloudApp(
             publicCache: true,
           });
           response = json({
-            data: (d.data || []).map((x) => normalize(x.node)),
+            data: (d.data || []).map((x) => reviews.attach(normalize(x.node))),
             nextOffset: d.paging?.next ? offset + 50 : null,
           });
         } else if (/^\/api\/anime\/\d+$/.test(path) && req.method === "GET") {
           response = json(
-            normalize(
-              await mal.request(
-                `/anime/${number(path.split("/").pop())}?fields=${encodeURIComponent(fields)}`,
-                { publicCache: true },
+            reviews.attach(
+              normalize(
+                await mal.request(
+                  `/anime/${number(path.split("/").pop())}?fields=${encodeURIComponent(fields)}`,
+                  { publicCache: true },
+                ),
               ),
+              2,
             ),
           );
         } else if (path === "/api/plan" && req.method === "POST") {

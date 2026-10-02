@@ -1,3 +1,4 @@
+import { synopsisTraits } from "./taste-traits.js";
 // These are conservative story connections, not plot summaries inferred from
 // genre labels or arbitrary shared words. Every required clue must occur in
 // the same synopsis sentence. Negated descriptions are excluded.
@@ -403,6 +404,7 @@ export function storyAspects(anime) {
         : [];
     }),
   );
+  for (const [key, value] of synopsisTraits(anime)) result.set(key, value);
   evidenceCache.set(anime, result);
   return result;
 }
@@ -423,12 +425,22 @@ export function narrativeFeatures(anime) {
     "aspect:" + key,
     (1.1 * aspects.get(key).strength) / Math.sqrt(aspects.size),
   ]);
-  const keys = [...aspects.keys()].sort().slice(0, 8);
+  const keys = [...aspects.keys()]
+    .sort(
+      (a, b) =>
+        aspects.get(b).strength - aspects.get(a).strength || a.localeCompare(b),
+    )
+    .slice(0, 10)
+    .sort();
   for (let i = 0; i < keys.length; i++)
     for (let j = i + 1; j < keys.length; j++)
       features.push([
         `blend:${keys[i]}:${keys[j]}`,
-        0.25 / Math.sqrt(Math.max(1, keys.length - 1)),
+        (0.25 *
+          Math.sqrt(
+            aspects.get(keys[i]).strength * aspects.get(keys[j]).strength,
+          )) /
+          Math.sqrt(Math.max(1, keys.length - 1)),
       ]);
 
   const sentences = (anime.synopsis || "")
@@ -458,7 +470,10 @@ export function narrativeFeatures(anime) {
     // combat, even though both carry MAL’s Mecha tag.
     if (focus !== "unspecified")
       for (const key of aspects.keys())
-        features.push([`context:${focus}:${key}`, 0.4]);
+        features.push([
+          `context:${focus}:${key}`,
+          (0.4 * aspects.get(key).strength) / Math.sqrt(aspects.size),
+        ]);
   }
   const result = { aspects, focus, features };
   contextCache.set(anime, result);

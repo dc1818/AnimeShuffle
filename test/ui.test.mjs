@@ -125,7 +125,16 @@ for (const staticMode of [false, true])
       assert.equal(store.getSnapshot().reactions[1].action, "watch");
       await click("Recommendations");
       // Saved picks no longer reappear in recommendations.
-      await act(async () => {});
+      // Discovery and recommendations intentionally yield to the browser. Wait
+      // for the completed state instead of assuming a single React flush is enough.
+      for (
+        let attempt = 0;
+        attempt < 100 && !store.getSnapshot().recommendationsReady;
+        attempt++
+      )
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        });
       assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
       assert.equal(
         document

@@ -12,6 +12,9 @@ export class AnimeBackend extends DurableObject {
     this.app = createCloudApp(ctx.storage, env);
     this.tail = Promise.resolve();
   }
+  alarm() {
+    return this.app.alarm();
+  }
   fetch(request) {
     const queuedAt = performance.now();
     const next = this.tail.then(async () => {

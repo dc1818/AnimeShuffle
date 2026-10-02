@@ -84,6 +84,20 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
             nsfw: "white",
           });
         }
+        if (url.hostname === "api.jikan.moe") {
+          assert.equal(request.headers.get("Authorization"), null);
+          assert.equal(request.headers.get("X-MAL-CLIENT-ID"), null);
+          assert.equal(url.searchParams.get("spoilers"), "false");
+          return WorkerResponse.json({
+            data: [1, 2, 3].map((n) => ({
+              mal_id: n,
+              user: { username: "critic" + n },
+              is_spoiler: false,
+              is_preliminary: false,
+              review: `Fluid animation. Sample ${n}.`,
+            })),
+          });
+        }
         if (url.hostname === "cdn.myanimelist.net") {
           return new WorkerResponse("fixture-image", {
             headers: { "Content-Type": "image/png" },
@@ -134,6 +148,18 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
         )
       ).status,
       200,
+    );
+    // Exercise the real Durable Object alarm path, not just the Node test adapter.
+    let enrichment;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      enrichment = await (await call("/api/taste?ids=1")).json();
+      if (enrichment.profiles?.[1]) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.equal(enrichment.profiles?.[1]?.traits[0]?.key, "fluid-animation");
+    assert.equal(
+      requests.filter((s) => s.startsWith("api.jikan.moe")).length,
+      1,
     );
     tokenRedirect = true;
     const before = requests.length;
