@@ -3,6 +3,7 @@ node_modules/
 *.log
 .DS_Store
 .react-test-*/
+.react-test-*.mjs
 
 # Local accounts and private installation data
 .data/
