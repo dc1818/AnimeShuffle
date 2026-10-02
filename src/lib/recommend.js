@@ -26,9 +26,9 @@ export function preferenceSignals(entry, mean = 7, count = 0) {
   return {
     enjoyment: rated
       ? rating
-      : { completed: 0.3, watching: 0.15, dropped: -0.15 }[status] || 0,
+      : { completed: 0.15, dropped: -0.15 }[status] || 0,
     interest:
-      { watching: 0.55, plan_to_watch: 0.4, completed: 0.15, dropped: -0.8 }[
+      { watching: 0.55, plan_to_watch: 0.25, completed: 0.15, dropped: -0.8 }[
         status
       ] || 0,
   };
@@ -84,8 +84,9 @@ export function buildTaste(
       r.action === "good" || r.action === "bad"
         ? { enjoyment: r.action === "good" ? 1 : -1, interest: 0 }
         : {
-            enjoyment: old?.enjoyment || 0,
-            interest: r.action === "watch" ? 1 : -1,
+            // A prospective choice never becomes an enjoyment label.
+            enjoyment: 0,
+            interest: r.action === "watch" ? 0.4 : -0.8,
           };
     records.set(Number(id), {
       anime: { ...old?.anime, ...enrich(r.anime) },
@@ -130,13 +131,23 @@ export function scoreAnime(anime, taste) {
   return taste.model.score(anime).score;
 }
 function explanation(anime, taste) {
+  const analysis = taste.model?.explain(anime);
   const match = storyConnection(anime, taste);
-  if (match)
+  // Use the same positive features as the full rationale, never mere tag overlap.
+  if (
+    match &&
+    analysis?.contributions.some(
+      (c) =>
+        c.contribution > 0.00001 &&
+        (c.key.startsWith("text:") || c.key.startsWith("aspect:")),
+    )
+  )
     return `A story connection to ${englishTitle(match.record.anime) || primaryTitle(match.record.anime)}.`;
-  const best = (anime.genres || [])
-    .filter((g) => (taste.genres.get(g)?.sum || 0) > 0)
-    .sort((a, b) => taste.genres.get(b).sum - taste.genres.get(a).sum)
-    .slice(0, 2);
+  const best = (analysis?.contributions || [])
+    .filter((c) => c.key.startsWith("genre:") && c.contribution > 0.00001)
+    .sort((a, b) => b.contribution - a.contribution)
+    .slice(0, 2)
+    .map((c) => c.key.slice(6));
   return best.length
     ? `More ${best.join(" and ")} for your watchlist.`
     : "Something a little different to try.";
@@ -148,22 +159,28 @@ function similarity(a, b) {
   const overlap = [...one].filter((g) => two.has(g)).length;
   return overlap / (new Set([...one, ...two]).size || 1);
 }
-/** Strong positive seeds for bounded retrieval of MAL community recommendation links. */
+/** Positive seeds retrieve possible candidates, including tentative watch interest.
+ * Retrieval does not promote a plan to confirmed enjoyment; final ranking keeps
+ * the two signals separate and excludes every already-known title. */
 export function recommendationSeeds(reactions, list, preferences) {
   return [
     ...buildTaste(reactions, list, preferences, [], false).records.values(),
   ]
-    .filter((r) => r.weight > 0.15 && r.anime.listStatus?.status !== "dropped")
+    .filter((r) => r.weight > 0.05 && r.anime.listStatus?.status !== "dropped")
     .sort((a, b) => b.weight - a.weight || a.anime.id - b.anime.id)
     .map((r) => r.anime);
 }
 /** Audience preference is about the title, never an inferred age for the viewer.
  * A general-audience rating, art style or young protagonist is not a Kids tag. */
 export function isChildrenTitle(anime) {
-  return (anime.genres || []).some((genre) => genre.toLowerCase() === "kids");
+  return (
+    anime.ageRating === "pg" ||
+    (anime.genres || []).some((genre) => genre.toLowerCase() === "kids")
+  );
 }
 function childrenInterest(reactions, list, preferences) {
   let positive = 0,
+    confirmed = 0,
     negative = 0;
   const detailedReactions = Object.fromEntries(
     Object.entries(reactions).filter(([, reaction]) => reaction?.anime?.id),
@@ -181,23 +198,27 @@ function childrenInterest(reactions, list, preferences) {
       negative++;
       continue;
     }
-    if (
-      r.source === "favorite" ||
-      r.action === "good" ||
-      r.action === "watch"
-    ) {
+    if (r.source === "favorite" || r.action === "good") {
       positive++;
+      confirmed++;
+      continue;
+    }
+    // Saves are tentative; one planned title must not open this audience group.
+    if (r.action === "watch") {
+      positive += 0.25;
       continue;
     }
     const status = r.anime.listStatus?.status;
     const score = Number(r.anime.listStatus?.score) || 0;
     if (status === "dropped" || (score > 0 && score <= 4)) negative++;
-    else if (score >= 7) positive += 1;
-    else if (["watching", "plan_to_watch"].includes(status) && !score)
-      positive += 0.5;
+    else if (score >= 7) {
+      positive += 1;
+      confirmed++;
+    } else if (["watching", "plan_to_watch"].includes(status) && !score)
+      positive += 0.1;
     // Unrated completed shows may be old childhood viewing, not current interest.
   }
-  return positive >= 1 && positive > negative;
+  return confirmed >= 2 && positive > 2 * negative;
 }
 
 /** Exclude known titles, unsafe/unknown content labels, and unmet direct prequels. */
@@ -215,9 +236,8 @@ export function isEligible(
 function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
   const initial = normalizePreferences(preferences);
   const allowChildren =
-    initial.childrenTitles === "include" ||
-    (initial.childrenTitles === "auto" &&
-      childrenInterest(reactions, list, initial));
+    initial.childrenTitles === "include" &&
+    childrenInterest(reactions, list, initial);
   const favorites = new Set(initial.favoriteAnime.map((a) => a.id));
   const statuses = new Map(list.map((a) => [a.id, a.listStatus?.status]));
   const seen = new Set(
@@ -267,9 +287,9 @@ export function chooseNext(
     .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
     .filter(
       (anime) =>
-        audienceMode !== "auto" ||
+        audienceMode !== "include" ||
         !isChildrenTitle(anime) ||
-        !recent.slice(-4).some(isChildrenTitle),
+        !recent.slice(-9).some(isChildrenTitle),
     );
   if (!available.length) return null;
   const taste = buildTaste(reactions, list, preferences, pool),
@@ -285,6 +305,7 @@ export function chooseNext(
   const ranked = available
     .map((a, index) => {
       let score = scoreAnime(a, taste);
+      if (isChildrenTitle(a)) score -= 0.15;
       if (cold) {
         const overlap = (a.genres || []).filter((g) =>
           recent.slice(-4).some((x) => x.genres?.includes(g)),
@@ -343,9 +364,9 @@ export function rankRecommendations(
       bestScore = -Infinity;
     for (let i = 0; i < available.length; i++) {
       if (
-        audienceMode === "auto" &&
+        audienceMode === "include" &&
         isChildrenTitle(available[i].anime) &&
-        selected.filter((pick) => isChildrenTitle(pick.anime)).length >= 2
+        selected.filter((pick) => isChildrenTitle(pick.anime)).length >= 1
       )
         continue;
       const adjusted =

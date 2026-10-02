@@ -140,7 +140,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       p.lengths.length ||
       p.finishedOnly ||
       !p.includeUnknown ||
-      (p.childrenTitles && p.childrenTitles !== "auto") ||
+      (p.childrenTitles && p.childrenTitles !== "hide") ||
       state.settings.autoAdd,
     );
   });
@@ -266,28 +266,28 @@ export function ViewingPreferences({ state, store, onComplete }) {
           title's own runtime.
         </small>
       </fieldset>
-      <label className="audience-preference">
-        <strong>Children’s titles</strong>
-        <select
-          aria-label="Children’s titles"
-          value={value.childrenTitles || "auto"}
+      <div className="setting-row">
+        <div>
+          <strong>Include children’s anime</strong>
+          <p>
+            Off by default. When enabled, occasional picks appear only if your
+            likes or MAL ratings show a clear interest.
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          role="switch"
+          aria-label="Include children’s anime"
+          checked={value.childrenTitles === "include"}
           disabled={pending || state.busy}
           onChange={(event) =>
             setValue((current) => ({
               ...current,
-              childrenTitles: event.target.value,
+              childrenTitles: event.target.checked ? "include" : "hide",
             }))
           }
-        >
-          <option value="auto">Automatic · follow my taste</option>
-          <option value="hide">Hide children’s titles</option>
-          <option value="include">Include children’s titles</option>
-        </select>
-        <small>
-          Automatic includes occasional children’s titles only when your choices
-          show interest. All-ages ratings alone aren’t filtered.
-        </small>
-      </label>
+        />
+      </div>
       <div className="setting-row">
         <div>
           <strong>Finished shows only</strong>

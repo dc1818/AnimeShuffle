@@ -1,3 +1,4 @@
+import { narrativeFeatures } from "./story-aspects.js";
 /** Sparse content model trained only from explicit choices and MAL history.
  * Two regularized logistic heads estimate enjoyment and watch interest separately.
  * Synopsis features are lexical TF-IDF, not neural embeddings or viewing-time signals.
@@ -56,7 +57,13 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
     if (cache.has(a)) return cache.get(a);
     const f = [];
     for (const g of a.genres || [])
-      f.push(["genre:" + g, 1 / Math.sqrt(a.genres.length)]);
+      // Broad labels should not drown out plot/context differences. In particular,
+      // liking one Mecha title is weak evidence for every robot-centered show.
+      f.push([
+        "genre:" + g,
+        (g === "Mecha" ? 0.15 : 0.65) / Math.sqrt(a.genres.length),
+      ]);
+    f.push(...narrativeFeatures(a).features);
     if (a.format && a.format !== "unknown") f.push(["format:" + a.format, 0.2]);
     for (const studio of a.studios || [])
       f.push(["studio:" + studio, 0.3 / Math.sqrt(a.studios.length)]);

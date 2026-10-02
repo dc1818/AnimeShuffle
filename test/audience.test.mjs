@@ -23,15 +23,22 @@ const pool = [
   anime(4, ["Adventure"], { ageRating: "g" }),
   anime(5),
 ];
+const interested = {
+  90: { anime: kids(90), action: "good" },
+  91: { anime: kids(91), action: "good" },
+};
 
-test("automatic audience filtering applies to cold start, exploration, ranking and final detail checks", () => {
+test("children's titles are off by default, including old Automatic preferences and children-specific ratings", () => {
+  assert.equal(normalizePreferences().childrenTitles, "hide");
+  assert.equal(
+    normalizePreferences({ childrenTitles: "auto" }).childrenTitles,
+    "hide",
+  );
   for (const random of [() => 0, () => 0.9]) {
-    const pick = chooseNext(pool, {
-      random,
-      preferences: { favoriteGenres: ["Adventure"] },
-    });
-    assert.ok(pick.anime.id >= 4);
     assert.ok(chooseNext(pool, { random }).anime.id >= 4);
+    assert.ok(
+      chooseNext(pool, { random, reactions: interested }).anime.id >= 4,
+    );
   }
   assert.deepEqual(
     rankRecommendations(pool)
@@ -39,82 +46,79 @@ test("automatic audience filtering applies to cold start, exploration, ranking a
       .sort(),
     [4, 5],
   );
-  assert.equal(isEligible(kids(1), {}, [], new Set()), false);
+  assert.equal(
+    isEligible(
+      anime(10, ["Adventure"], { ageRating: "pg" }),
+      {},
+      [],
+      new Set(),
+    ),
+    false,
+  );
   assert.equal(
     isEligible(pool[3], {}, [], new Set()),
     true,
-    "All ages is not the same as aimed at children",
+    "All ages alone is not children's anime",
   );
 });
 
-test("positive children's-title interest is learned without inferring age, and overrides are respected", () => {
-  const reactions = { 90: { anime: kids(90), action: "good" } };
-  assert.equal(isEligible(kids(1), reactions, [], new Set()), true);
+test("enabled requires repeated real interest, and old unrated viewing or one save is insufficient", () => {
+  const enabled = { childrenTitles: "include" };
+  const allowed = (reactions = {}, list = []) =>
+    isEligible(kids(1), reactions, list, new Set(), false, enabled);
+  assert.equal(allowed(), false);
+  assert.equal(allowed({ 90: interested[90] }), false);
+  assert.equal(allowed({ 90: { anime: kids(90), action: "watch" } }), false);
+  assert.equal(allowed(interested), true);
   assert.equal(
-    isEligible(kids(1), reactions, [], new Set(), false, {
-      childrenTitles: "hide",
-    }),
+    allowed({}, [kids(90, { listStatus: { status: "completed", score: 0 } })]),
     false,
   );
   assert.equal(
-    isEligible(kids(1), {}, [], new Set(), false, {
-      childrenTitles: "include",
-    }),
-    true,
-  );
-  assert.equal(
-    isEligible(
-      kids(1),
+    allowed(
       {},
-      [kids(90, { listStatus: { status: "completed", score: 0 } })],
-      new Set(),
-    ),
-    false,
-  );
-  assert.equal(
-    isEligible(
-      kids(1),
-      {},
-      [kids(90, { listStatus: { status: "completed", score: 8 } })],
-      new Set(),
+      [90, 91].map((id) =>
+        kids(id, { listStatus: { status: "completed", score: 8 } }),
+      ),
     ),
     true,
   );
-  reactions[91] = { anime: kids(91), action: "nope" };
   assert.equal(
-    isEligible(kids(1), reactions, [], new Set()),
+    allowed({ ...interested, 92: { anime: kids(92), action: "nope" } }),
     false,
-    "Negative choices counter positive interest",
   );
-  assert.equal(
-    normalizePreferences({ childrenTitles: "bogus", guessedAge: 18 })
-      .childrenTitles,
-    "auto",
-  );
-  assert.equal("guessedAge" in normalizePreferences({ guessedAge: 18 }), false);
 });
 
-test("automatic mode prevents clusters and never repeats a reacted title", () => {
-  const reactions = {
-    90: { anime: kids(90), action: "watch" },
-    1: { anime: kids(1), action: "nope" },
-    91: { anime: kids(91), action: "good" },
+test("enabled children suggestions remain occasional, respect recent history and never repeat reactions", () => {
+  const options = {
+    reactions: interested,
+    preferences: { childrenTitles: "include" },
   };
-  const picks = rankRecommendations(pool, { reactions });
   assert.equal(
-    picks.some((p) => p.anime.id === 1),
+    rankRecommendations(pool, options).filter((p) =>
+      p.anime.genres.includes("Kids"),
+    ).length,
+    1,
+  );
+  assert.equal(
+    rankRecommendations([kids(10), kids(11), kids(12)], options).length,
+    1,
+  );
+  for (const count of [0, 4, 8]) {
+    const recent = [
+      kids(88),
+      ...Array.from({ length: count }, (_, i) => anime(100 + i)),
+    ];
+    assert.ok(
+      !chooseNext(pool, {
+        ...options,
+        recent,
+        random: () => 0,
+      }).anime.genres.includes("Kids"),
+    );
+  }
+  assert.equal(
+    isEligible(kids(90), interested, [], new Set(), false, options.preferences),
     false,
   );
-  assert.ok(picks.filter((p) => p.anime.genres.includes("Kids")).length <= 2);
-  const pick = chooseNext(pool, {
-    reactions,
-    recent: [kids(88)],
-    random: () => 0,
-  });
-  assert.ok(!pick.anime.genres.includes("Kids"));
-  const allKids = rankRecommendations(
-    [kids(10), kids(11), kids(12), kids(13)],
-    { reactions },
-  );
-  assert.equal(allKids.length, 2);
 });

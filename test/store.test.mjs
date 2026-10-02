@@ -459,6 +459,11 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   assert.equal(store.getSnapshot().recommendationsReady, true);
   await store.loadRecommendations();
   assert.ok(
+    store.getSnapshot().recommendationPicks === picks,
+    "A refreshed MAL list does not replace a loaded batch",
+  );
+  await store.loadRecommendations({ force: true });
+  assert.ok(
     store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1),
   );
   fail = true;
@@ -475,7 +480,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   assert.match(store.getSnapshot().message, /last synced list/);
 });
 
-test("saving viewing filters immediately replaces discovery and invalidates recommendations", async () => {
+test("saving viewing filters updates Discover but keeps a loaded batch until explicit refresh", async () => {
   const catalog = [
     { ...anime, id: 10, episodes: 12, status: "finished_airing" },
     { ...anime, id: 11, episodes: 80, status: "finished_airing" },
@@ -505,6 +510,7 @@ test("saving viewing filters immediately replaces discovery and invalidates reco
   await store.savePreferences({ favoriteGenres: ["Action"] });
   await store.loadRecommendations();
   assert.ok(store.getSnapshot().recommendationPicks.length > 1);
+  const original = store.getSnapshot().recommendationPicks;
   const filters = {
     favoriteGenres: ["Action"],
     formats: ["series"],
@@ -514,16 +520,17 @@ test("saving viewing filters immediately replaces discovery and invalidates reco
   };
   await store.savePreferences(filters);
   assert.equal(store.getSnapshot().current.id, 10);
-  assert.equal(store.getSnapshot().recommendationsReady, false);
-  assert.equal(store.getSnapshot().recommendationPicks.length, 0);
+  assert.equal(store.getSnapshot().recommendationsReady, true);
   await store.loadRecommendations();
+  assert.equal(store.getSnapshot().recommendationPicks, original);
+  await store.loadRecommendations({ force: true });
   assert.deepEqual(
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
     [10],
   );
   await store.savePreferences({ ...filters, formats: ["movies"] });
   assert.equal(store.getSnapshot().current.id, 14);
-  await store.loadRecommendations();
+  await store.loadRecommendations({ force: true });
   assert.deepEqual(
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
     [14],
@@ -569,7 +576,7 @@ test("removing connected watchlist entries waits for confirmation and preserves 
   assert.equal(store.getSnapshot().list.length, 0);
 });
 
-test("unchanged account polling preserves recommendations while real preference changes invalidate once", async () => {
+test("account polling and preference changes preserve a loaded batch until explicit refresh", async () => {
   let remote = {
     revision: 1,
     reactions: {},
@@ -624,8 +631,10 @@ test("unchanged account polling preserves recommendations while real preference 
     preferences: { favoriteGenres: ["Drama"] },
   };
   await store.syncAccount();
-  assert.equal(store.getSnapshot().recommendationsReady, false);
+  assert.equal(store.getSnapshot().recommendationsReady, true);
   await store.loadRecommendations();
+  assert.equal(store.getSnapshot().recommendationPicks, picks);
+  await store.loadRecommendations({ force: true });
   const refreshed = store.getSnapshot().recommendationPicks;
   await store.syncAccount();
   assert.equal(store.getSnapshot().recommendationsReady, true);
@@ -816,14 +825,14 @@ test("background account reads leave loaded cards interactive and do not unlock 
     "watch",
     "Click is accepted while polling",
   );
-  assert.equal(store.getSnapshot().busy, true);
-  release();
-  await Promise.all([background, duplicate]);
   assert.equal(
     store.getSnapshot().busy,
-    true,
-    "Finishing background work cannot unlock the active user operation",
+    false,
+    "Local shortlist votes finish without fetching Discover",
   );
+  release();
+  await Promise.all([background, duplicate]);
+  assert.equal(store.getSnapshot().busy, false);
   await reaction;
   assert.equal(store.getSnapshot().busy, false);
   assert.equal(store.getSnapshot().reactions[target.id]?.action, "watch");
@@ -864,4 +873,132 @@ test("text watchlist import fetches missing metadata and keeps existing choices"
   assert.equal(await store.importWatchlist(text), 0);
   assert.equal(lookups, 1);
   assert.equal(store.getSnapshot().busy, false);
+});
+
+test("per-card Undo reverses the requested vote and its own MAL receipt without fetching or replacing Discover", async () => {
+  const undone = [];
+  let detailReads = 0;
+  const catalog = [1, 2, 3, 4, 5].map((id) => ({ ...anime, id }));
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url, options) => {
+      if (url === "/api/session")
+        return Response.json({
+          configured: true,
+          connected: true,
+          csrf: "csrf",
+        });
+      if (url === "/api/profile") return Response.json({ id: 7 });
+      if (url.startsWith("/api/list"))
+        return Response.json({ data: [], nextOffset: null });
+      if (url.startsWith("/api/catalog"))
+        return Response.json({ data: catalog, nextOffset: null });
+      if (url.startsWith("/api/anime/")) {
+        detailReads++;
+        return Response.json(
+          catalog.find((a) => a.id === Number(url.split("/").pop())),
+        );
+      }
+      if (url === "/api/plan") {
+        const { id } = JSON.parse(options.body);
+        return Response.json({
+          added: true,
+          status: "plan_to_watch",
+          receipt: "receipt-" + id,
+        });
+      }
+      if (url === "/api/plan/undo") {
+        undone.push(JSON.parse(options.body).receipt);
+        return Response.json({ removed: true });
+      }
+      throw Error(url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  store.setSettings({ autoAdd: true });
+  await store.loadRecommendations();
+  const batch = store.getSnapshot().recommendationPicks;
+  const current = store.getSnapshot().current;
+  const [first, second] = batch
+    .filter((p) => p.anime.id !== current.id)
+    .slice(0, 2);
+  const beforeReads = detailReads;
+  await store.react("watch", first.anime);
+  await store.react("good", second.anime);
+  assert.ok(store.getSnapshot().undoableIds.includes(first.anime.id));
+  await store.undo(first.anime.id);
+  assert.deepEqual(undone, ["receipt-" + first.anime.id]);
+  assert.equal(store.getSnapshot().reactions[first.anime.id], undefined);
+  assert.equal(store.getSnapshot().reactions[second.anime.id].action, "good");
+  assert.equal(
+    store.getSnapshot().list.some((a) => a.id === first.anime.id),
+    false,
+  );
+  assert.equal(store.getSnapshot().current, current);
+  assert.equal(detailReads, beforeReads);
+  assert.equal(store.getSnapshot().recommendationPicks, batch);
+  await store.undo(first.anime.id);
+  assert.equal(
+    store.getSnapshot().reactions[second.anime.id].action,
+    "good",
+    "An unavailable row Undo must not pop someone else's vote",
+  );
+  await store.retry();
+  assert.notEqual(
+    store.getSnapshot().current?.id,
+    second.anime.id,
+    "Seen recommendations stay excluded from Discover",
+  );
+  await store.loadRecommendations({ force: true });
+  assert.ok(
+    store
+      .getSnapshot()
+      .recommendationPicks.every((p) => p.anime.id !== second.anime.id),
+  );
+});
+
+test("all recommendation choices stay out of Discover and new shortlists; imports don't replace an existing batch", async () => {
+  const { combinedWatchlist } = await import("../src/lib/watchlist.js");
+  const store = createAnimeStore({ storage: memory(), staticMode: true });
+  await store.initialize();
+  await store.savePreferences({
+    favoriteGenres: ["Action", "Drama", "Comedy", "Fantasy"],
+  });
+  await store.loadRecommendations();
+  const batch = store.getSnapshot().recommendationPicks;
+  assert.ok(batch.length >= 4);
+  for (const [i, action] of ["good", "bad", "watch", "nope"].entries())
+    await store.react(action, batch[i].anime);
+  assert.deepEqual(
+    combinedWatchlist(store.getSnapshot().reactions, []).map((r) => r.anime.id),
+    [batch[2].anime.id],
+  );
+  await store.retry();
+  assert.ok(
+    !batch
+      .slice(0, 4)
+      .some((p) => p.anime.id === store.getSnapshot().current?.id),
+  );
+  await store.importWatchlist(
+    JSON.stringify({
+      app: "anime-shuffle",
+      version: 1,
+      entries: [{ anime: { ...anime, id: 100 }, addedAt: 1700000000000 }],
+    }),
+  );
+  assert.equal(store.getSnapshot().recommendationPicks, batch);
+  await store.loadRecommendations();
+  assert.equal(store.getSnapshot().recommendationPicks, batch);
+  await store.loadRecommendations({ force: true });
+  assert.ok(
+    store
+      .getSnapshot()
+      .recommendationPicks.every(
+        (p) =>
+          ![...batch.slice(0, 4).map((p) => p.anime.id), 100].includes(
+            p.anime.id,
+          ),
+      ),
+  );
 });

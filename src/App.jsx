@@ -293,7 +293,11 @@ export function App({ store }) {
                 {Object.keys(state.reactions).length} reactions
               </span>
             </div>
-            {!state.ready || state.discoveryLoading ? (
+            {!state.ready ||
+            state.discoveryLoading ||
+            (state.current &&
+              (state.reactions[state.current.id] ||
+                state.list.some((a) => a.id === state.current.id))) ? (
               <LoadingIndicator
                 progress={state.discoveryProgress}
                 label="Loading your discovery queue…"

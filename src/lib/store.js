@@ -41,6 +41,18 @@ function sameData(a, b) {
   return stable(a) === stable(b);
 }
 
+// Metadata enrichment is not a new vote. Guard Undo by the action identity,
+// so a sanitized cloud snapshot cannot disable a still-valid local receipt.
+function sameReaction(a, b) {
+  return (
+    !!a &&
+    !!b &&
+    a.action === b.action &&
+    a.at === b.at &&
+    a.anime?.id === b.anime?.id
+  );
+}
+
 export function createAnimeStore({
   request = fetch,
   storage = localStorage,
@@ -66,8 +78,10 @@ export function createAnimeStore({
     recommendationPool: [],
     recommendationsReady: false,
     recommendationError: "",
+    recommendationPreferences: null,
     preview: true,
     canUndo: false,
+    undoableIds: [],
     preferences: defaultPreferences(),
     onboardingComplete: false,
     settings: { autoAdd: false, dynamic: true },
@@ -180,29 +194,22 @@ export function createAnimeStore({
       },
     });
   }
-  // Keep the current batch, ranks and explanations stable during background sync.
-  // Remove newly ineligible picks without reshuffling the remaining rows. Reacted
-  // rows stay muted until the user explicitly requests another batch.
-  function reconcileRecommendationBatch(patch) {
-    if (!state.recommendationsReady) return {};
-    const nextState = { ...state, ...patch };
-    const picks = state.recommendationPicks.filter(
-      ({ anime }) =>
-        nextState.reactions[anime.id] ||
-        isEligible(
-          anime,
-          nextState.reactions,
-          nextState.list,
-          new Set(),
-          false,
-          nextState.preferences,
-        ),
-    );
+  // Loaded batches are immutable snapshots. Fresh list/account data affects the
+  // next manual Refresh picks; current rows can be muted without changing order.
+  function undoState() {
     return {
-      recommendationsReady: true,
-      recommendationPicks: sameData(picks, state.recommendationPicks)
-        ? state.recommendationPicks
-        : picks,
+      canUndo: history.length > 0,
+      undoableIds: [
+        ...new Set(
+          history
+            .filter(
+              (entry) =>
+                !entry.skip &&
+                sameReaction(state.reactions[entry.anime.id], entry.after),
+            )
+            .map((entry) => entry.anime.id),
+        ),
+      ],
     };
   }
   async function readList() {
@@ -232,7 +239,6 @@ export function createAnimeStore({
       ) {
         update({
           list: imported,
-          ...reconcileRecommendationBatch({ list: imported }),
         });
       }
     } finally {
@@ -436,7 +442,7 @@ export function createAnimeStore({
   function recordHistory(entry) {
     history.push(entry);
     history = history.slice(-30);
-    update({ canUndo: true });
+    update(undoState());
   }
   /**
    * Four independent actions, not two combined ratings.
@@ -446,9 +452,14 @@ export function createAnimeStore({
   async function react(action, target = null) {
     const anime = target || state.current;
     if (state.busy || !anime || !REACTIONS.includes(action)) return;
+    // A tab switch can happen before freshness checks complete. Never accept a
+    // second vote for a title already selected or present on the connected list.
+    if (state.reactions[anime.id] || state.list.some((a) => a.id === anime.id))
+      return;
     if (
       target &&
       (state.reactions[target.id] ||
+        state.list.some((a) => a.id === target.id) ||
         !state.recommendationPool.some((a) => a.id === target.id))
     )
       return;
@@ -464,6 +475,7 @@ export function createAnimeStore({
       reason: state.reason,
       detailReason: state.detailReason,
       receipt: null,
+      fromRecommendations: !!target,
     };
     update({
       reactions: {
@@ -471,6 +483,7 @@ export function createAnimeStore({
         [anime.id]: { action, anime, at: Date.now() },
       },
     });
+    entry.after = state.reactions[anime.id];
     persist();
     try {
       if (
@@ -505,8 +518,10 @@ export function createAnimeStore({
       notify("Saved to your site watchlist. " + error.message);
     }
     recordHistory(entry);
-    recent = [...recent, anime].slice(-8);
-    await next();
+    recent = [...recent, anime].slice(-10);
+    // Voting on a shortlist must not fetch another Discover card or rebuild it.
+    if (target) update({ busy: false });
+    else await next();
   }
   async function addToMal(anime) {
     const result = await api("/api/plan", { id: anime.id });
@@ -558,10 +573,31 @@ export function createAnimeStore({
     }
   }
   /** Server receipts authorize Undo only for entries created by this session. */
-  async function undo() {
+  async function undo(id = null) {
     if (state.busy || !history.length) return;
+    // React click events are not IDs. Targeted Undo never pops another row’s vote.
+    const targeted = Number.isInteger(id);
+    const index = targeted
+      ? history.findLastIndex(
+          (entry) =>
+            !entry.skip &&
+            entry.anime.id === id &&
+            sameReaction(state.reactions[id], entry.after),
+        )
+      : history.length - 1;
+    if (index < 0) return;
+    const entry = history[index];
+    if (
+      !entry.skip &&
+      !sameReaction(state.reactions[entry.anime.id], entry.after)
+    ) {
+      notify(
+        "This reaction changed on another device. Refresh your account before undoing it.",
+      );
+      return;
+    }
     update({ busy: true });
-    const entry = history.pop();
+    history.splice(index, 1);
     let message = entry.skip ? "Skip undone." : "Reaction undone.";
     if (entry.receipt) {
       try {
@@ -579,13 +615,18 @@ export function createAnimeStore({
     recent = recent.filter((a) => a.id !== entry.anime.id);
     update({
       reactions,
-      current: entry.anime,
-      reason: entry.reason,
-      detailReason: entry.detailReason,
+      ...(!targeted && !entry.fromRecommendations
+        ? {
+            current: entry.anime,
+            reason: entry.reason,
+            detailReason: entry.detailReason,
+          }
+        : {}),
       error: "",
       busy: false,
       canUndo: history.length > 0,
     });
+    update(undoState());
     persist();
     notify(message);
   }
@@ -598,7 +639,7 @@ export function createAnimeStore({
       skip: true,
     });
     skipped.add(state.current.id);
-    recent = [...recent, state.current].slice(-8);
+    recent = [...recent, state.current].slice(-10);
     await next();
   }
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
@@ -625,6 +666,7 @@ export function createAnimeStore({
       recommendationError: "",
       reactions: {},
       canUndo: false,
+      undoableIds: [],
       preview: !session.configured,
       busy: true,
     });
@@ -660,8 +702,6 @@ export function createAnimeStore({
           const preferences = normalizePreferences(remote.preferences);
           const reactionsChanged = !sameData(state.reactions, remote.reactions);
           const preferencesChanged = !sameData(state.preferences, preferences);
-          const onboardingChanged =
-            state.onboardingComplete !== remote.onboardingComplete;
           update({
             reactions: reactionsChanged ? remote.reactions : state.reactions,
             settings: sameData(state.settings, remote.settings)
@@ -669,16 +709,8 @@ export function createAnimeStore({
               : remote.settings,
             preferences: preferencesChanged ? preferences : state.preferences,
             onboardingComplete: remote.onboardingComplete,
-            ...(preferencesChanged || onboardingChanged
-              ? {
-                  recommendationPicks: [],
-                  recommendationPool: [],
-                  recommendationsReady: false,
-                }
-              : reactionsChanged
-                ? reconcileRecommendationBatch({ reactions: remote.reactions })
-                : {}),
           });
+          update(undoState());
           persist(false);
         },
         onStatus(syncError) {
@@ -806,6 +838,7 @@ export function createAnimeStore({
           ...state,
           metadata: pool,
         }),
+        recommendationPreferences: state.preferences,
         recommendationPool: verified,
         recommendationsReady: true,
         recommendationError: failures
@@ -904,12 +937,9 @@ export function createAnimeStore({
               : state.settings,
           preferences,
           onboardingComplete: true,
-          canUndo: false,
-          recommendationsReady: false,
-          recommendationPicks: [],
-          recommendationPool: [],
         });
-        history = [];
+        history = history.filter((entry) => entry.fromRecommendations);
+        update(undoState());
         skipped.clear();
         persist();
         await cloudSync?.flush();
@@ -1009,14 +1039,8 @@ export function createAnimeStore({
         for (const { anime, addedAt } of entries)
           reactions[anime.id] = { action: "watch", anime, at: addedAt };
         // Imported saves follow the same explicit MAL auto-add choice as other watchlist additions.
-        history = [];
-        update({
-          reactions,
-          canUndo: false,
-          recommendationPicks: [],
-          recommendationPool: [],
-          recommendationsReady: false,
-        });
+        update({ reactions });
+        update(undoState());
         persist();
         if (state.settings.autoAdd && state.session.connected) {
           update({ busy: true });
@@ -1045,10 +1069,9 @@ export function createAnimeStore({
           reactions,
           list: state.list.filter((a) => a.id !== id),
           canUndo: history.length > 0,
-          recommendationsReady: false,
-          recommendationPicks: [],
-          recommendationPool: [],
+          undoableIds: [],
         });
+        update(undoState());
         persist();
         await cloudSync?.flush();
         notify("Removed from your watchlist.");
@@ -1087,7 +1110,7 @@ export function createAnimeStore({
         )
           await next();
         notify(
-          "MAL list refreshed. Watchlist and recommendations now use your latest progress.",
+          "MAL list refreshed. Your watchlist is up to date. Refresh picks when you want a new shortlist.",
         );
       } catch (error) {
         notify(error.message);
@@ -1110,7 +1133,7 @@ export function createAnimeStore({
       history = [];
       skipped.clear();
       recent = [];
-      update({ reactions: {}, canUndo: false });
+      update({ reactions: {}, canUndo: false, undoableIds: [] });
       persist();
       return next();
     },

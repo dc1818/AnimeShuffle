@@ -47,6 +47,7 @@ export function AnimeCard({
   anime,
   busy,
   canUndo,
+  reactionDisabled = false,
   detailsOpen,
   onDetails,
   onReact,
@@ -194,6 +195,7 @@ export function AnimeCard({
               className={`reaction ${action}`}
               disabled={
                 busy ||
+                reactionDisabled ||
                 (["good", "bad"].includes(action) && isUnreleased(anime))
               }
               title={
@@ -209,16 +211,18 @@ export function AnimeCard({
             </button>
           ))}
         </div>
-        {!compact && (
+        {(!compact || onUndo) && (
           <div className="secondary-actions">
             <button disabled={busy || !canUndo} onClick={onUndo}>
               <Icon name="undo" />
-              Undo
+              {compact ? "Undo this choice" : "Undo"}
             </button>
-            <button disabled={busy} onClick={onSkip}>
-              <Icon name="skip" />
-              Skip
-            </button>
+            {!compact && (
+              <button disabled={busy} onClick={onSkip}>
+                <Icon name="skip" />
+                Skip
+              </button>
+            )}
           </div>
         )}
       </div>

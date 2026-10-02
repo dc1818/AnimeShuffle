@@ -1,121 +1,9 @@
+import {
+  storyAspects as evidence,
+  narrativeFeatures,
+} from "./story-aspects.js";
 import { primaryTitle, englishTitle } from "./titles.js";
 
-// These are conservative story connections, not plot summaries inferred from
-// genre labels or arbitrary shared words. Every required clue must occur in
-// the same synopsis sentence. Negated descriptions are excluded.
-const themes = [
-  [
-    "survival",
-    "people struggling to stay alive against a deadly threat",
-    [
-      /\b(surviv\w*|extinction|humanity|mankind)\b/i,
-      /\b(monsters?|titans?|demons?|creatures?|zombies?|apocalypse|destroy\w*|annihilat\w*|devour\w*|deadly|death)\b/i,
-    ],
-  ],
-  [
-    "revenge",
-    "someone pursuing revenge",
-    [/\b(revenge|vengeance|avenge\w*)\b/i],
-  ],
-  [
-    "military",
-    "soldiers caught up in an armed conflict",
-    [
-      /\b(soldiers?|military|army|armies|troops)\b/i,
-      /\b(war|battle\w*|combat|fight\w*|invasion|invad\w*)\b/i,
-    ],
-  ],
-  [
-    "rebellion",
-    "resistance against an oppressive power",
-    [
-      /\b(rebel\w*|rebellion|resistance|overthrow\w*)\b/i,
-      /\b(empire|government|regime|ruler|tyrann\w*|oppress\w*)\b/i,
-    ],
-  ],
-  [
-    "mystery",
-    "an investigation into a crime or disappearance",
-    [
-      /\b(investigat\w*|detective\w*|clues?|solv\w*)\b/i,
-      /\b(murder\w*|crime\w*|disappear\w*|missing|killer\w*)\b/i,
-    ],
-  ],
-  [
-    "competition",
-    "competitors working toward a tournament or championship",
-    [
-      /\b(tournament|championship|competition)\b/i,
-      /\b(train\w*|team\w*|rival\w*|compet\w*|win\w*|victory)\b/i,
-    ],
-  ],
-  [
-    "music",
-    "performers chasing an ambition in music",
-    [
-      /\b(band|musician\w*|pianist\w*|singer\w*|orchestra|idol\w*)\b/i,
-      /\b(dream\w*|perform\w*|concert\w*|career|stage|practic\w*)\b/i,
-    ],
-  ],
-  [
-    "romance",
-    "feelings developing between classmates",
-    [
-      /\b(classmate\w*|school|student\w*)\b/i,
-      /\b(falls? in love|romance|romantic|crush|confess\w*)\b/i,
-    ],
-  ],
-  [
-    "otherworld",
-    "someone starting over in an unfamiliar world",
-    [
-      /\b(transport\w*|summon\w*|reincarnat\w*|reborn|trapped)\b/i,
-      /\b(another world|different world|fantasy world|game world|virtual world)\b/i,
-    ],
-  ],
-  [
-    "time",
-    "a chance to change events by going back in time",
-    [
-      /\b(time travel|travels? back|sent back|returns? to the past|time loop|reliv\w*)\b/i,
-      /\b(change|prevent|save|past|repeat\w*|again|tragedy)\b/i,
-    ],
-  ],
-  [
-    "supernatural",
-    "people confronting supernatural disturbances",
-    [
-      /\b(ghost\w*|spirits?|supernatural|curse\w*)\b/i,
-      /\b(exorcis\w*|haunt\w*|investigat\w*|fight\w*|protect\w*)\b/i,
-    ],
-  ],
-  [
-    "space",
-    "a journey through space",
-    [
-      /\b(space|galaxy|planets?|spaceship\w*)\b/i,
-      /\b(travel\w*|journey|voyage|explor\w*|crew)\b/i,
-    ],
-  ],
-  [
-    "family",
-    "people learning to care for a child",
-    [
-      /\b(child|children|daughter|son|baby)\b/i,
-      /\b(adopt\w*|rais\w*|parent\w*|guardian|care for)\b/i,
-    ],
-  ],
-  [
-    "loss",
-    "someone living with the loss of a loved one",
-    [
-      /\b(grief|griev\w*|death|died|loss)\b/i,
-      /\b(mother|father|sister|brother|wife|husband|friend|family)\b/i,
-    ],
-  ],
-];
-
-const evidenceCache = new WeakMap();
 const positiveCache = new WeakMap();
 function positiveRecords(taste) {
   if (!positiveCache.has(taste))
@@ -124,7 +12,7 @@ function positiveRecords(taste) {
       [...taste.records.values()]
         .filter(
           (r) =>
-            r.weight > 0.1 &&
+            r.weight > 0 &&
             (!taste.model?.trainedIds ||
               taste.model.trainedIds.has(r.anime.id)),
         )
@@ -132,30 +20,6 @@ function positiveRecords(taste) {
         .slice(0, 400),
     );
   return positiveCache.get(taste);
-}
-function evidence(anime) {
-  if (evidenceCache.has(anime)) return evidenceCache.get(anime);
-  const sentences = (anime.synopsis || "")
-    .replace(/\[[^\]]*\]/g, " ")
-    .split(/(?<=[.!?])\s+/)
-    .filter(
-      (s) =>
-        !/\b(not|never|without|neither|unlike)\b|no longer|rather than/i.test(
-          s,
-        ),
-    );
-  const result = new Map(
-    themes.flatMap(([key, description, clues]) => {
-      const sentence = sentences.find((s) =>
-        clues.every((clue) => clue.test(s)),
-      );
-      return sentence
-        ? [[key, { description, sentence: sentence.trim() }]]
-        : [];
-    }),
-  );
-  evidenceCache.set(anime, result);
-  return result;
 }
 const title = (anime) => englishTitle(anime) || primaryTitle(anime);
 function personalConnection(record) {
@@ -228,6 +92,57 @@ export function explainPick(
       mentioned.add(record.anime.id);
     }
   };
+  // Only explain aspects that made a positive contribution to this exact score.
+  // Multiple liked examples support a tentative pattern; never invent a favorite villain.
+  const ownNarrative = narrativeFeatures(anime);
+  for (const key of contributing("aspect").slice(0, 2)) {
+    const aspect = ownNarrative.aspects.get(key);
+    const related = positive.filter((r) =>
+      narrativeFeatures(r.anime).aspects.has(key),
+    );
+    if (!aspect || !related.length) continue;
+    const enjoyed = related.filter((r) => r.enjoyment > 0.4);
+    const anchor = enjoyed[0] || related[0];
+    introduce(anchor);
+    if (enjoyed.length >= 2)
+      parts.push(
+        `A few shows you liked have ${aspect.description}. That thread runs through this story too, which could be part of what appeals to you.`,
+      );
+    else if (enjoyed.length)
+      parts.push(
+        `Here, the story involves ${aspect.description}, a thread it has in common with ${title(anchor.anime)}. If that was part of what you enjoyed, this may appeal too.`,
+      );
+    else
+      parts.push(
+        `It also involves ${aspect.description}. If that was what caught your eye in the show you saved, this could be worth trying next.`,
+      );
+  }
+  const mechContribution = analysis.contributions.find(
+    (c) => c.key === "mecha:" + ownNarrative.focus,
+  );
+  if (
+    mechContribution?.contribution > 0.00001 &&
+    ownNarrative.focus !== "unspecified"
+  ) {
+    const liked = positive.filter(
+      (r) =>
+        r.enjoyment > 0.4 &&
+        narrativeFeatures(r.anime).focus === ownNarrative.focus,
+    );
+    const avoidedCentral = [...taste.records.values()].some(
+      (r) =>
+        (r.enjoyment < -0.4 || r.interest < -0.4) &&
+        narrativeFeatures(r.anime).focus === "central",
+    );
+    if (liked.length && ownNarrative.focus === "mixed" && avoidedCentral)
+      parts.push(
+        "Your choices suggest mechs can work for you when other story threads matter too. This synopsis mixes them with a broader story, rather than making piloted-machine combat the main premise.",
+      );
+    else if (liked.length && ownNarrative.focus === "central")
+      parts.push(
+        "Piloted-machine battles are central to the premise, as in a show you liked.",
+      );
+  }
   const match = storyConnection(anime, taste);
   const words = contributing("text");
   const supportedThemes =
@@ -265,7 +180,9 @@ export function explainPick(
       const already = mentioned.has(related.record.anime.id);
       if (!already) introduce(related.record);
       parts.push(
-        `The ${related.shared.join(" and ")} mix you found in ${title(related.record.anime)} is part of the appeal here${genres.filter((g) => !related.shared.includes(g)).length ? `, along with your interest in ${genres.filter((g) => !related.shared.includes(g)).join(" and ")}` : ""}.`,
+        related.record.enjoyment > 0.4
+          ? `Its ${related.shared.join(" and ")} side is another link to ${title(related.record.anime)}, though sharing genres doesn’t guarantee the same experience.`
+          : `If the ${related.shared.join(" and ")} side of ${title(related.record.anime)} is what caught your eye, this could be worth a try. You haven’t marked that show as liked, so this is an early suggestion.`,
       );
     } else
       parts.push(
@@ -298,7 +215,7 @@ export function explainPick(
     };
     if (formats[anime.format])
       parts.push(
-        `You’ve also tended to respond well to ${formats[anime.format]}.`,
+        `It also fits the ${formats[anime.format]} you’ve been choosing.`,
       );
   }
   if (!parts.length) {

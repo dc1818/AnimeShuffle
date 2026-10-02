@@ -72,7 +72,7 @@ export const defaultPreferences = () => ({
   lengths: [],
   finishedOnly: false,
   includeUnknown: true,
-  childrenTitles: "auto",
+  childrenTitles: "hide",
 });
 
 /** Shared by client and server; discard unknown keys rather than persisting arbitrary input. */
@@ -133,9 +133,9 @@ export function normalizePreferences(value = {}) {
     lengths: clean(value?.lengths, LENGTH_OPTIONS),
     finishedOnly: value?.finishedOnly === true,
     includeUnknown: value?.includeUnknown !== false,
-    childrenTitles: ["auto", "include", "hide"].includes(value?.childrenTitles)
-      ? value.childrenTitles
-      : "auto",
+    // Migrate old Automatic defaults to off; an explicit Include still opts in
+    // to learning, never to an unrestricted stream of children’s shows.
+    childrenTitles: value?.childrenTitles === "include" ? "include" : "hide",
   };
 }
 

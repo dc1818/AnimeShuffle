@@ -68,7 +68,8 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
             connected, your MAL list. Scores on MAL are optional. You may see
             fewer than 25 picks while we learn your taste or when eligible
             titles run low. React to more anime in Discover to help shape fresh
-            suggestions.
+            suggestions. A loaded shortlist stays in place until you choose
+            Refresh picks, including after changing preferences.
           </p>
         </div>
         <div>
@@ -124,7 +125,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
               : "Candidate checks completed · your picks appear when ready"
           }
         />
-      ) : !hasTaste ? (
+      ) : !hasTaste && !picks.length ? (
         <div className="empty">
           <h2>Let’s learn what you enjoy first</h2>
           <p>
@@ -161,13 +162,20 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           >
             {picks.map((pick) => {
               const reaction = state.reactions[pick.anime.id]?.action;
-              const reacted = !!reaction;
-              const feedback = {
-                good: "Seen · Liked",
-                bad: "Seen · Disliked",
-                watch: "Saved to Watchlist",
-                nope: "Passed",
-              }[reaction];
+              const known =
+                state.list.some((a) => a.id === pick.anime.id) ||
+                state.preferences.favoriteAnime.some(
+                  (a) => a.id === pick.anime.id,
+                );
+              const reacted = !!reaction || known;
+              const feedback =
+                {
+                  good: "Seen · Liked",
+                  bad: "Seen · Disliked",
+                  watch: "Saved to Watchlist",
+                  nope: "Passed",
+                }[reaction] ||
+                (known ? "Already on your MAL list or favorites" : "");
               const expanded = openedId === pick.anime.id;
               const panelId = `recommendation-panel-${pick.anime.id}`;
               const headingId = `recommendation-heading-${pick.anime.id}`;
@@ -213,12 +221,20 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                       <>
                         <AnimeCard
                           anime={pick.anime}
-                          selectedGenres={state.preferences.favoriteGenres}
+                          selectedGenres={
+                            (
+                              state.recommendationPreferences ||
+                              state.preferences
+                            ).favoriteGenres
+                          }
                           onPreferences={onPreferences}
                           reason={pick.reason}
                           saved={pick.saved}
                           compact
-                          busy={state.busy || reacted}
+                          busy={state.busy}
+                          reactionDisabled={reacted}
+                          canUndo={state.undoableIds?.includes(pick.anime.id)}
+                          onUndo={() => store.undo(pick.anime.id)}
                           detailsOpen={about === pick.anime.id}
                           onDetails={() =>
                             setAbout(

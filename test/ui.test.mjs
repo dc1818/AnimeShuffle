@@ -167,7 +167,7 @@ for (const staticMode of [false, true])
         document.querySelectorAll(".leaderboard-row.reacted").length,
         1,
       );
-      await click("Undo last reaction");
+      await click("Undo this choice");
       assert.equal(
         document.querySelectorAll(".leaderboard-row.reacted").length,
         0,

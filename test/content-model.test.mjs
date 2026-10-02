@@ -70,7 +70,13 @@ test("enjoyment and viewing interest remain separate for dropped rated anime and
     0,
     "planning is not proof of enjoyment",
   );
-  assert.equal(taste.records.get(2).interest, 1);
+  assert.equal(taste.records.get(2).interest, 0.4);
+  assert.ok(
+    recommendationSeeds({
+      2: { action: "watch", anime: anime(2, robots) },
+    }).some((a) => a.id === 2),
+    "Tentative interest still helps retrieve candidates without becoming enjoyment",
+  );
   assert.equal(taste.records.size, 2);
 });
 
