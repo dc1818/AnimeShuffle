@@ -3,7 +3,7 @@ import { BACKGROUND_REFRESH_MS } from "./refresh-policy.js";
 import { createDiagnostics } from "./diagnostics.js";
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import {
-  parseWatchlistBackup,
+  parseWatchlistImport,
   newWatchlistEntries,
   missingMalPlans,
 } from "./watchlist.js";
@@ -967,29 +967,65 @@ export function createAnimeStore({
       if (state.busy)
         throw new Error("Please wait for the current action to finish.");
       const entries = newWatchlistEntries(
-        parseWatchlistBackup(text),
+        parseWatchlistImport(text),
         state.reactions,
         state.list,
       );
-      const reactions = { ...state.reactions };
-      for (const { anime, addedAt } of entries)
-        reactions[anime.id] = { action: "watch", anime, at: addedAt };
-      // Imported saves follow the same explicit MAL auto-add choice as other watchlist additions.
-      history = [];
-      update({
-        reactions,
-        canUndo: false,
-        recommendationPicks: [],
-        recommendationPool: [],
-        recommendationsReady: false,
-      });
-      persist();
-      if (state.settings.autoAdd && state.session.connected) {
-        update({ busy: true });
-        await syncWatchlistToMal();
+      update({ busy: true });
+      try {
+        if (
+          text
+            .replace(/^\uFEFF/, "")
+            .trimStart()
+            .startsWith("Anime Shuffle — ")
+        ) {
+          // Text exports omit cover art and detailed metadata. Reuse known titles,
+          // then fetch missing details with bounded concurrency; failed lookups
+          // still preserve the user's exported title rather than losing the save.
+          let cursor = 0,
+            completed = 0;
+          const known = new Map(
+            [...pool, ...state.list].map((anime) => [anime.id, anime]),
+          );
+          const worker = async () => {
+            while (cursor < entries.length) {
+              const entry = entries[cursor++];
+              let anime = known.get(entry.anime.id);
+              if (!anime && !state.preview) {
+                try {
+                  anime = await animeDetails(entry.anime.id);
+                } catch {
+                  /* Keep the validated text entry when MAL is unavailable. */
+                }
+              }
+              if (anime) entry.anime = anime;
+              notify(`Importing watchlist (${++completed}/${entries.length})…`);
+            }
+          };
+          await Promise.all([worker(), worker()]);
+        }
+        const reactions = { ...state.reactions };
+        for (const { anime, addedAt } of entries)
+          reactions[anime.id] = { action: "watch", anime, at: addedAt };
+        // Imported saves follow the same explicit MAL auto-add choice as other watchlist additions.
+        history = [];
+        update({
+          reactions,
+          canUndo: false,
+          recommendationPicks: [],
+          recommendationPool: [],
+          recommendationsReady: false,
+        });
+        persist();
+        if (state.settings.autoAdd && state.session.connected) {
+          update({ busy: true });
+          await syncWatchlistToMal();
+        }
+        await next();
+        return entries.length;
+      } finally {
+        update({ busy: false });
       }
-      await next();
-      return entries.length;
     },
     async removeSaved(id, confirmed = false) {
       if (state.busy) return { removed: false };

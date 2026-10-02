@@ -165,3 +165,48 @@ test("combined watchlist merges MAL plans without duplicate reactions and exclud
     "MAL import must not fabricate an explicit reaction",
   );
 });
+
+test("text exports reimport by MAL ID with dates, Unicode titles, and duplicate checks", async () => {
+  const {
+    watchlistText,
+    parseWatchlistImport,
+    newWatchlistEntries,
+    watchlistBackup,
+  } = await import("../src/lib/watchlist.js");
+  const input = [
+    {
+      ...a,
+      addedAt: Date.parse("2026-01-02T12:30:00Z"),
+      anime: {
+        ...a.anime,
+        title: "日本語 — Story",
+        englishTitle: "English title",
+      },
+    },
+    c,
+    a,
+  ];
+  const text = watchlistText(input);
+  const parsed = parseWatchlistImport("\uFEFF" + text.replaceAll("\n", "\r\n"));
+  assert.deepEqual(
+    parsed.map((e) => e.anime.id),
+    input.map((e) => e.anime.id),
+  );
+  assert.equal(parsed[0].addedAt, Date.parse("2026-01-02T00:00:00Z"));
+  assert.match(parsed[0].anime.title, /日本語/);
+  assert.deepEqual(parsed[0].anime.genres, a.anime.genres);
+  assert.equal(newWatchlistEntries(parsed).length, 2);
+  assert.deepEqual(parseWatchlistImport(watchlistText([])), []);
+  assert.equal(parseWatchlistImport(watchlistBackup([a])).length, 1);
+  for (const bad of [
+    text.replace("3 anime", "4 anime"),
+    text.replace("myanimelist.net", "example.com"),
+    text.replace("2026-01-02", "2026-02-30"),
+    text.replace("Genres:", "Invalid:"),
+    text.replace(
+      /https:\/\/myanimelist.net\/anime\/\d+/,
+      "https://myanimelist.net/anime/0",
+    ),
+  ])
+    assert.throws(() => parseWatchlistImport(bad), /Invalid|invalid/);
+});

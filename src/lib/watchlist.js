@@ -113,7 +113,7 @@ export function watchlistText(entries, label = "Watchlist") {
   );
 }
 
-/** Versioned, account-free backup. JSON is the round-trip format; text is for reading. */
+/** Versioned, account-free backup. JSON preserves full metadata; text can restore the exported title list. */
 export function watchlistBackup(entries) {
   return JSON.stringify(
     {
@@ -233,4 +233,79 @@ export function newWatchlistEntries(entries, reactions = {}, list = []) {
     known.add(anime.id);
     return true;
   });
+}
+
+/** Import our readable export by MAL ID, never by a guessed title search. Text
+ * does not contain covers or episode counts; the store can fetch those from MAL. */
+export function parseWatchlistImport(text) {
+  if (typeof text !== "string" || text.length > 5 * 1024 * 1024)
+    throw new Error("Choose a watchlist export smaller than 5 MB.");
+  const normalized = text
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
+    .trim();
+  if (!normalized.startsWith("Anime Shuffle — "))
+    return parseWatchlistBackup(normalized);
+  const invalid = () => {
+    throw new Error("Invalid Anime Shuffle text export. Nothing was imported.");
+  };
+  const lines = normalized.split("\n");
+  const count = /^(\d+) anime$/.exec(lines[1] || "");
+  if (!count || Number(count[1]) > 10000) return invalid();
+  const body = lines.slice(2).join("\n").trim();
+  const blocks = body ? body.split(/\n[ \t]*\n/) : [];
+  if (blocks.length !== Number(count[1])) return invalid();
+  const statuses = {
+    "Finished airing": "finished_airing",
+    "Currently airing": "currently_airing",
+    "Not yet aired": "not_yet_aired",
+    "Release status unknown": "",
+  };
+  const entries = blocks.map((block, index) => {
+    const row = block.split("\n");
+    const heading = /^(\d+)\. (.+)$/.exec(row[0] || "");
+    const status =
+      /^(Finished airing|Currently airing|Not yet aired|Release status unknown) · (Total time unknown|~(?:\d+ min|\d+h(?: \d+m)?)(?: total| · listed episodes))$/.exec(
+        row[1] || "",
+      );
+    const id = /^https:\/\/myanimelist\.net\/anime\/([1-9]\d*)$/.exec(
+      row[4] || "",
+    );
+    const date = /^Added: (Unknown|\d{4}-\d{2}-\d{2})$/.exec(row[3] || "");
+    if (
+      row.length !== 5 ||
+      !heading ||
+      Number(heading[1]) !== index + 1 ||
+      !status ||
+      !id ||
+      !date ||
+      !row[2].startsWith("Genres: ")
+    )
+      return invalid();
+    let addedAt = null;
+    if (date[1] !== "Unknown") {
+      addedAt = Date.parse(date[1] + "T00:00:00Z");
+      if (
+        !Number.isFinite(addedAt) ||
+        new Date(addedAt).toISOString().slice(0, 10) !== date[1] ||
+        addedAt > Date.now()
+      )
+        return invalid();
+    }
+    const genres = row[2].slice(8);
+    if (!genres) return invalid();
+    return {
+      addedAt,
+      anime: {
+        id: Number(id[1]),
+        title: heading[2],
+        genres: genres === "Unknown" ? [] : genres.split(", "),
+        status: statuses[status[1]],
+      },
+    };
+  });
+  // Use the same field bounds and sanitization as JSON backups.
+  return parseWatchlistBackup(
+    JSON.stringify({ app: "anime-shuffle", version: 1, entries }),
+  );
 }

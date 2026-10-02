@@ -828,3 +828,40 @@ test("background account reads leave loaded cards interactive and do not unlock 
   assert.equal(store.getSnapshot().busy, false);
   assert.equal(store.getSnapshot().reactions[target.id]?.action, "watch");
 });
+
+test("text watchlist import fetches missing metadata and keeps existing choices", async () => {
+  const { watchlistText } = await import("../src/lib/watchlist.js");
+  const imported = {
+    ...anime,
+    id: 987,
+    image: "https://cdn.myanimelist.net/images/anime/1/987.jpg",
+  };
+  let lookups = 0;
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      const ok = (data) => new Response(JSON.stringify(data));
+      if (url === "/api/session") return ok({ configured: true });
+      if (url.startsWith("/api/catalog"))
+        return ok({ data: [anime], nextOffset: null });
+      if (url === "/api/anime/1") return ok(anime);
+      if (url === "/api/anime/987") {
+        lookups++;
+        return ok(imported);
+      }
+      throw Error(url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  const text = watchlistText([
+    { anime: imported, addedAt: Date.parse("2026-01-02") },
+  ]);
+  assert.equal(await store.importWatchlist(text), 1);
+  assert.equal(lookups, 1);
+  assert.equal(store.getSnapshot().reactions[987].anime.image, imported.image);
+  assert.equal(store.getSnapshot().reactions[987].action, "watch");
+  assert.equal(await store.importWatchlist(text), 0);
+  assert.equal(lookups, 1);
+  assert.equal(store.getSnapshot().busy, false);
+});

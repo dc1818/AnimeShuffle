@@ -5,7 +5,7 @@ import {
   combinedWatchlist,
   watchlistText,
   watchlistBackup,
-  parseWatchlistBackup,
+  parseWatchlistImport,
   newWatchlistEntries,
 } from "../lib/watchlist.js";
 import {
@@ -247,15 +247,15 @@ export function Watchlist({ state, store, onDiscover }) {
             disabled={state.busy || importing}
             onClick={() => importFile.current?.click()}
           >
-            Import JSON
+            Import watchlist
           </button>
         </div>
         <input
           ref={importFile}
           hidden
-          aria-label="Import watchlist JSON"
+          aria-label="Import watchlist file"
           type="file"
-          accept=".json,application/json"
+          accept=".json,.txt,application/json,text/plain"
           disabled={state.busy || importing}
           onChange={async (e) => {
             const file = e.target.files?.[0];
@@ -263,17 +263,17 @@ export function Watchlist({ state, store, onDiscover }) {
             setPendingImport(null);
             setImportMessage("");
             if (!file) return;
-            if (!/\.json$/i.test(file.name)) {
-              setImportMessage("Choose an Anime Shuffle .json export.");
+            if (!/\.(json|txt)$/i.test(file.name)) {
+              setImportMessage("Choose an Anime Shuffle .json or .txt export.");
               return;
             }
             if (file.size > 5 * 1024 * 1024) {
-              setImportMessage("Choose a JSON backup smaller than 5 MB.");
+              setImportMessage("Choose a watchlist export smaller than 5 MB.");
               return;
             }
             try {
               const text = await file.text();
-              const entries = parseWatchlistBackup(text);
+              const entries = parseWatchlistImport(text);
               const fresh = newWatchlistEntries(
                 entries,
                 state.reactions,

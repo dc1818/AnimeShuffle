@@ -34,7 +34,7 @@ Open a card to see its details and why it was selected. Use the same reactions a
 Keep titles found on Anime Shuffle alongside your MyAnimeList Plan to Watch entries. The list defaults to what best matches your taste, with sorting by date added or total runtime and dropdown filters for genre, format, length, and release status. Search supports the Japanese and English titles supplied by MAL.
 
 - Export a readable text list or a JSON backup.
-- Import an Anime Shuffle JSON backup with format validation and duplicate detection.
+- Import an Anime Shuffle text export or JSON backup with format validation and duplicate detection. JSON keeps full metadata; text restores titles by their MAL links and preserves saved dates to the day.
 - Optionally add site saves and imports to MAL Plan to Watch.
 - Remove entries from both lists after confirmation when the title is also on MAL.
 

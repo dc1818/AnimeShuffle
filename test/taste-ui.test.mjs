@@ -253,10 +253,10 @@ test("watchlist labels MAL update time and requires a cancellable removal confir
     );
     assert.match(document.body.textContent, /Found on Anime Shuffle/);
     assert.equal(
-      button("Import JSON").parentElement,
+      button("Import watchlist").parentElement,
       button("Export entire list").parentElement,
     );
-    assert.ok(button("Import JSON").classList.contains("outline"));
+    assert.ok(button("Import watchlist").classList.contains("outline"));
     assert.equal(document.querySelector(".watchlist-import"), null);
     const fileInput = document.querySelector('input[type="file"]');
     Object.defineProperty(fileInput, "files", {
