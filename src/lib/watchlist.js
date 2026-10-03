@@ -322,3 +322,18 @@ export function parseWatchlistImport(text) {
     JSON.stringify({ app: "anime-shuffle", version: 1, entries }),
   );
 }
+
+/** Browser-local date/time with the timezone at that instant (including DST). */
+export function watchlistTimestamp(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  try {
+    return date.toLocaleString(undefined, { timeZoneName: "short" });
+  } catch {
+    // UTC remains unambiguous if the browser cannot format its local timezone.
+    return date
+      .toISOString()
+      .replace("T", " ")
+      .replace(/\.\d{3}Z$/, " UTC");
+  }
+}

@@ -3,6 +3,7 @@ import { primaryTitle, englishTitle } from "../lib/titles.js";
 import { useEffect, useRef, useState } from "react";
 import {
   orderWatchlist,
+  watchlistTimestamp,
   combinedWatchlist,
   watchlistText,
   watchlistBackup,
@@ -377,7 +378,7 @@ export function Watchlist({ state, store, onDiscover }) {
                 Number.isFinite(Date.parse(anime.listStatus?.updated_at)) && (
                   <small>
                     MAL last updated{" "}
-                    {new Date(anime.listStatus.updated_at).toLocaleString()}
+                    {watchlistTimestamp(anime.listStatus.updated_at)}
                   </small>
                 )}
               <div className="saved-footer">
