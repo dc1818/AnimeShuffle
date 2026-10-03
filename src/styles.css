@@ -2017,3 +2017,374 @@ main.wide-main {
   background: rgba(121, 186, 207, 0.2);
   border-color: #79bacf;
 }
+
+/* Responsive Discover layout: compact cards and browser navigation at the top. */
+.mobile-reaction-label {
+  display: none;
+}
+[data-layout="familiar"] .topbar {
+  min-height: 58px;
+  gap: clamp(12px, 2vw, 30px);
+  padding: 5px 3%;
+}
+[data-layout="familiar"] .brand img {
+  width: 60px;
+  height: 42px;
+}
+[data-layout="familiar"] .brand > span {
+  font-size: clamp(22px, 2vw, 29px);
+}
+[data-layout="familiar"] .topbar nav {
+  gap: 6px;
+  min-width: 0;
+}
+[data-layout="familiar"] .nav-button {
+  padding: 9px 14px;
+  gap: 7px;
+  font-size: 14px;
+}
+[data-layout="familiar"] .account {
+  max-width: 180px;
+  padding: 9px 12px;
+}
+[data-layout="familiar"] .account span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-layout="familiar"] main:not(.wide-main) {
+  min-height: calc(100dvh - 120px);
+}
+[data-layout="familiar"] .feed-top {
+  min-height: 46px;
+  padding: 7px 0;
+  flex-direction: row;
+  gap: 12px;
+}
+[data-layout="familiar"] .reason {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+[data-layout="familiar"] .cards-layout {
+  gap: 20px;
+  max-width: 980px;
+}
+[data-layout="familiar"] .cards-layout .anime-card {
+  width: min(100%, 470px);
+  min-width: 0;
+}
+[data-layout="familiar"] .cards-layout .poster-stage {
+  height: clamp(150px, calc(100svh - 550px), 235px);
+}
+[data-layout="familiar"] .cards-layout .card-content {
+  padding: 0 17px 14px;
+}
+[data-layout="familiar"] #anime-title {
+  font-size: clamp(23px, 2.2vw, 28px);
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+[data-layout="familiar"] .cards-layout .metadata {
+  font-size: 13px;
+}
+[data-layout="familiar"] .cards-layout .runtime-estimate {
+  margin: 4px 0;
+  font-size: 12px;
+}
+[data-layout="familiar"] .cards-layout .release-status {
+  margin: 5px 0;
+  font-size: 12px;
+}
+[data-layout="familiar"] .cards-layout .genres {
+  height: auto;
+  gap: 5px;
+  margin: 8px 0;
+}
+[data-layout="familiar"] .cards-layout .genre {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+[data-layout="familiar"] .cards-layout .synopsis {
+  min-height: 0;
+  margin: 8px 0;
+  line-height: 1.5;
+  -webkit-line-clamp: 2;
+}
+[data-layout="familiar"] .cards-layout .details-toggle {
+  min-height: 40px;
+  padding: 8px 10px;
+}
+[data-layout="familiar"] .cards-layout .reaction-labels {
+  margin: 10px 0 6px;
+}
+[data-layout="familiar"] .cards-layout .reactions {
+  gap: 8px;
+}
+[data-layout="familiar"] .cards-layout .reaction {
+  min-height: 48px;
+  padding: 7px 4px;
+  gap: 4px;
+  font-size: 12px;
+}
+[data-layout="familiar"] .cards-layout .reaction svg {
+  width: 20px;
+  height: 20px;
+}
+[data-layout="familiar"] .cards-layout .secondary-actions {
+  margin-top: 8px;
+  gap: 8px;
+}
+[data-layout="familiar"] .cards-layout .secondary-actions button {
+  min-height: 38px;
+  padding: 7px;
+}
+[data-layout="familiar"] .cards-layout .details-card {
+  width: min(100%, 470px);
+  min-width: 0;
+  padding: 0;
+  max-height: calc(100dvh - 130px);
+  overflow: hidden;
+}
+[data-layout="familiar"] .cards-layout .details-header {
+  position: relative;
+  padding: 18px 52px 10px 20px;
+}
+[data-layout="familiar"] .cards-layout .details-header .eyebrow {
+  margin: 0;
+}
+[data-layout="familiar"] .cards-layout .details-body {
+  padding: 0 20px 18px;
+  max-height: calc(100dvh - 185px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+[data-layout="familiar"] .cards-layout .details-card h2 {
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+[data-layout="familiar"] .cards-layout .full-synopsis {
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 170px;
+}
+[data-layout="familiar"] .cards-layout .detail-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 0;
+  margin: 14px 0;
+}
+[data-layout="familiar"] .cards-layout .detail-facts .fact {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+[data-layout="familiar"] .cards-layout .detail-facts dd {
+  font-size: 13px;
+}
+[data-layout="familiar"] .cards-layout .why-card {
+  padding: 12px;
+  gap: 8px;
+}
+[data-layout="familiar"] .cards-layout .external-button {
+  margin-top: 12px;
+  padding: 10px;
+}
+@media (min-width: 901px) and (max-width: 1100px) {
+  [data-layout="familiar"] .topbar {
+    gap: 10px;
+    padding-inline: 16px;
+  }
+  [data-layout="familiar"] .brand > span {
+    font-size: 23px;
+  }
+  [data-layout="familiar"] .nav-button {
+    padding-inline: 9px;
+    font-size: 13px;
+  }
+  [data-layout="familiar"] .account {
+    max-width: 115px;
+  }
+  [data-layout="familiar"] .cards-layout.expanded > .anime-card,
+  [data-layout="familiar"] .cards-layout.expanded > .details-card {
+    width: calc(50% - 10px);
+  }
+}
+@media (max-width: 900px) {
+  /* Two real web-header rows avoid overflowing a desktop nav on small screens. */
+  [data-layout="familiar"] .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 8px;
+    min-height: 0;
+    padding: 5px 12px 0;
+  }
+  [data-layout="familiar"] .brand {
+    min-width: 0;
+    gap: 4px;
+  }
+  [data-layout="familiar"] .brand img {
+    width: 48px;
+    height: 36px;
+  }
+  [data-layout="familiar"] .brand > span {
+    font-size: clamp(19px, 4.9vw, 25px);
+    letter-spacing: -0.7px;
+  }
+  [data-layout="familiar"] .account-actions {
+    margin-left: 0;
+    gap: 2px;
+  }
+  [data-layout="familiar"] .account {
+    width: 36px;
+    height: 40px;
+    padding: 8px;
+  }
+  [data-layout="familiar"] .account span {
+    display: none;
+  }
+  [data-layout="familiar"] .topbar .icon-button {
+    width: 36px;
+    height: 40px;
+  }
+  [data-layout="familiar"] .topbar nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.55fr;
+    gap: 3px;
+    width: 100%;
+  }
+  [data-layout="familiar"] .nav-button {
+    position: relative;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 3px;
+    border-radius: 8px 8px 0 0;
+    font-size: clamp(12px, 3.1vw, 14px);
+    gap: 3px;
+  }
+  [data-layout="familiar"] .nav-button > svg {
+    display: none;
+  }
+  [data-layout="familiar"] .nav-button .count {
+    font-size: 10px;
+    padding: 1px 3px;
+    min-width: 0;
+    max-width: 25px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  [data-layout="familiar"] .cards-layout.expanded .anime-card {
+    width: min(100%, 470px);
+  }
+  [data-layout="familiar"] .cards-layout dialog.details-card {
+    position: fixed;
+    inset: 96px 12px 12px auto;
+    margin: 0;
+    width: min(440px, calc(100% - 24px));
+    max-height: calc(100dvh - 108px);
+    color: var(--text);
+    box-shadow: 0 20px 80px #0008;
+    border-radius: 16px;
+  }
+  [data-layout="familiar"] .cards-layout dialog.details-card[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  [data-layout="familiar"] .cards-layout dialog.details-card::backdrop {
+    background: #030912a8;
+  }
+  [data-layout="familiar"] .cards-layout .details-header {
+    flex: none;
+    padding-top: 20px;
+    padding-bottom: 16px;
+  }
+  [data-layout="familiar"] .cards-layout .details-body {
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  [data-layout="familiar"] .cards-layout .full-synopsis {
+    max-height: none;
+    overflow: visible;
+  }
+  [data-layout="familiar"] .cards-layout .detail-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  [data-layout="familiar"] main:not(.wide-main) {
+    padding-inline: 10px;
+  }
+  [data-layout="familiar"] .feed-top {
+    gap: 6px;
+    flex-wrap: wrap;
+    min-height: 36px;
+    padding: 5px 0;
+  }
+  [data-layout="familiar"] .reason {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+  [data-layout="familiar"] .progress {
+    font-size: 11px;
+  }
+  [data-layout="familiar"] .cards-layout .poster-stage {
+    height: clamp(135px, 22svh, 185px);
+  }
+  [data-layout="familiar"] .cards-layout .card-content {
+    padding: 0 12px 10px;
+  }
+  [data-layout="familiar"] #anime-title {
+    font-size: 23px;
+    margin-bottom: 5px;
+  }
+  [data-layout="familiar"] .cards-layout .synopsis {
+    -webkit-line-clamp: 1;
+    margin: 7px 0;
+  }
+  [data-layout="familiar"] .cards-layout .reaction-labels {
+    display: none;
+  }
+  [data-layout="familiar"] .cards-layout .reactions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 8px;
+  }
+  [data-layout="familiar"] .cards-layout .mobile-reaction-label {
+    display: block;
+    grid-column: 1 / -1;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+  [data-layout="familiar"] .cards-layout .reaction {
+    min-height: 44px;
+    flex-direction: row;
+    gap: 7px;
+    font-size: 13px;
+  }
+  [data-layout="familiar"] .cards-layout .reaction kbd {
+    display: none;
+  }
+  [data-layout="familiar"] .cards-layout .secondary-actions button {
+    min-height: 40px;
+  }
+  [data-layout="familiar"] .cards-layout dialog.details-card {
+    inset: auto 8px 8px;
+    width: calc(100% - 16px);
+    max-height: calc(100dvh - 112px);
+    border-radius: 16px;
+  }
+  [data-layout="familiar"] .cards-layout .details-body {
+    padding-inline: 16px;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+  [data-layout="familiar"] .cards-layout .details-header {
+    padding-left: 16px;
+  }
+  [data-layout="familiar"] footer {
+    flex-wrap: wrap;
+    padding-inline: 12px;
+  }
+}

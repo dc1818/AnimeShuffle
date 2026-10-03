@@ -2,7 +2,7 @@ import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 import { synopsisText } from "../lib/synopsis.js";
 
@@ -196,25 +196,32 @@ export function AnimeCard({
         </div>
         <div className="reactions" aria-label="Your reaction">
           {actions.map(([action, label, icon, meaning], index) => (
-            <button
-              key={action}
-              className={`reaction ${action}`}
-              disabled={
-                busy ||
-                reactionDisabled ||
-                (["good", "bad"].includes(action) && isUnreleased(anime))
-              }
-              title={
-                ["good", "bad"].includes(action) && isUnreleased(anime)
-                  ? "Unavailable: this anime has not aired yet"
-                  : `${meaning}${compact ? "" : ` (${index + 1})`}`
-              }
-              onClick={() => onReact(action)}
-            >
-              <Icon name={icon} />
-              <span>{label}</span>
-              {!compact && <kbd>{index + 1}</kbd>}
-            </button>
+            <Fragment key={action}>
+              {(index === 0 || index === 2) && (
+                <span className="mobile-reaction-label">
+                  {index === 0 ? "Seen it" : "Not seen it"}
+                </span>
+              )}
+              <button
+                key={action}
+                className={`reaction ${action}`}
+                disabled={
+                  busy ||
+                  reactionDisabled ||
+                  (["good", "bad"].includes(action) && isUnreleased(anime))
+                }
+                title={
+                  ["good", "bad"].includes(action) && isUnreleased(anime)
+                    ? "Unavailable: this anime has not aired yet"
+                    : `${meaning}${compact ? "" : ` (${index + 1})`}`
+                }
+                onClick={() => onReact(action)}
+              >
+                <Icon name={icon} />
+                <span>{label}</span>
+                {!compact && <kbd>{index + 1}</kbd>}
+              </button>
+            </Fragment>
           ))}
         </div>
         {(!compact || onUndo) && (
@@ -236,7 +243,32 @@ export function AnimeCard({
   );
 }
 
-export function AnimeDetails({ anime, reason, onClose }) {
+export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
+  const panel = useRef(null);
+  const [narrow, setNarrow] = useState(
+    () => window.matchMedia?.("(max-width: 900px)").matches || false,
+  );
+  useEffect(() => {
+    const media = window.matchMedia?.("(max-width: 900px)");
+    if (!media) return;
+    const changed = () => setNarrow(media.matches);
+    changed();
+    media.addEventListener("change", changed);
+    return () => media.removeEventListener("change", changed);
+  }, []);
+  const overlay = responsive && narrow;
+  useEffect(() => {
+    if (!overlay) return;
+    const element = panel.current;
+    const overflow = document.body.style.overflow;
+    element.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      element.close();
+      document.body.style.overflow = overflow;
+    };
+  }, [overlay]);
+  const Panel = overlay ? "dialog" : "aside";
   const ratingLabels = {
     g: "G · All ages",
     pg: "PG · Children",
@@ -258,48 +290,76 @@ export function AnimeDetails({ anime, reason, onClose }) {
     Status: releaseLabel(anime),
   };
   return (
-    <aside
+    <Panel
+      ref={panel}
+      onCancel={
+        overlay
+          ? (event) => {
+              event.preventDefault();
+              onClose();
+            }
+          : undefined
+      }
+      onClick={
+        overlay
+          ? (event) => {
+              if (event.target !== event.currentTarget) return;
+              const rect = event.currentTarget.getBoundingClientRect();
+              if (
+                event.clientX < rect.left ||
+                event.clientX > rect.right ||
+                event.clientY < rect.top ||
+                event.clientY > rect.bottom
+              )
+                onClose();
+            }
+          : undefined
+      }
       id="details-card"
       className="details-card"
       aria-labelledby="details-heading"
     >
-      <button
-        className="icon-button close"
-        aria-label="Close anime details"
-        onClick={onClose}
-      >
-        <Icon name="close" />
-      </button>
-      <span className="eyebrow">About this anime</span>
-      <h2 id="details-heading">
-        <AnimeTitle anime={anime} />
-      </h2>
-      <p className="full-synopsis">
-        {synopsisText(anime.synopsis) || "No synopsis available."}
-      </p>
-      <dl className="detail-facts">
-        {Object.entries(facts).map(([name, value]) => (
-          <div className="fact" key={name}>
-            <dt>{name}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="why-card">
-        <Icon name="shuffle" />
-        <div>
-          <h3>Why this pick?</h3>
-          <p>{reason || "Something new for your next watch."}</p>
-        </div>
+      <div className="details-header">
+        <button
+          className="icon-button close"
+          aria-label="Close anime details"
+          onClick={onClose}
+        >
+          <Icon name="close" />
+        </button>
+        <span className="eyebrow">About this anime</span>
       </div>
-      <a
-        className="external-button"
-        href={`https://myanimelist.net/anime/${anime.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        View on MyAnimeList <Icon name="external" />
-      </a>
-    </aside>
+      <div className="details-body">
+        <h2 id="details-heading">
+          <AnimeTitle anime={anime} />
+        </h2>
+        <p className="full-synopsis">
+          {synopsisText(anime.synopsis) || "No synopsis available."}
+        </p>
+        <dl className="detail-facts">
+          {Object.entries(facts).map(([name, value]) => (
+            <div className="fact" key={name}>
+              <dt>{name}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="why-card">
+          <Icon name="shuffle" />
+          <div>
+            <h3>Why this pick?</h3>
+            <p>{reason || "Something new for your next watch."}</p>
+          </div>
+        </div>
+        <a
+          className="external-button"
+          href={`https://myanimelist.net/anime/${anime.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          View on MyAnimeList <Icon name="external" />
+        </a>
+      </div>
+    </Panel>
   );
 }

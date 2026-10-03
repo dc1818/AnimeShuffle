@@ -83,6 +83,7 @@ export function App({ store }) {
     function keydown(event) {
       if (
         dialog ||
+        document.querySelector("dialog[open]") ||
         /INPUT|TEXTAREA|SELECT|BUTTON|A/.test(event.target.tagName) ||
         event.ctrlKey ||
         event.metaKey ||
@@ -157,7 +158,7 @@ export function App({ store }) {
   }
   const savedCount = combinedWatchlist(state.reactions, state.list).length;
   return (
-    <>
+    <div className="app-layout" data-layout="familiar">
       <div className="ambient" aria-hidden="true">
         <i />
         <i />
@@ -229,6 +230,7 @@ export function App({ store }) {
         <div className="account-actions">
           <button
             className="account"
+            aria-label={state.session.account ? "Account settings" : "Sign in"}
             onClick={() =>
               state.session.account
                 ? setDialog("settings")
@@ -328,6 +330,7 @@ export function App({ store }) {
                 />
                 {details && (
                   <AnimeDetails
+                    responsive
                     anime={state.current}
                     reason={state.detailReason || state.reason}
                     onClose={() => setDetails(false)}
@@ -429,6 +432,6 @@ export function App({ store }) {
         onClose={closeDialog}
         onNavigate={setDialog}
       />
-    </>
+    </div>
   );
 }
