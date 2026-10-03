@@ -58,8 +58,50 @@ export function storyConnection(anime, taste) {
     )[0];
 }
 
-/** Combine genuine positive score contributions with concrete examples from
- * the training history. Shared metadata alone never earns a positive rationale. */
+// Closely related features may help ranking separately, but should be described
+// only once. These families are editorial deduplication, not scoring weights.
+const family = (key) =>
+  ({
+    "strategic-action": "tactics",
+    "episodic-style": "episodic",
+    "gradual-romance": "slow-romance",
+    "moral-ambiguity": "moral",
+    "absurd-humor": "absurd-comedy",
+    "dark-humor": "dark-comedy",
+    brisk: "fast-pace",
+    comfort: "warmth",
+    subtext: "character-depth",
+  })[key] || key;
+const naturalDescription = (key, description) =>
+  ({
+    survival: "a struggle to stay alive against a deadly threat",
+    friendship: "friendships that become a source of support",
+    "high-stakes": "conflicts with large-scale consequences",
+    growth: "characters growing in confidence and finding their place",
+    tactics: "battles decided through planning and strategy",
+  })[key] || description;
+function connectionClause(record) {
+  if (record.source === "favorite") return "one of your favorites";
+  if (record.action === "good") return "which you marked Good";
+  if (record.action === "watch") return "which you saved for a future watch";
+  const status = record.anime.listStatus;
+  if (status?.score >= 6)
+    return `which you rated ${status.score}/10 on MyAnimeList`;
+  return (
+    {
+      watching: "which you’re currently watching",
+      plan_to_watch: "which you’ve planned to watch",
+      completed: "which you’ve finished",
+    }[status?.status] || "another show that caught your interest"
+  );
+}
+const join = (values) =>
+  values.length <= 2
+    ? values.join(" and ")
+    : values.slice(0, -1).join(", ") + ", and " + values.at(-1);
+
+/** Compose a small set of distinct, positively contributing reasons. Raw review
+ * prose never reaches this function; all review descriptions are allowlisted. */
 export function explainPick(
   anime,
   taste,
@@ -80,120 +122,128 @@ export function explainPick(
       .filter((c) => c.key.startsWith(prefix + ":") && c.contribution > 0.00001)
       .sort((a, b) => b.contribution - a.contribution)
       .map((c) => c.key.slice(prefix.length + 1));
-  const genres = contributing("genre").slice(0, 3);
-  const studios = contributing("studio");
   const positive = positiveRecords(taste).filter(
     (r) => r.anime.id !== anime.id,
   );
-  const parts = [],
-    mentioned = new Set();
-  const introduce = (record) => {
-    if (!mentioned.has(record.anime.id)) {
-      parts.push(personalConnection(record));
-      mentioned.add(record.anime.id);
-    }
-  };
-  // Only explain aspects that made a positive contribution to this exact score.
-  // Multiple liked examples support a tentative pattern; never invent a favorite villain.
-  const ownNarrative = narrativeFeatures(anime);
-  for (const key of contributing("aspect").slice(0, 2)) {
-    const aspect = ownNarrative.aspects.get(key);
-    const related = positive.filter((r) =>
-      narrativeFeatures(r.anime).aspects.has(key),
-    );
-    if (!aspect || !related.length) continue;
+  const own = narrativeFeatures(anime);
+  const used = new Set(),
+    mentioned = new Set(),
+    groups = new Map(),
+    parts = [];
+  let storyCount = 0;
+  function addStory(key, aspect, related) {
+    if (!aspect || !related.length || used.has(family(key)) || storyCount >= 3)
+      return;
     const enjoyed = related.filter((r) => r.enjoyment > 0.4);
-    const anchor = enjoyed[0] || related[0];
-    introduce(anchor);
-    if (enjoyed.length >= 2)
-      parts.push(
-        `A few shows you liked have ${aspect.description}. That thread runs through this story too, which could be part of what appeals to you.`,
-      );
-    else if (enjoyed.length)
-      parts.push(
-        `Here, the story involves ${aspect.description}, a thread it has in common with ${title(anchor.anime)}. If that was part of what you enjoyed, this may appeal too.`,
-      );
-    else
-      parts.push(
-        `It also involves ${aspect.description}. If that was what caught your eye in the show you saved, this could be worth trying next.`,
-      );
+    const candidates = enjoyed.length ? enjoyed : related;
+    const anchor =
+      candidates.find((r) => groups.has(r.anime.id)) || candidates[0];
+    if (!groups.has(anchor.anime.id) && groups.size >= 2) return;
+    const group = groups.get(anchor.anime.id) || { anchor, descriptions: [] };
+    if (group.descriptions.length >= 2) return;
+    group.descriptions.push(naturalDescription(key, aspect.description));
+    groups.set(anchor.anime.id, group);
+    used.add(family(key));
+    storyCount++;
   }
-  // Review prose never reaches the UI. Only allowlisted, non-plot attributes
-  // with multi-review support and an actual positive model contribution qualify.
-  const ownReviews = reviewTraits(anime);
-  for (const key of contributing("review").slice(0, 2)) {
-    const cue = ownReviews.get(key);
+  for (const key of contributing("aspect"))
+    addStory(
+      key,
+      own.aspects.get(key),
+      positive.filter((r) => evidence(r.anime).has(key)),
+    );
+
+  // Lexical overlap can fill a missing reason, never restate an aspect already used.
+  const words = contributing("text");
+  if (analysis.groups.text > 0.00001)
+    for (const [key, aspect] of own.aspects) {
+      const related = positive.filter(
+        (r) =>
+          evidence(r.anime).has(key) &&
+          words.some(
+            (word) =>
+              new RegExp("\\b" + word + "\\b", "i").test(aspect.sentence) &&
+              new RegExp("\\b" + word + "\\b", "i").test(
+                r.anime.synopsis || "",
+              ),
+          ),
+      );
+      addStory(key, aspect, related);
+    }
+  for (const { anchor, descriptions } of groups.values()) {
+    if (!parts.length) {
+      parts.push(personalConnection(anchor));
+      parts.push(`This also involves ${join(descriptions)}.`);
+    } else {
+      parts.push(
+        `Another connection to ${title(anchor.anime)}, ${connectionClause(anchor)}, is ${join(descriptions)}.`,
+      );
+    }
+    mentioned.add(anchor.anime.id);
+  }
+
+  const reviews = reviewTraits(anime),
+    reviewGroups = new Map();
+  let reviewCount = 0;
+  for (const key of contributing("review")) {
+    if (reviewCount >= 2 || used.has(family(key))) continue;
+    const cue = reviews.get(key);
     const related = positive.filter((r) => reviewTraits(r.anime).has(key));
     if (!cue || !related.length) continue;
     const anchor = related.find((r) => r.enjoyment > 0.4) || related[0];
-    introduce(anchor);
-    parts.push(
-      `Several MAL reviewers describe ${cue.description}. That also comes up in reviews of ${title(anchor.anime)}. ${anchor.enjoyment > 0.4 ? "If that was part of its appeal for you, this may be worth a look." : "Since that show is still a prospective choice, this is a tentative connection."}`,
-    );
+    const group = reviewGroups.get(anchor.anime.id) || {
+      anchor,
+      descriptions: [],
+    };
+    group.descriptions.push(cue.description);
+    reviewGroups.set(anchor.anime.id, group);
+    used.add(family(key));
+    reviewCount++;
   }
-  const communityLinks = contributing("community").map(Number);
-  const neighbor = positive.find(
-    (r) =>
-      r.enjoyment > 0.4 &&
-      communityLinks.includes(r.anime.id) &&
-      anime.communityTaste?.some(
-        (n) => n.id === r.anime.id && n.support >= 5 && n.affinity > 0,
-      ),
-  );
-  if (neighbor && analysis.groups.community > 0.00001) {
-    introduce(neighbor);
+  // Merge review descriptions into one sentence per reference, without repeating
+  // the same confidence disclaimer after every attribute.
+  for (const { anchor, descriptions } of reviewGroups.values()) {
+    const context = mentioned.has(anchor.anime.id)
+      ? ""
+      : `, ${connectionClause(anchor)}`;
     parts.push(
-      `Across other Anime Shuffle accounts, reactions to this title tend to line up with reactions to ${title(neighbor.anime)}. That adds a small supporting connection to your own choices.`,
+      `MAL reviewers describe ${join(descriptions)} in both this title and ${title(anchor.anime)}${context}.`,
     );
+    if (anchor.enjoyment <= 0.4)
+      parts.push(
+        "That is a tentative connection to something you’re interested in watching.",
+      );
+    mentioned.add(anchor.anime.id);
   }
-  const mechContribution = analysis.contributions.find(
-    (c) => c.key === "mecha:" + ownNarrative.focus,
+  const mech = analysis.contributions.find(
+    (c) => c.key === "mecha:" + own.focus,
   );
-  if (
-    mechContribution?.contribution > 0.00001 &&
-    ownNarrative.focus !== "unspecified"
-  ) {
-    const liked = positive.filter(
+  if (mech?.contribution > 0.00001 && own.focus !== "unspecified") {
+    const liked = positive.some(
       (r) =>
-        r.enjoyment > 0.4 &&
-        narrativeFeatures(r.anime).focus === ownNarrative.focus,
+        r.enjoyment > 0.4 && narrativeFeatures(r.anime).focus === own.focus,
     );
-    const avoidedCentral = [...taste.records.values()].some(
+    const avoided = [...taste.records.values()].some(
       (r) =>
         (r.enjoyment < -0.4 || r.interest < -0.4) &&
         narrativeFeatures(r.anime).focus === "central",
     );
-    if (liked.length && ownNarrative.focus === "mixed" && avoidedCentral)
+    if (liked && own.focus === "mixed" && avoided)
       parts.push(
-        "Your choices suggest mechs can work for you when other story threads matter too. This synopsis mixes them with a broader story, rather than making piloted-machine combat the main premise.",
+        "Your choices suggest mechs work better for you as part of a broader story. That is how they appear in this premise, rather than making piloted-machine combat its main focus.",
       );
-    else if (liked.length && ownNarrative.focus === "central")
+    else if (liked && own.focus === "central")
       parts.push(
-        "Piloted-machine battles are central to the premise, as in a show you liked.",
+        "Piloted-machine battles are central here, as in a show you liked.",
       );
   }
-  const match = storyConnection(anime, taste);
-  const words = contributing("text");
-  const supportedThemes =
-    match?.shared.filter((theme) =>
-      words.some(
-        (word) =>
-          new RegExp("\\b" + word + "\\b", "i").test(theme.sentence) &&
-          new RegExp("\\b" + word + "\\b", "i").test(
-            match.record.anime.synopsis || "",
-          ),
-      ),
-    ) || [];
-  if (match && analysis.groups.text > 0.00001 && supportedThemes.length) {
-    introduce(match.record);
-    parts.push(
-      `Both stories involve ${supportedThemes
-        .slice(0, 2)
-        .map((t) => t.description)
-        .join(" and ")}.`,
-    );
-  }
-  if (genres.length && analysis.groups.genre > 0.00001) {
+  const genres = contributing("genre").slice(0, 3);
+  if (
+    genres.length &&
+    analysis.groups.genre > 0.00001 &&
+    storyCount < 2 &&
+    reviewCount < 2
+  ) {
     const related = positive
       .map((record) => ({
         record,
@@ -206,62 +256,54 @@ export function explainPick(
           b.record.weight - a.record.weight,
       )[0];
     if (related) {
-      const already = mentioned.has(related.record.anime.id);
-      if (!already) introduce(related.record);
+      if (!mentioned.has(related.record.anime.id))
+        parts.push(personalConnection(related.record));
       parts.push(
-        related.record.enjoyment > 0.4
-          ? `Its ${related.shared.join(" and ")} side is another link to ${title(related.record.anime)}, though sharing genres doesn’t guarantee the same experience.`
-          : `If the ${related.shared.join(" and ")} side of ${title(related.record.anime)} is what caught your eye, this could be worth a try. You haven’t marked that show as liked, so this is an early suggestion.`,
+        `Its ${join(related.shared)} mix is another reason it may suit you.`,
       );
-    } else
-      parts.push(
-        `Your interest in ${genres.join(" and ")} makes this a promising pick.`,
-      );
+      mentioned.add(related.record.anime.id);
+    } else parts.push(`It fits your interest in ${join(genres)}.`);
   }
+  const studios = contributing("studio");
   if (studios.length && analysis.groups.studio > 0.00001) {
-    const related = positive.find((r) =>
+    const anchor = positive.find((r) =>
       studios.some((studio) => r.anime.studios?.includes(studio)),
     );
-    if (related) {
-      const shared = studios.filter((studio) =>
-        related.anime.studios?.includes(studio),
+    if (anchor) {
+      const names = join(
+        studios.filter((studio) => anchor.anime.studios?.includes(studio)),
       );
-      const already = mentioned.has(related.anime.id);
-      if (!already) introduce(related);
       parts.push(
-        `${shared.join(" and ")} also made ${title(related.anime)}, so the studio is another connection.`,
+        `${names} also made ${title(anchor.anime)}${mentioned.has(anchor.anime.id) ? "" : ", " + connectionClause(anchor)}.`,
       );
+      mentioned.add(anchor.anime.id);
     }
   }
-  if (mode === "recommendations" && analysis.groups.format > 0.00001) {
-    const formats = {
-      tv: "TV series",
-      ona: "web series",
-      movie: "movies",
-      ova: "OVAs",
-      special: "specials",
-      music: "music videos",
-    };
-    if (formats[anime.format])
-      parts.push(
-        `It also fits the ${formats[anime.format]} you’ve been choosing.`,
-      );
-  }
-  if (!parts.length) {
-    if (explore)
-      return "A change of pace from your usual picks—something to try outside your familiar favorites.";
-    return "This is a tentative pick. A few more choices in Discover will help find closer matches.";
-  }
+  const community = contributing("community").map(Number);
+  const neighbor = positive.find(
+    (r) =>
+      r.enjoyment > 0.4 &&
+      community.includes(r.anime.id) &&
+      anime.communityTaste?.some(
+        (n) => n.id === r.anime.id && n.support >= 5 && n.affinity > 0,
+      ),
+  );
+  if (neighbor && analysis.groups.community > 0.00001)
+    parts.push(
+      `Choices from other Anime Shuffle accounts also connect this title with ${title(neighbor.anime)}.`,
+    );
+  if (!parts.length)
+    return explore
+      ? "A change of pace from your usual picks—something to try outside your familiar favorites."
+      : "This is a tentative pick. A few more choices in Discover will help find closer matches.";
   if (
     mode === "recommendations" &&
     tier === 1 &&
     taste.model.score(anime).score > 0
   )
-    parts.push(
-      "Together, these connections make it your strongest overall match in this batch.",
-    );
+    parts.push("It’s your strongest overall match in this batch.");
   else if (mode === "recommendations" && varietyAdjusted)
-    parts.push("It also brings a different mix of genres to your shortlist.");
+    parts.push("It also brings a different mix to your shortlist.");
   if (explore)
     parts.unshift("A change of pace, with a few familiar connections.");
   return parts.join(" ");

@@ -490,3 +490,155 @@ test("Cloudflare returns aggregate item connections from compact SQL rows withou
     /private-account|private metadata|good|bad/,
   );
 });
+
+test("negative-only reviews and contractions count as disagreement without filler sentences", () => {
+  const positive = sample("The animation is fluid.").slice(0, 3);
+  const negative = [4, 5, 6, 7].map((n) => ({
+    ...row(n, ""),
+    review: `The animation isn't fluid in action scene ${n}.`,
+  }));
+  assert.equal(analyzeReviews([...positive, ...negative]).traits.length, 0);
+});
+
+test("expanded production and narrative traits need explicit evidence, including reverse phrasing", () => {
+  const text =
+    "The animation is amazing. The soundtrack is excellent. The writing is inconsistent. There is jazz music, striking cinematography and realistic character designs. Charismatic villains drive the conflicts.";
+  const profile = analyzeReviews(sample(text));
+  for (const key of [
+    "animation-craft",
+    "soundtrack-craft",
+    "uneven-writing",
+    "jazz-music",
+    "visual-direction",
+    "realistic-design",
+    "villain-charisma",
+  ])
+    assert.ok(
+      profile.traits.some((t) => t.key === key),
+      key,
+    );
+  const synopsis = storyAspects(anime(22, null, text));
+  for (const key of [
+    "animation-craft",
+    "soundtrack-craft",
+    "uneven-writing",
+    "jazz-music",
+    "visual-direction",
+    "realistic-design",
+  ])
+    assert.equal(synopsis.has(key), false, key);
+});
+
+test("explanations combine distinct reasons and do not repeat synopsis or review attributes", () => {
+  const synopsis =
+    "Soldiers fight a war against deadly monsters as humanity struggles to survive. Close friends support each other. A continuous story uses serialized storytelling.";
+  const profile = analyzeReviews(
+    sample("Fluid animation and atmospheric music."),
+  );
+  const first = { ...anime(10, profile, synopsis), title: "Earlier favorite" };
+  const other = {
+    ...anime(11, profile, synopsis),
+    listStatus: { status: "completed", score: 10 },
+  };
+  const candidate = anime(12, profile, synopsis);
+  const taste = buildTaste(
+    { 10: { action: "good", anime: first } },
+    [other],
+    {},
+    [first, other, candidate],
+  );
+  const text = detailedExplanation(candidate, taste, {
+    mode: "recommendations",
+    tier: 1,
+  });
+  for (const phrase of [
+    "stay alive against a deadly threat",
+    "soldiers caught up in an armed conflict",
+    "fluid animation",
+    "atmospheric music",
+  ])
+    assert.ok(text.split(phrase).length <= 2, phrase);
+  assert.equal(text.match(/MAL reviewers describe/g)?.length, 1);
+  assert.doesNotMatch(
+    text,
+    /That thread runs through|A few shows you liked|Both stories involve.*Both stories involve/,
+  );
+  assert.ok(text.split(/\s+/).length < 140, text);
+  assert.match(text, /strongest overall match/);
+});
+
+test("diagnostics distinguish failed requests from successful empty samples and supported profiles", async () => {
+  const { sql } = database();
+  const store = reviewStore(sql);
+  let now = 10000;
+  const service = createReviewEnrichment({
+    store,
+    now: () => now,
+    schedule: () => {},
+    fetcher: async (url) => {
+      if (url.includes("/1/")) return new Response("", { status: 503 });
+      return Response.json({
+        data: url.includes("/2/") ? [] : sample("Fluid animation."),
+      });
+    },
+  });
+  service.enqueue(1);
+  await service.run();
+  assert.equal(service.cached(1).status, "unavailable");
+  assert.equal(service.diagnostics().cachedProfiles, 0);
+  assert.equal(service.diagnostics().lastFailureCode, "review_http_503");
+  now += 60000;
+  service.enqueue(2);
+  await service.run();
+  assert.equal(service.cached(2).status, "empty");
+  assert.equal(service.diagnostics().cachedProfiles, 1);
+  assert.equal(service.diagnostics().profilesWithTraits, 0);
+  now += 1500;
+  service.enqueue(3);
+  await service.run();
+  assert.equal(service.cached(3).status, "ready");
+  assert.equal(service.diagnostics().profilesWithTraits, 1);
+  assert.equal(service.diagnostics().lastSuccessAt, now);
+  assert.equal(service.diagnostics().processedToday, 3);
+  const reopened = createReviewEnrichment({
+    store: reviewStore(sql),
+    schedule: () => {},
+    now: () => now,
+  });
+  assert.equal(reopened.diagnostics().lastSuccessAt, now);
+});
+
+test("a full background queue still promotes a viewed anime ahead of catalog jobs", () => {
+  const { sql } = database();
+  const store = reviewStore(sql);
+  for (let id = 1; id <= 300; id++) store.enqueue(id, 0, id);
+  store.enqueue(300, 3, 400);
+  assert.equal(store.pending(), 300);
+  assert.equal(store.take(), 300);
+});
+
+test("enrichment inspection is read-only and works without IDs or extra Jikan requests", async () => {
+  const storage = database();
+  let calls = 0;
+  const app = createCloudApp(
+    storage,
+    {
+      PUBLIC_ORIGIN: "https://shuffle.example",
+      TOKEN_ENCRYPTION_KEY: "ab".repeat(32),
+    },
+    {
+      fetcher: async () => {
+        calls++;
+        throw Error();
+      },
+    },
+  );
+  const res = await app.fetch(new Request("https://shuffle.example/api/taste"));
+  const data = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(data.enrichment.enabled, true);
+  assert.equal(data.enrichment.queued, 0);
+  assert.equal(data.enrichment.processedToday, 0);
+  assert.equal(data.enrichment.lastSuccessAt, null);
+  assert.equal(calls, 0);
+});

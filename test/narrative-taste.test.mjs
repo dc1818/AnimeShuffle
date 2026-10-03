@@ -48,7 +48,7 @@ test("automatic context distinguishes robot combat from broader mecha stories an
   );
   assert.match(
     detailedExplanation(candidates[1], taste),
-    /mechs can work for you when other story threads matter/,
+    /mechs work better for you as part of a broader story/,
   );
   const reversed = {
     10: { action: "bad", anime: liked },
@@ -131,7 +131,12 @@ test("planned titles are weaker than likes, never prove enjoyment, and explanati
     /You liked Trigun|you enjoyed Trigun|mix you found|favorite villain|Shigaraki|cool artwork/i,
   );
   const strong = detailedExplanation(candidate, good);
-  assert.match(strong, /If that was part of what you enjoyed/);
+  assert.match(strong, /You liked Trigun/);
+  assert.match(strong, /adversary whose plans drive the conflict/);
+  assert.doesNotMatch(
+    strong,
+    /your favorite villain|you liked.*because|you enjoyed.*because/i,
+  );
 });
 
 test("genre labels alone never manufacture aspects or visual/pacing judgments; negated themes aren't positive evidence", () => {

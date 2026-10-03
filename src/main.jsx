@@ -21,6 +21,15 @@ const store = createAnimeStore({
   diagnostics,
   staticMode: document.documentElement.dataset.hosting === "pages",
 });
+window.animeShuffleDebug.enrichment = async () => {
+  const result = await store.inspectEnrichment();
+  console.log("[Anime Shuffle enrichment]", result.server, {
+    historyWithReviewTraits: result.historyWithReviewTraits,
+  });
+  console.table(result.items);
+  console.log(result.note);
+  return result;
+};
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App store={store} />

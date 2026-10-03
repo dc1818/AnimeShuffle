@@ -140,7 +140,7 @@ export function createAnimeStore({
           ...(read
             ? {
                 signal: AbortSignal.timeout(
-                  url.startsWith("/api/taste?") ? 2500 : 45000,
+                  url.startsWith("/api/taste") ? 2500 : 45000,
                 ),
               }
             : {}),
@@ -349,6 +349,15 @@ export function createAnimeStore({
     try {
       // Snapshot only: never wait for review fetches, poll, or repaint a loaded batch.
       const data = await api("/api/taste?ids=" + ids.join(","));
+      diagnostics.record?.({
+        operation: "taste_enrichment",
+        ...data.enrichment,
+        requested: ids.length,
+        returnedProfiles: Object.keys(data.profiles || {}).length,
+        returnedWithTraits: Object.values(data.profiles || {}).filter(
+          (p) => p.traits?.length,
+        ).length,
+      });
       for (const a of all) {
         if (!a || !ids.includes(a.id)) continue;
         const enriched = {
@@ -970,6 +979,42 @@ export function createAnimeStore({
     },
     refreshMalIfStale,
     loadRecommendations,
+    async inspectEnrichment() {
+      const server = state.preview
+        ? { enabled: false, preview: true }
+        : (await api("/api/taste")).enrichment;
+      const taste = buildTaste(
+        state.reactions,
+        state.list,
+        state.preferences,
+        pool,
+      );
+      const candidates = [
+        ...new Map(
+          [state.current, ...state.recommendationPicks.map((p) => p.anime)]
+            .filter(Boolean)
+            .map((a) => [a.id, a]),
+        ).values(),
+      ];
+      const items = candidates.map((a) => {
+        const groups = taste.model.explain(a).groups;
+        return {
+          animeId: a.id,
+          reviewTraits: a.reviewTaste?.traits?.length || 0,
+          currentReviewContribution: groups.review || 0,
+          currentReviewContextContribution: groups.reviewblend || 0,
+          currentCommunityContribution: groups.community || 0,
+        };
+      });
+      return {
+        server,
+        note: "Contributions use your current choices. Loaded shortlists stay fixed until Refresh picks.",
+        historyWithReviewTraits: [...taste.records.values()].filter(
+          (r) => r.anime.reviewTaste?.traits?.length,
+        ).length,
+        items,
+      };
+    },
     async searchAnime(query) {
       const term = query.trim();
       if (term.length < 2) return [];

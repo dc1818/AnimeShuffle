@@ -43,7 +43,7 @@ const redirect = (url) =>
 export function createCloudApp(
   storage,
   env,
-  { fetcher = fetch, interval = 700 } = {},
+  { fetcher = fetch, interval = 700, waitUntil = () => {} } = {},
 ) {
   const sql = storage.sql;
   const all = (query, ...args) => Array.from(sql.exec(query, ...args));
@@ -70,10 +70,14 @@ export function createCloudApp(
     store: reviewStore(sql),
     fetcher,
     enabled: env.JIKAN_REVIEWS !== "false",
-    schedule: async (at) => {
-      if (!storage.setAlarm) return;
-      const current = await storage.getAlarm();
-      if (current === null || current > at) await storage.setAlarm(at);
+    schedule: (at) => {
+      const scheduled = (async () => {
+        if (!storage.setAlarm) return;
+        const current = await storage.getAlarm();
+        if (current === null || current > at) await storage.setAlarm(at);
+      })();
+      waitUntil(scheduled);
+      return scheduled;
     },
     log: (event) => {
       if (env.RECOMMENDATION_DEBUG === "true")
@@ -643,7 +647,10 @@ export function createCloudApp(
         } else if (path === "/api/taste" && req.method === "GET") {
           const ids = [
             ...new Set(
-              (u.searchParams.get("ids") || "").split(",").map(Number),
+              (u.searchParams.get("ids") || "")
+                .split(",")
+                .filter(Boolean)
+                .map(Number),
             ),
           ];
           if (
@@ -655,8 +662,11 @@ export function createCloudApp(
             throw new AppError("Invalid anime identifiers.");
           // Cache-only read: this endpoint never waits for Jikan or accepts review text.
           for (const id of ids.slice(0, 50)) reviews.enqueue(id, 3);
-          const community = communitySnapshot(session.accountId);
+          const community = ids.length
+            ? communitySnapshot(session.accountId)
+            : {};
           response = json({
+            enrichment: reviews.diagnostics(),
             profiles: Object.fromEntries(
               ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
             ),

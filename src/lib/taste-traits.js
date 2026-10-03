@@ -1,7 +1,7 @@
 /** Fixed, spoiler-safe vocabulary. Labels never come from reviews. Rules recognize
  * explicit descriptions, not latent intent, production quality from a synopsis,
  * or the viewer's reason for liking a particular character. */
-export const TASTE_VERSION = 1;
+export const TASTE_VERSION = 2;
 const trait = (key, label, pattern, source = "both", opposite = "") => ({
   key,
   label,
@@ -10,6 +10,103 @@ const trait = (key, label, pattern, source = "both", opposite = "") => ({
   opposite,
 });
 export const TASTE_TRAITS = [
+  trait(
+    "animation-craft",
+    "well-executed animation",
+    /\b((?:excellent|impressive|beautiful|great|amazing|superb) animation|animation (?:is|looks|feels) (?:excellent|impressive|beautiful|great|amazing|superb))\b/i,
+    "review",
+  ),
+  trait(
+    "visual-direction",
+    "expressive visual direction",
+    /\b((?:inventive|expressive|striking|cinematic) (?:visual direction|cinematography|shot composition)|(?:visual direction|cinematography) (?:is|looks) (?:inventive|expressive|striking|excellent))\b/i,
+    "review",
+  ),
+  trait(
+    "realistic-design",
+    "realistic character designs",
+    /\b(realistic character designs?|realistically drawn characters)\b/i,
+    "review",
+  ),
+  trait(
+    "exaggerated-design",
+    "exaggerated character designs",
+    /\b(exaggerated character designs?|cartoonish character designs?)\b/i,
+    "review",
+  ),
+  trait(
+    "cg-animation",
+    "CG animation",
+    /\b((?:3d|cg|cgi|computer.generated) animation|fully computer.animated)\b/i,
+    "review",
+  ),
+  trait(
+    "jazz-music",
+    "jazz-influenced music",
+    /\b(jazz (?:music|soundtrack|score)|jazzy (?:music|soundtrack|score)|jazz.influenced soundtrack)\b/i,
+    "review",
+  ),
+  trait(
+    "rock-music",
+    "rock-driven music",
+    /\b(rock (?:soundtrack|score)|rock.driven music)\b/i,
+    "review",
+  ),
+  trait(
+    "electronic-music",
+    "electronic music",
+    /\b(electronic (?:music|soundtrack|score)|synth.driven soundtrack)\b/i,
+    "review",
+  ),
+  trait(
+    "soundtrack-craft",
+    "a memorable soundtrack",
+    /\b((?:memorable|excellent|outstanding|great|amazing) soundtrack|soundtrack (?:is|sounds) (?:memorable|excellent|outstanding|great|amazing))\b/i,
+    "review",
+  ),
+  trait(
+    "consistent-writing",
+    "consistent writing",
+    /\b(consistent writing|consistently written|writing (?:is|remains) consistent)\b/i,
+    "review",
+    "uneven-writing",
+  ),
+  trait(
+    "uneven-writing",
+    "uneven writing",
+    /\b(inconsistent writing|uneven writing|writing (?:is|feels) (?:uneven|inconsistent))\b/i,
+    "review",
+    "consistent-writing",
+  ),
+  trait(
+    "repetitive-story",
+    "repetitive storytelling",
+    /\b(repetitive (?:storytelling|plot|story)|(?:plot|story) (?:is|feels|becomes) repetitive)\b/i,
+    "review",
+  ),
+  trait(
+    "filler-heavy",
+    "frequent filler episodes",
+    /\b(frequent filler|filler.heavy|lots of filler|many filler episodes)\b/i,
+    "review",
+  ),
+  trait(
+    "emotional-resonance",
+    "strong emotional impact",
+    /\b(strong emotional (?:impact|resonance)|emotionally (?:moving|resonant|powerful))\b/i,
+    "review",
+  ),
+  trait(
+    "team-dynamics",
+    "teamwork and group dynamics",
+    /\b(team dynamics|group dynamics|teamwork and (?:trust|friendship))\b/i,
+  ),
+  trait(
+    "interpersonal-drama",
+    "interpersonal drama",
+    /\b(interpersonal (?:drama|conflicts)|complicated family relationships)\b/i,
+  ),
+
   trait(
     "moral-ambiguity",
     "morally complicated characterization",
@@ -121,19 +218,19 @@ export const TASTE_TRAITS = [
     "villain-charisma",
     "charismatic antagonists",
     /\b(charismatic (?:villains?|antagonists?))\b/i,
-    "synopsis",
+    "both",
   ),
   trait(
     "villain-strategy",
     "calculating antagonists",
     /\b((?:calculating|scheming|cunning) (?:villains?|antagonists?))\b/i,
-    "synopsis",
+    "both",
   ),
   trait(
     "villain-menace",
     "intimidating antagonists",
     /\b((?:menacing|intimidating|terrifying) (?:villains?|antagonists?))\b/i,
-    "synopsis",
+    "both",
   ),
   trait(
     "romantic-chemistry",
@@ -264,7 +361,7 @@ export const TASTE_TRAITS = [
   trait(
     "fluid-animation",
     "fluid animation",
-    /\b(fluid animation|smooth animation|animation (?:is|looks|feels) (?:fluid|smooth))\b/i,
+    /\b(fluid (?:and smooth )?animation|smooth (?:and fluid )?animation|animation (?:is|looks|feels) (?:very |extremely |remarkably )?(?:fluid|smooth))\b/i,
     "review",
     "limited-animation",
   ),

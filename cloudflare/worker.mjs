@@ -9,7 +9,9 @@ import { validImage } from "../lib/mal.mjs";
 export class AnimeBackend extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.app = createCloudApp(ctx.storage, env);
+    this.app = createCloudApp(ctx.storage, env, {
+      waitUntil: (promise) => ctx.waitUntil(promise),
+    });
     this.tail = Promise.resolve();
   }
   alarm() {

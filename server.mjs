@@ -371,7 +371,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (u.pathname === "/api/taste") {
       const ids = [
-        ...new Set((u.searchParams.get("ids") || "").split(",").map(Number)),
+        ...new Set(
+          (u.searchParams.get("ids") || "")
+            .split(",")
+            .filter(Boolean)
+            .map(Number),
+        ),
       ];
       if (
         ids.length > 150 ||
@@ -380,6 +385,7 @@ const server = http.createServer(async (req, res) => {
         throw new AppError("Invalid anime identifiers.");
       for (const id of ids.slice(0, 50)) reviews.enqueue(id, 3);
       return json(res, 200, {
+        enrichment: reviews.diagnostics(),
         profiles: Object.fromEntries(
           ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
         ),

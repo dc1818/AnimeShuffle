@@ -17,6 +17,7 @@ export function createDiagnostics({
     logger.log("[Anime Shuffle timing]", row);
   }
   return {
+    record,
     get enabled() {
       return active;
     },
