@@ -21,6 +21,11 @@ const store = createAnimeStore({
   diagnostics,
   staticMode: document.documentElement.dataset.hosting === "pages",
 });
+window.animeShuffleDebug.discovery = () => {
+  const result = store.inspectDiscovery();
+  console.log("[Anime Shuffle discovery]", result);
+  return result;
+};
 window.animeShuffleDebug.enrichment = async () => {
   const result = await store.inspectEnrichment();
   console.log("[Anime Shuffle enrichment]", result.server, {

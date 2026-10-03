@@ -342,13 +342,17 @@ export function App({ store }) {
                     ? "Finding your next anime…"
                     : state.error
                       ? "Let’s try that again"
-                      : "No more matches right now"}
+                      : state.discoveryStatus === "paused"
+                        ? "There’s more to search"
+                        : "No matches with these preferences"}
                 </h2>
                 <p>
                   {state.error ||
                     (state.preview
                       ? "No sample titles match your choices, or you’ve seen them all. Change preferences, undo a reaction, or clear reactions in Privacy to start again."
-                      : "No fresh matches in the loaded pages. Try more anime, adjust your preferences, or revisit skipped titles.")}
+                      : state.discoveryStatus === "paused"
+                        ? "We haven’t found a fresh match yet. Find more anime continues from where we left off, or you can broaden your viewing preferences."
+                        : "No fresh matches in the available catalog pages. Adjust your preferences or revisit skipped titles.")}
                 </p>
                 <button
                   className="primary"

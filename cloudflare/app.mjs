@@ -13,6 +13,7 @@ import {
   AppError,
   createMalClient,
   fields,
+  catalogFields,
   normalize,
   validImage,
 } from "../lib/mal.mjs";
@@ -677,13 +678,12 @@ export function createCloudApp(
             ),
           });
         } else if (path === "/api/catalog" && req.method === "GET") {
-          const offset = number(u.searchParams.get("offset") || 0, 5000),
+          const offset = number(u.searchParams.get("offset") || 0, 1000000),
             source = u.searchParams.get("source") || "popular";
           if (!["popular", "top", "season"].includes(source))
             throw new AppError("Invalid discovery source.");
           const q = new URLSearchParams({
-            fields:
-              "alternative_titles,genres,num_episodes,media_type,start_season,synopsis,nsfw,studios,status,average_episode_duration",
+            fields: catalogFields,
             limit: "50",
             offset: String(offset),
             nsfw: "false",

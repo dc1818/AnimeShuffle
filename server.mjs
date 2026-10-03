@@ -27,6 +27,7 @@ import {
   normalize,
   validImage,
   fields,
+  catalogFields,
 } from "./lib/mal.mjs";
 const root = path.dirname(fileURLToPath(import.meta.url));
 if (existsSync(path.join(root, ".env")))
@@ -394,13 +395,12 @@ const server = http.createServer(async (req, res) => {
       });
     }
     if (u.pathname === "/api/catalog") {
-      const offset = number(u.searchParams.get("offset") || 0, 5000);
+      const offset = number(u.searchParams.get("offset") || 0, 1000000);
       const source = u.searchParams.get("source") || "popular";
       if (!["popular", "top", "season"].includes(source))
         throw new AppError("Invalid discovery source.");
       const q = new URLSearchParams({
-        fields:
-          "alternative_titles,genres,num_episodes,media_type,start_season,synopsis,nsfw,studios,status,average_episode_duration",
+        fields: catalogFields,
         limit: "50",
         offset: String(offset),
         nsfw: "false",

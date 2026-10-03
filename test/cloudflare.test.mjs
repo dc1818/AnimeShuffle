@@ -267,3 +267,49 @@ test("public anime cache survives Worker restart and expires without caching use
   assert.equal(calls, 2, "expired entries are fetched again");
   db.db.close();
 });
+
+test("catalog includes audience ratings and continues beyond the old 5000 offset cutoff", async () => {
+  const db = storage();
+  try {
+    const app = createCloudApp(db, env, {
+      interval: 0,
+      fetcher: async (raw) => {
+        const url = new URL(raw);
+        assert.equal(url.pathname, "/v2/anime/ranking");
+        assert.equal(url.searchParams.get("offset"), "5050");
+        const fields = url.searchParams.get("fields").split(",");
+        assert.ok(fields.includes("rating"));
+        assert.ok(fields.includes("mean"));
+        assert.ok(
+          !fields.includes("related_anime"),
+          "prequels are detail-only in MAL",
+        );
+        return Response.json({
+          data: [
+            {
+              node: {
+                id: 42,
+                title: "All ages",
+                rating: "g",
+                mean: 7.5,
+                nsfw: "white",
+              },
+            },
+          ],
+          paging: {
+            next: "https://api.myanimelist.net/v2/anime/ranking?offset=5100",
+          },
+        });
+      },
+    });
+    const result = await browser(() => app).request(
+      "/api/catalog?source=popular&offset=5050",
+    );
+    assert.equal(result.response.status, 200);
+    assert.equal(result.body.nextOffset, 5100);
+    assert.equal(result.body.data[0].ageRating, "g");
+    assert.equal(result.body.data[0].score, 7.5);
+  } finally {
+    db.db.close();
+  }
+});

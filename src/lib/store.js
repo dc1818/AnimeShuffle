@@ -73,6 +73,7 @@ export function createAnimeStore({
     ready: false,
     discoveryLoading: false,
     discoveryProgress: null,
+    discoveryStatus: "",
     recommendationsLoading: false,
     recommendationProgress: null,
     recommendationPicks: [],
@@ -100,6 +101,7 @@ export function createAnimeStore({
     skipped = new Set();
   let offsets = { popular: 0, top: 0, season: 0 },
     sourceIndex = 0;
+  let lastDiscoverySearch = null;
   let initialization;
   let lastMalCheck = -Infinity;
   let lastAccountCheck = -Infinity;
@@ -291,6 +293,8 @@ export function createAnimeStore({
     };
     if (details.size >= 250) details.delete(details.keys().next().value);
     details.set(id, { anime, expires: Date.now() + 1800000 });
+    // Keep prequels and ratings in the pool, not only in the detail cache.
+    mergePool(anime);
     return anime;
   }
   let tasteCheckedAt = 0;
@@ -417,14 +421,43 @@ export function createAnimeStore({
     if (state.preview) return false;
     const sources = ["popular", "top", "season"];
     for (let n = 0; n < sources.length; n++) {
-      const source = sources[sourceIndex++ % sources.length];
-      if (offsets[source] === null) continue;
+      const source = sources[sourceIndex % sources.length];
+      if (offsets[source] === null) {
+        sourceIndex++;
+        continue;
+      }
+      const offset = offsets[source];
       const page = await api(
         `/api/catalog?source=${source}&offset=${offsets[source]}`,
       );
-      offsets[source] = page.nextOffset > 5000 ? null : page.nextOffset;
+      // Follow MAL pagination beyond the old 5,000-title cutoff. Reject a stuck
+      // cursor instead of repeatedly downloading the same page.
+      if (
+        page.nextOffset != null &&
+        (!Number.isSafeInteger(page.nextOffset) ||
+          page.nextOffset <= offset ||
+          page.nextOffset > 1000000)
+      )
+        throw new Error(
+          "The anime catalog returned an invalid next page. Please try again later.",
+        );
+      offsets[source] = page.nextOffset ?? null;
+      sourceIndex++;
+      const before = pool.length;
       const ids = new Set(pool.map((anime) => anime.id));
-      pool.push(...page.data.filter((anime) => !ids.has(anime.id)));
+      for (const anime of page.data) {
+        if (ids.has(anime.id)) continue;
+        ids.add(anime.id);
+        pool.push(anime);
+      }
+      diagnostics.record?.({
+        operation: "catalog_page",
+        source,
+        offset,
+        returned: page.data.length,
+        added: pool.length - before,
+        nextOffset: offsets[source],
+      });
       return true;
     }
     return false;
@@ -432,10 +465,18 @@ export function createAnimeStore({
   /** Fetch details before displaying a candidate so prerequisite filtering is accurate. */
   async function next() {
     const finishTiming = diagnostics.start("discovery_total");
+    const search = {
+      pagesLoaded: 0,
+      detailChecks: 0,
+      rejectedAfterDetails: 0,
+      outcome: "searching",
+    };
+    lastDiscoverySearch = search;
     update({
       busy: true,
       error: "",
       discoveryLoading: true,
+      discoveryStatus: "",
       discoveryProgress: null,
     });
     try {
@@ -445,8 +486,14 @@ export function createAnimeStore({
       if (state.current && Object.keys(state.reactions).length >= 3)
         await expandFromTaste(1, 2);
       await refreshTasteMetadata();
-      let pagesLoaded = 0;
-      for (let attempt = 0; attempt < 40; attempt++) {
+      // Page reads and detail checks have separate budgets. Filtered/duplicate
+      // pages do not spend candidate checks. Keep a time bound for slow upstreams.
+      const searchStarted = performance.now();
+      for (
+        let attempt = 0;
+        search.detailChecks < 100 && performance.now() - searchStarted < 30000;
+        attempt++
+      ) {
         if (attempt && attempt % 6 === 0) await yieldToBrowser();
         const finishRank = diagnostics.start("discovery_rank");
         const pick = chooseNext(pool, {
@@ -458,18 +505,30 @@ export function createAnimeStore({
         });
         finishRank();
         if (!pick) {
-          if (pagesLoaded < 3 && (await refill())) {
-            pagesLoaded++;
+          if (search.pagesLoaded < 30 && (await refill())) {
+            search.pagesLoaded++;
             continue;
           }
-          update({ current: null });
-          return;
+          search.outcome =
+            state.preview ||
+            Object.values(offsets).every((offset) => offset === null)
+              ? "sources_exhausted"
+              : "search_paused";
+          break;
         }
         // The candidate is selected; verifying its details is the remaining step.
         update({ discoveryProgress: 50 });
         let anime = pick.anime;
         if (!state.preview) {
-          anime = await animeDetails(anime.id);
+          search.detailChecks++;
+          try {
+            anime = await animeDetails(anime.id);
+          } catch (error) {
+            if (error.status !== 404) throw error;
+            skipped.add(anime.id); // Deleted MAL entries cannot be displayed.
+            search.rejectedAfterDetails++;
+            continue;
+          }
           if (
             !isEligible(
               anime,
@@ -480,11 +539,14 @@ export function createAnimeStore({
               state.preferences,
             )
           ) {
-            skipped.add(anime.id);
+            // Updated pool metadata makes this ineligible until the user's
+            // preferences/history change. This is not a permanent user skip.
+            search.rejectedAfterDetails++;
             update({ discoveryProgress: null });
             continue;
           }
         }
+        search.outcome = "found";
         update({
           current: anime,
           detailReason: pick.detailReason,
@@ -494,14 +556,22 @@ export function createAnimeStore({
         });
         return;
       }
+      if (search.outcome === "searching") search.outcome = "search_paused";
       update({
         current: null,
-        error: "Many titles were filtered. Choose Find more anime to continue.",
+        discoveryStatus:
+          search.outcome === "sources_exhausted" ? "exhausted" : "paused",
       });
     } catch (error) {
+      search.outcome = "request_failed";
       // Never keep a reacted card visible as if it were a new recommendation.
       update({ current: null, error: error.message });
     } finally {
+      diagnostics.record?.({
+        operation: "discovery_search",
+        ...search,
+        poolSize: pool.length,
+      });
       finishTiming();
       update({
         busy: false,
@@ -969,6 +1039,16 @@ export function createAnimeStore({
     },
     refreshMalIfStale,
     loadRecommendations,
+    inspectDiscovery() {
+      return {
+        lastSearch: lastDiscoverySearch ? { ...lastDiscoverySearch } : null,
+        poolSize: pool.length,
+        sources: { ...offsets },
+        hasMorePages:
+          !state.preview &&
+          Object.values(offsets).some((offset) => offset !== null),
+      };
+    },
     async inspectEnrichment() {
       const server = state.preview
         ? { enabled: false, preview: true }

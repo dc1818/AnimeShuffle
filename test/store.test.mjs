@@ -1020,3 +1020,144 @@ test("all recommendation choices stay out of Discover and new shortlists; import
       ),
   );
 });
+
+test("Discover searches beyond three filtered catalog pages without another click", async () => {
+  let pages = 0;
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      if (url === "/api/session") return Response.json({ configured: true });
+      if (url.startsWith("/api/catalog")) {
+        pages++;
+        return Response.json({
+          data: [
+            {
+              ...anime,
+              id: pages,
+              genres: pages < 5 ? ["Romance"] : ["Action"],
+            },
+          ],
+          nextOffset:
+            Number(
+              new URL(url, "https://test.example").searchParams.get("offset"),
+            ) + 50,
+        });
+      }
+      if (url.startsWith("/api/anime/"))
+        return Response.json({ ...anime, id: 5 });
+      return Response.json({});
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  assert.equal(store.getSnapshot().current?.id, 5);
+  assert.equal(pages, 5);
+});
+
+test("Discover passes forty detail rejections and retains verified filtering metadata", async () => {
+  let checks = 0;
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      if (url === "/api/session") return Response.json({ configured: true });
+      if (url.startsWith("/api/catalog"))
+        return Response.json({
+          data: Array.from({ length: 42 }, (_, index) => ({
+            ...anime,
+            id: index + 1,
+          })),
+          nextOffset: null,
+        });
+      if (url.startsWith("/api/anime/")) {
+        checks++;
+        return Response.json({
+          ...anime,
+          id: Number(url.split("/").pop()),
+          prequels: checks <= 41 ? [9999] : [],
+        });
+      }
+      return Response.json({});
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({});
+  assert.ok(
+    store.getSnapshot().current,
+    "should keep looking after forty rejected sequels",
+  );
+  assert.equal(checks, 42);
+  await store.savePreferences({});
+  assert.equal(
+    checks,
+    42,
+    "preference edits must reuse verified details, not recheck rejected stubs",
+  );
+});
+
+test("Discover follows deep offsets, distinguishes bounded search from exhaustion, and resumes", async () => {
+  const requested = [];
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      if (url === "/api/session") return Response.json({ configured: true });
+      if (url.startsWith("/api/catalog")) {
+        const offset = Number(
+          new URL(url, "https://test.example").searchParams.get("offset"),
+        );
+        requested.push(offset);
+        return Response.json({
+          data:
+            requested.length > 30
+              ? [{ ...anime, id: 2 }]
+              : [{ ...anime, ageRating: "g" }],
+          nextOffset: offset ? offset + 50 : 5050,
+        });
+      }
+      if (url.startsWith("/api/anime/"))
+        return Response.json({ ...anime, id: 2 });
+      return Response.json({});
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({});
+  assert.equal(store.getSnapshot().error, "");
+  assert.equal(store.getSnapshot().discoveryStatus, "paused");
+  assert.equal(
+    store.inspectDiscovery().lastSearch.detailChecks,
+    0,
+    "G-rated catalog stubs need no detail fetch",
+  );
+  assert.ok(requested.includes(5050));
+  assert.equal(requested.length, 30);
+  const before = requested.at(-1);
+  await store.retry();
+  assert.ok(requested.at(-1) > before);
+  assert.equal(store.getSnapshot().current?.id, 2);
+  assert.equal(requested.length, 31);
+  assert.equal(store.getSnapshot().error, "");
+});
+
+test("Discover stops at exhausted sources and does not loop on a stuck upstream cursor", async () => {
+  for (const nextOffset of [null, 0]) {
+    let calls = 0;
+    const store = createAnimeStore({
+      storage: memory(),
+      request: async (url) => {
+        if (url === "/api/session") return Response.json({ configured: true });
+        if (url.startsWith("/api/catalog")) {
+          calls++;
+          return Response.json({ data: [], nextOffset });
+        }
+        return Response.json({});
+      },
+    });
+    await store.initialize();
+    await store.savePreferences({});
+    assert.equal(calls, nextOffset === null ? 3 : 1);
+    if (nextOffset === null) {
+      assert.equal(store.inspectDiscovery().hasMorePages, false);
+      assert.equal(store.getSnapshot().discoveryStatus, "exhausted");
+      assert.equal(store.getSnapshot().error, "");
+    } else assert.match(store.getSnapshot().error, /invalid next page/);
+  }
+});
