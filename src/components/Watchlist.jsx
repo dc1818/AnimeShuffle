@@ -1,4 +1,5 @@
 import { AnimeTitle } from "./AnimeTitle.jsx";
+import { primaryTitle, englishTitle } from "../lib/titles.js";
 import { useEffect, useRef, useState } from "react";
 import {
   orderWatchlist,
@@ -459,9 +460,10 @@ function RemoveWatchlistDialog({ anime, busy, onCancel, onConfirm }) {
     >
       <h2 id="remove-watchlist-title">Remove from both watchlists?</h2>
       <p>
-        This will remove <AnimeTitle anime={anime} /> from Anime Shuffle and
-        your MyAnimeList Plan to Watch list. Any notes or other details saved
-        with that MAL entry will also be deleted.
+        This will remove {primaryTitle(anime)}
+        {englishTitle(anime) ? ` (${englishTitle(anime)})` : ""} from Anime
+        Shuffle and your MyAnimeList Plan to Watch list. Any notes or other
+        details saved with that MAL entry will also be deleted.
       </p>
       <button
         className="primary danger-confirm"
