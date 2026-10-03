@@ -76,6 +76,13 @@ export function orderWatchlist(
     .map((entry) => ({
       ...entry,
       score: scoreAnime(entry.anime, taste),
+      // MAL community ratings are separate from the personalized match score.
+      malScore:
+        Number.isFinite(entry.anime.score) &&
+        entry.anime.score > 0 &&
+        entry.anime.score <= 10
+          ? entry.anime.score
+          : null,
       minutes:
         entry.anime.duration > 0 && entry.anime.episodes > 0
           ? entry.anime.duration * entry.anime.episodes
@@ -87,6 +94,12 @@ export function orderWatchlist(
         result = knownFirst(a.addedAt, b.addedAt, sort === "newest" ? -1 : 1);
       else if (sort === "shortest" || sort === "longest")
         result = knownFirst(a.minutes, b.minutes, sort === "shortest" ? 1 : -1);
+      else if (sort === "highest-rated" || sort === "lowest-rated")
+        result = knownFirst(
+          a.malScore,
+          b.malScore,
+          sort === "highest-rated" ? -1 : 1,
+        );
       else
         result =
           Number(a.anime.status === "not_yet_aired") -

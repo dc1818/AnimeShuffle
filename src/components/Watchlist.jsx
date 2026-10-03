@@ -102,6 +102,12 @@ export function Watchlist({ state, store, onDiscover }) {
             <option value="oldest">Date added · Oldest first</option>
             <option value="shortest">Total runtime · Shortest first</option>
             <option value="longest">Total runtime · Longest first</option>
+            <option value="highest-rated">
+              MyAnimeList score · Highest first
+            </option>
+            <option value="lowest-rated">
+              MyAnimeList score · Lowest first
+            </option>
           </select>
         </label>
         <label>
@@ -189,8 +195,8 @@ export function Watchlist({ state, store, onDiscover }) {
             value={exportFormat}
             onChange={(e) => setExportFormat(e.target.value)}
           >
-            <option value="json">JSON · Backup and import</option>
-            <option value="txt">Text · Readable list</option>
+            <option value="json">JSON</option>
+            <option value="txt">Text</option>
           </select>
         </label>
         <div
@@ -240,7 +246,7 @@ export function Watchlist({ state, store, onDiscover }) {
               setTimeout(() => URL.revokeObjectURL(url), 1000);
             }}
           >
-            Export entire list
+            Export watchlist
           </button>
           <button
             className="outline"
@@ -453,9 +459,9 @@ function RemoveWatchlistDialog({ anime, busy, onCancel, onConfirm }) {
     >
       <h2 id="remove-watchlist-title">Remove from both watchlists?</h2>
       <p>
-        <AnimeTitle anime={anime} /> will be removed from Anime Shuffle and your
-        MyAnimeList Plan to Watch list. Any notes or other details saved with
-        that MAL entry will also be deleted.
+        This will remove <AnimeTitle anime={anime} /> from Anime Shuffle and
+        your MyAnimeList Plan to Watch list. Any notes or other details saved
+        with that MAL entry will also be deleted.
       </p>
       <button
         className="primary danger-confirm"

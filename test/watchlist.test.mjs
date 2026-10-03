@@ -210,3 +210,18 @@ test("text exports reimport by MAL ID with dates, Unicode titles, and duplicate 
   ])
     assert.throws(() => parseWatchlistImport(bad), /Invalid|invalid/);
 });
+
+test("MAL score sorting uses community ratings and keeps unscored entries last", () => {
+  const entries = [8, 6, 8, null, 0, undefined, NaN].map((score, index) => ({
+    ...entry(index + 1, "Action", 24, 12, 100),
+    anime: {
+      ...entry(index + 1, "Action", 24, 12, 100).anime,
+      score,
+      listStatus: { score: 10 - index },
+    },
+  }));
+  const ids = (sort) =>
+    orderWatchlist(entries, { sort }).map(({ anime }) => anime.id);
+  assert.deepEqual(ids("highest-rated"), [1, 3, 2, 4, 5, 6, 7]);
+  assert.deepEqual(ids("lowest-rated"), [2, 1, 3, 4, 5, 6, 7]);
+});
