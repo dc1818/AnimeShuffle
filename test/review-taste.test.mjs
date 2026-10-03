@@ -588,13 +588,13 @@ test("diagnostics distinguish failed requests from successful empty samples and 
   assert.equal(service.diagnostics().cachedProfiles, 0);
   assert.equal(service.diagnostics().lastFailureCode, "review_http_503");
   now += 60000;
-  service.enqueue(2);
+  service.enqueue(2, 1);
   await service.run();
   assert.equal(service.cached(2).status, "empty");
   assert.equal(service.diagnostics().cachedProfiles, 1);
   assert.equal(service.diagnostics().profilesWithTraits, 0);
   now += 1500;
-  service.enqueue(3);
+  service.enqueue(3, 1);
   await service.run();
   assert.equal(service.cached(3).status, "ready");
   assert.equal(service.diagnostics().profilesWithTraits, 1);
@@ -641,4 +641,128 @@ test("enrichment inspection is read-only and works without IDs or extra Jikan re
   assert.equal(data.enrichment.processedToday, 0);
   assert.equal(data.enrichment.lastSuccessAt, null);
   assert.equal(calls, 0);
+});
+
+test("504 failures retain jobs, back off across restarts, and recover without a new user request", async () => {
+  const { sql } = database();
+  let now = 10000,
+    calls = 0,
+    healthy = false,
+    alarm;
+  const fetcher = async () => {
+    calls++;
+    return healthy
+      ? Response.json({ data: sample("Fluid animation.") })
+      : new Response("", { status: 504 });
+  };
+  const make = () =>
+    createReviewEnrichment({
+      store: reviewStore(sql),
+      now: () => now,
+      schedule: (at) => {
+        alarm = at;
+      },
+      fetcher,
+    });
+  let service = make();
+  service.enqueue(1, 3);
+  service.enqueue(2);
+  for (const delay of [
+    60000, 120000, 240000, 480000, 960000, 1920000, 3600000, 3600000,
+  ]) {
+    await service.run();
+    assert.equal(service.diagnostics().queued, 2);
+    assert.equal(service.diagnostics().status, "waiting_to_retry");
+    assert.equal(alarm, now + delay);
+    const attempted = calls;
+    await service.run();
+    assert.equal(calls, attempted, "cooldown makes no upstream request");
+    service = make();
+    assert.equal(service.diagnostics().nextRequestAt, now + delay);
+    now += delay;
+  }
+  healthy = true;
+  await service.run();
+  assert.equal(service.cached(1).traits[0].key, "fluid-animation");
+  assert.equal(service.diagnostics().consecutiveFailures, 0);
+  assert.equal(service.diagnostics().queued, 1);
+  now += 1500;
+  await service.run();
+  assert.equal(service.diagnostics().profilesWithTraits, 2);
+  assert.equal(service.diagnostics().queued, 0);
+  assert.equal(service.diagnostics().nextRequestAt, null);
+});
+
+test("transport timeouts retry automatically; permanent missing titles do not loop", async () => {
+  const { sql } = database();
+  let now = 10000,
+    calls = 0;
+  const service = createReviewEnrichment({
+    store: reviewStore(sql),
+    now: () => now,
+    schedule: () => {},
+    fetcher: async () => {
+      calls++;
+      if (calls === 1) throw new DOMException("timeout", "TimeoutError");
+      return new Response("", { status: 404 });
+    },
+  });
+  service.enqueue(1);
+  await service.run();
+  assert.equal(service.diagnostics().lastFailureCode, "review_timeout");
+  assert.equal(service.diagnostics().queued, 1);
+  now += 60000;
+  await service.run();
+  assert.equal(service.diagnostics().lastFailureCode, "review_http_404");
+  assert.equal(service.diagnostics().queued, 0);
+  service.enqueue(1);
+  await service.run();
+  assert.equal(calls, 2);
+});
+
+test("legacy failed jobs are restored once within the queue bound and scheduled on startup", async () => {
+  const { sql } = database();
+  const store = reviewStore(sql);
+  for (let id = 1; id <= 340; id++)
+    store.put(
+      id,
+      {
+        version: 2,
+        status: "unavailable",
+        failure: "review_http_504",
+        traits: [],
+      },
+      7200000,
+    );
+  store.put(
+    400,
+    {
+      version: 2,
+      status: "unavailable",
+      failure: "review_http_404",
+      traits: [],
+    },
+    7200000,
+  );
+  let alarm;
+  const service = createReviewEnrichment({
+    store,
+    now: () => 10000,
+    schedule: (at) => {
+      alarm = at;
+    },
+    fetcher: async () => Response.json({ data: [] }),
+  });
+  assert.equal(store.pending(), 300);
+  assert.equal(alarm, 10100);
+  assert.equal(store.next(10000), 1);
+  await service.run();
+  assert.equal(service.cached(1).status, "empty");
+  assert.equal(store.pending(), 299);
+  store.recoverFailures(11000);
+  assert.equal(
+    store.pending(),
+    299,
+    "migration does not reset retry times or refill on each request",
+  );
 });
