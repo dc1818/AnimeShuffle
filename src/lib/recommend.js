@@ -178,6 +178,11 @@ export function isChildrenTitle(anime) {
     (anime.genres || []).some((genre) => genre.toLowerCase() === "kids")
   );
 }
+// This setting deliberately excludes G-rated general-audience works too. G is
+// not proof of a children's target audience; it is a conservative user filter.
+export function isAudienceFilteredTitle(anime) {
+  return anime.ageRating === "g" || isChildrenTitle(anime);
+}
 function childrenInterest(reactions, list, preferences) {
   let positive = 0,
     confirmed = 0,
@@ -193,7 +198,7 @@ function childrenInterest(reactions, list, preferences) {
     false,
   );
   for (const r of records.values()) {
-    if (!isChildrenTitle(r.anime)) continue;
+    if (!isAudienceFilteredTitle(r.anime)) continue;
     if (r.action === "bad" || r.action === "nope") {
       negative++;
       continue;
@@ -257,7 +262,7 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
       (a.nsfw !== "white" && !a.demo)
     )
       return false;
-    if (!allowChildren && isChildrenTitle(a)) return false;
+    if (!allowChildren && isAudienceFilteredTitle(a)) return false;
     // Selected viewing genres match any one genre, not every selected genre.
     if (
       initial.favoriteGenres.length &&
@@ -288,8 +293,8 @@ export function chooseNext(
     .filter(
       (anime) =>
         audienceMode !== "include" ||
-        !isChildrenTitle(anime) ||
-        !recent.slice(-9).some(isChildrenTitle),
+        !isAudienceFilteredTitle(anime) ||
+        !recent.slice(-9).some(isAudienceFilteredTitle),
     );
   if (!available.length) return null;
   const taste = buildTaste(reactions, list, preferences, pool),
@@ -305,7 +310,7 @@ export function chooseNext(
   const ranked = available
     .map((a, index) => {
       let score = scoreAnime(a, taste);
-      if (isChildrenTitle(a)) score -= 0.15;
+      if (isAudienceFilteredTitle(a)) score -= 0.15;
       if (cold) {
         const overlap = (a.genres || []).filter((g) =>
           recent.slice(-4).some((x) => x.genres?.includes(g)),
@@ -365,8 +370,9 @@ export function rankRecommendations(
     for (let i = 0; i < available.length; i++) {
       if (
         audienceMode === "include" &&
-        isChildrenTitle(available[i].anime) &&
-        selected.filter((pick) => isChildrenTitle(pick.anime)).length >= 1
+        isAudienceFilteredTitle(available[i].anime) &&
+        selected.filter((pick) => isAudienceFilteredTitle(pick.anime)).length >=
+          1
       )
         continue;
       const adjusted =

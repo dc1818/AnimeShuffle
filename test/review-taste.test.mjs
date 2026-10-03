@@ -213,7 +213,7 @@ test("background enrichment is durable, deduplicated, bounded and credential-fre
   const store = reviewStore(sql);
   const fetcher = async (url, options) => {
     calls++;
-    assert.match(url, /api.jikan.moe\/v4\/anime\/1\/reviews/);
+    assert.match(url, /api.tenrai.org\/v1\/anime\/1\/reviews/);
     assert.match(url, /spoilers=false&preliminary=false/);
     assert.deepEqual(options.headers, { Accept: "application/json" });
     return Response.json({ data: sample("Fluid animation.") });
@@ -335,7 +335,7 @@ test("Cloudflare serves MAL immediately and enriches via alarms without exposing
     {
       interval: 0,
       fetcher: async (url) => {
-        if (url.startsWith("https://api.jikan.moe")) {
+        if (url.startsWith("https://api.tenrai.org")) {
           reviewCalls++;
           return Response.json({
             data: sample("Fluid animation. SECRET hero dies in the ending."),
@@ -617,7 +617,7 @@ test("a full background queue still promotes a viewed anime ahead of catalog job
   assert.equal(store.take(), 300);
 });
 
-test("enrichment inspection is read-only and works without IDs or extra Jikan requests", async () => {
+test("enrichment inspection is read-only and works without IDs or extra review requests", async () => {
   const storage = database();
   let calls = 0;
   const app = createCloudApp(
@@ -765,4 +765,46 @@ test("legacy failed jobs are restored once within the queue bound and scheduled 
     299,
     "migration does not reset retry times or refill on each request",
   );
+});
+
+test("switching from Jikan clears its outage cooldown but keeps the daily budget and queued titles", async () => {
+  const { sql } = database();
+  const store = reviewStore(sql);
+  const now = 10000;
+  store.record("retry_migration_v1", now);
+  store.record("backoff", now, "8");
+  store.record("failure", now, "review_http_504");
+  store.save({ next_at: now + 3600000, day: 0, count: 35 });
+  store.enqueue(1, 3, now);
+  store.put(
+    1,
+    {
+      version: 2,
+      source: "jikan-mal-reviews",
+      status: "unavailable",
+      failure: "review_http_504",
+      traits: [],
+    },
+    now + 3600000,
+  );
+  const service = createReviewEnrichment({
+    store,
+    now: () => now,
+    schedule: () => {},
+    fetcher: async (url, options) => {
+      assert.equal(new URL(url).origin, "https://api.tenrai.org");
+      assert.equal(new URL(url).searchParams.get("spoilers"), "false");
+      assert.equal(new URL(url).searchParams.get("preliminary"), "false");
+      assert.deepEqual(options.headers, { Accept: "application/json" });
+      return Response.json({ data: sample("Fluid animation.") });
+    },
+  });
+  assert.equal(service.diagnostics().provider, "tenrai");
+  assert.equal(service.diagnostics().consecutiveFailures, 0);
+  assert.equal(service.diagnostics().processedToday, 35);
+  assert.equal(service.diagnostics().lastFailureCode, null);
+  await service.run();
+  assert.equal(service.diagnostics().processedToday, 36);
+  assert.equal(service.cached(1).provider, "tenrai");
+  assert.equal(service.cached(1).traits[0].key, "fluid-animation");
 });

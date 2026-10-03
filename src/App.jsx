@@ -16,8 +16,6 @@ export function App({ store }) {
     store.getSnapshot,
   );
   const [view, setView] = useState("discover");
-  const activeView = useRef(view);
-  activeView.current = view;
   const [freshnessTick, setFreshnessTick] = useState(0);
   const [details, setDetails] = useState(false);
   useEffect(() => {
@@ -135,9 +133,7 @@ export function App({ store }) {
       document.visibilityState !== "hidden" &&
       navigator.onLine !== false
     )
-      store.refreshMalIfStale?.({
-        refreshDiscovery: () => activeView.current === "discover",
-      });
+      store.refreshMalIfStale?.();
   }, [
     store,
     view,
@@ -293,11 +289,7 @@ export function App({ store }) {
                 {Object.keys(state.reactions).length} reactions
               </span>
             </div>
-            {!state.ready ||
-            state.discoveryLoading ||
-            (state.current &&
-              (state.reactions[state.current.id] ||
-                state.list.some((a) => a.id === state.current.id))) ? (
+            {!state.ready || state.discoveryLoading ? (
               <LoadingIndicator
                 progress={state.discoveryProgress}
                 label="Loading your discovery queue…"
@@ -315,6 +307,17 @@ export function App({ store }) {
                   selectedGenres={state.preferences.favoriteGenres}
                   onPreferences={() => setDialog("preferences")}
                   busy={state.busy}
+                  reactionDisabled={
+                    !!state.reactions[state.current.id] ||
+                    state.list.some((a) => a.id === state.current.id)
+                  }
+                  selectionNote={
+                    state.reactions[state.current.id]
+                      ? "You’ve already made a choice for this anime. Skip to continue."
+                      : state.list.some((a) => a.id === state.current.id)
+                        ? "This anime is now on your MyAnimeList. Skip to continue."
+                        : ""
+                  }
                   canUndo={state.canUndo}
                   detailsOpen={details}
                   onDetails={() => setDetails((value) => !value)}

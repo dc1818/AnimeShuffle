@@ -47,6 +47,7 @@ export function AnimeCard({
   anime,
   busy,
   canUndo,
+  selectionNote = "",
   reactionDisabled = false,
   detailsOpen,
   onDetails,
@@ -184,6 +185,11 @@ export function AnimeCard({
             <Icon name="chevron" />
           </span>
         </button>
+        {selectionNote && (
+          <p className="runtime-estimate" role="status">
+            {selectionNote}
+          </p>
+        )}
         <div className="reaction-labels">
           <span>Seen it</span>
           <span>Not seen it</span>

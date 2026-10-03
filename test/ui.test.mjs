@@ -268,3 +268,110 @@ for (const staticMode of [false, true])
       await rm(folder, { recursive: true, force: true });
     }
   });
+
+test("returning focus preserves a Discover card even when MAL adds it during background sync", async () => {
+  const folder = await mkdtemp(path.resolve(".react-test-"));
+  const outfile = path.join(folder, "App.mjs");
+  await build({
+    entryPoints: ["src/App.jsx"],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    jsx: "automatic",
+    packages: "external",
+  });
+  const { App } = await import(pathToFileURL(outfile));
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "http://localhost:5173",
+    pretendToBeVisual: true,
+  });
+  for (const name of [
+    "window",
+    "document",
+    "location",
+    "sessionStorage",
+    "localStorage",
+  ])
+    globalThis[name] = dom.window[name];
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  let clock = 100000,
+    entries = [],
+    reads = 0;
+  const anime = {
+    id: 1,
+    title: "Loaded card",
+    genres: ["Action"],
+    nsfw: "white",
+    format: "tv",
+    ageRating: "pg_13",
+    status: "finished_airing",
+    prequels: [],
+  };
+  localStorage.setItem(
+    "anime-shuffle:7",
+    JSON.stringify({ onboardingComplete: true }),
+  );
+  const store = createAnimeStore({
+    storage: localStorage,
+    now: () => clock,
+    request: async (url) => {
+      const ok = (value) => Response.json(value);
+      if (url === "/api/session")
+        return ok({ configured: true, connected: true });
+      if (url === "/api/profile") return ok({ id: 7 });
+      if (url.startsWith("/api/list")) {
+        reads++;
+        return ok({ data: entries, nextOffset: null });
+      }
+      if (url.startsWith("/api/catalog"))
+        return ok({
+          data: [anime, { ...anime, id: 2, title: "Next card" }],
+          nextOffset: null,
+        });
+      if (url.startsWith("/api/anime/"))
+        return ok({ ...anime, id: Number(url.split("/").pop()) });
+      if (url.startsWith("/api/taste")) return ok({ profiles: {} });
+      throw Error(url);
+    },
+  });
+  const root = createRoot(document.getElementById("root"));
+  try {
+    await act(async () => {
+      root.render(React.createElement(App, { store }));
+      await store.initialize();
+    });
+    const displayed = store.getSnapshot().current;
+    const card = document.getElementById("anime-title");
+    assert.ok(card);
+    entries = [
+      { ...displayed, listStatus: { status: "plan_to_watch", score: 0 } },
+    ];
+    clock += 300001;
+    await act(async () => {
+      window.dispatchEvent(new dom.window.Event("focus"));
+      document.dispatchEvent(new dom.window.Event("visibilitychange"));
+      await store.refreshMalIfStale();
+    });
+    assert.equal(reads, 2);
+    assert.equal(store.getSnapshot().current, displayed);
+    assert.equal(document.getElementById("anime-title"), card);
+    assert.equal(store.getSnapshot().discoveryLoading, false);
+    assert.ok(
+      [...document.querySelectorAll(".reaction")].every((b) => b.disabled),
+    );
+    const skip = [...document.querySelectorAll("button")].find(
+      (b) => b.textContent.trim() === "Skip",
+    );
+    assert.equal(skip.disabled, false);
+    assert.match(document.body.textContent, /now on your MyAnimeList/);
+    await act(async () => {
+      await store.skip();
+    });
+    assert.notEqual(store.getSnapshot().current?.id, displayed.id);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});

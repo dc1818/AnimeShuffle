@@ -84,7 +84,7 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
             nsfw: "white",
           });
         }
-        if (url.hostname === "api.jikan.moe") {
+        if (url.hostname === "api.tenrai.org") {
           assert.equal(request.headers.get("Authorization"), null);
           assert.equal(request.headers.get("X-MAL-CLIENT-ID"), null);
           assert.equal(url.searchParams.get("spoilers"), "false");
@@ -158,7 +158,7 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     }
     assert.equal(enrichment.profiles?.[1]?.traits[0]?.key, "fluid-animation");
     assert.equal(
-      requests.filter((s) => s.startsWith("api.jikan.moe")).length,
+      requests.filter((s) => s.startsWith("api.tenrai.org")).length,
       1,
     );
     tokenRedirect = true;

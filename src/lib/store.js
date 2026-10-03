@@ -275,21 +275,11 @@ export function createAnimeStore({
       });
     return malRefresh;
   }
-  async function refreshMalIfStale({ refreshDiscovery = true } = {}) {
-    // Read-only polling does not lock reaction buttons. Overlapping triggers
-    // share a request; readList rejects snapshots overtaken by a MAL write.
+  async function refreshMalIfStale() {
+    // Background synchronization updates exclusions for future picks. A displayed
+    // card is a snapshot: only explicit navigation/reactions may advance it.
     if (!state.ready || state.busy) return;
     await checkMalFreshness();
-    if (
-      (typeof refreshDiscovery === "function"
-        ? refreshDiscovery()
-        : refreshDiscovery) &&
-      !state.busy &&
-      state.current &&
-      (state.reactions[state.current.id] ||
-        state.list.some((anime) => anime.id === state.current.id))
-    )
-      await next();
   }
   // Share verified public details across both feeds, with a bounded freshness window.
   async function animeDetails(id) {

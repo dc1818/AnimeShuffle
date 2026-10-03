@@ -4,6 +4,7 @@ import {
   chooseNext,
   rankRecommendations,
   isEligible,
+  isAudienceFilteredTitle,
 } from "../src/lib/recommend.js";
 import { normalizePreferences } from "../src/lib/preferences.js";
 const anime = (id, genres = ["Adventure"], extra = {}) => ({
@@ -35,16 +36,16 @@ test("children's titles are off by default, including old Automatic preferences 
     "hide",
   );
   for (const random of [() => 0, () => 0.9]) {
-    assert.ok(chooseNext(pool, { random }).anime.id >= 4);
+    assert.ok(chooseNext(pool, { random }).anime.id === 5);
     assert.ok(
-      chooseNext(pool, { random, reactions: interested }).anime.id >= 4,
+      chooseNext(pool, { random, reactions: interested }).anime.id === 5,
     );
   }
   assert.deepEqual(
     rankRecommendations(pool)
       .map((p) => p.anime.id)
       .sort(),
-    [4, 5],
+    [5],
   );
   assert.equal(
     isEligible(
@@ -57,8 +58,8 @@ test("children's titles are off by default, including old Automatic preferences 
   );
   assert.equal(
     isEligible(pool[3], {}, [], new Set()),
-    true,
-    "All ages alone is not children's anime",
+    false,
+    "All ages titles are also excluded by the conservative default filter",
   );
 });
 
@@ -96,7 +97,7 @@ test("enabled children suggestions remain occasional, respect recent history and
   };
   assert.equal(
     rankRecommendations(pool, options).filter((p) =>
-      p.anime.genres.includes("Kids"),
+      isAudienceFilteredTitle(p.anime),
     ).length,
     1,
   );
@@ -110,11 +111,13 @@ test("enabled children suggestions remain occasional, respect recent history and
       ...Array.from({ length: count }, (_, i) => anime(100 + i)),
     ];
     assert.ok(
-      !chooseNext(pool, {
-        ...options,
-        recent,
-        random: () => 0,
-      }).anime.genres.includes("Kids"),
+      !isAudienceFilteredTitle(
+        chooseNext(pool, {
+          ...options,
+          recent,
+          random: () => 0,
+        }).anime,
+      ),
     );
   }
   assert.equal(

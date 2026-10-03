@@ -69,7 +69,7 @@ export function createCloudApp(
   const reviews = createReviewEnrichment({
     store: reviewStore(sql),
     fetcher,
-    enabled: env.JIKAN_REVIEWS !== "false",
+    enabled: (env.REVIEW_ENRICHMENT ?? env.JIKAN_REVIEWS) !== "false",
     schedule: (at) => {
       const scheduled = (async () => {
         if (!storage.setAlarm) return;

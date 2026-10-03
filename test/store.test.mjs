@@ -451,11 +451,29 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
     picks,
     "Unchanged MAL list preserves picks",
   );
-  entries = [{ ...anime, listStatus: { status: "plan_to_watch", score: 0 } }];
+  const displayed = store.getSnapshot().current;
+  const reason = store.getSnapshot().detailReason;
+  entries = [
+    { ...displayed, listStatus: { status: "plan_to_watch", score: 0 } },
+  ];
   clock += BACKGROUND_REFRESH_MS + 1;
   await store.refreshMalIfStale();
-  assert.equal(store.getSnapshot().list[0].id, 1);
-  assert.notEqual(store.getSnapshot().current?.id, 1);
+  assert.equal(store.getSnapshot().list[0].id, displayed.id);
+  assert.equal(
+    store.getSnapshot().current,
+    displayed,
+    "Background list changes preserve the loaded card",
+  );
+  assert.equal(store.getSnapshot().detailReason, reason);
+  assert.equal(store.getSnapshot().discoveryLoading, false);
+  await store.react("watch");
+  assert.equal(
+    store.getSnapshot().reactions[displayed.id],
+    undefined,
+    "Already-listed card cannot be voted again",
+  );
+  await store.skip();
+  assert.notEqual(store.getSnapshot().current?.id, displayed.id);
   assert.equal(store.getSnapshot().recommendationsReady, true);
   await store.loadRecommendations();
   assert.ok(

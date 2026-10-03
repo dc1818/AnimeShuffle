@@ -268,16 +268,17 @@ export function ViewingPreferences({ state, store, onComplete }) {
       </fieldset>
       <div className="setting-row">
         <div>
-          <strong>Include children’s anime</strong>
+          <strong>Include children’s and all-ages anime</strong>
           <p>
-            Off by default. When enabled, occasional picks appear only if your
-            likes or MAL ratings show a clear interest.
+            Off excludes Kids-tagged, PG · Children, and G · All ages titles.
+            When enabled, occasional picks appear only if your likes or MAL
+            ratings show a clear interest.
           </p>
         </div>
         <input
           type="checkbox"
           role="switch"
-          aria-label="Include children’s anime"
+          aria-label="Include children’s and all-ages anime"
           checked={value.childrenTitles === "include"}
           disabled={pending || state.busy}
           onChange={(event) =>

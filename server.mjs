@@ -45,7 +45,8 @@ const reviewDb = new DatabaseSync(
 let reviewTimer,
   reviewAt = 0;
 const reviews = createReviewEnrichment({
-  enabled: process.env.JIKAN_REVIEWS !== "false",
+  enabled:
+    (process.env.REVIEW_ENRICHMENT ?? process.env.JIKAN_REVIEWS) !== "false",
   store: reviewStore({
     exec(query, ...args) {
       const statement = reviewDb.prepare(query);
