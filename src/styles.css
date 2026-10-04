@@ -1953,9 +1953,15 @@ main.wide-main {
 
 .english-title {
   display: block;
-  color: #aab9c5;
+  width: fit-content;
+  max-width: 100%;
+  color: #b5f3fa;
+  background: #173d4bb3;
+  border-left: 3px solid #79dbe6;
+  border-radius: 4px;
+  padding: 0.12em 0.45em;
   font-size: 0.7em;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.4;
   margin-top: 0.25em;
   overflow-wrap: anywhere;
@@ -2067,7 +2073,7 @@ main.wide-main {
 }
 [data-layout="familiar"] .cards-layout {
   gap: 20px;
-  max-width: 980px;
+  max-width: 1090px;
 }
 [data-layout="familiar"] .cards-layout .anime-card {
   width: min(100%, 470px);
@@ -2139,23 +2145,23 @@ main.wide-main {
   padding: 7px;
 }
 [data-layout="familiar"] .cards-layout .details-card {
-  width: min(100%, 470px);
+  width: min(100%, 600px);
   min-width: 0;
   padding: 0;
-  max-height: calc(100dvh - 130px);
+  max-height: none;
   overflow: hidden;
 }
 [data-layout="familiar"] .cards-layout .details-header {
   position: relative;
-  padding: 18px 52px 10px 20px;
+  padding: 20px 24px 0;
 }
 [data-layout="familiar"] .cards-layout .details-header .eyebrow {
   margin: 0;
 }
 [data-layout="familiar"] .cards-layout .details-body {
-  padding: 0 20px 18px;
-  max-height: calc(100dvh - 185px);
-  overflow-y: auto;
+  padding: 20px 24px 24px;
+  max-height: none;
+  overflow-y: visible;
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
@@ -2164,9 +2170,10 @@ main.wide-main {
   overflow-wrap: anywhere;
 }
 [data-layout="familiar"] .cards-layout .full-synopsis {
-  font-size: 14px;
-  line-height: 1.6;
-  max-height: 170px;
+  font-size: 16px;
+  line-height: 1.7;
+  max-height: none;
+  overflow: visible;
 }
 [data-layout="familiar"] .cards-layout .detail-facts {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2205,9 +2212,11 @@ main.wide-main {
   [data-layout="familiar"] .account {
     max-width: 115px;
   }
-  [data-layout="familiar"] .cards-layout.expanded > .anime-card,
+  [data-layout="familiar"] .cards-layout.expanded > .anime-card {
+    width: calc(44% - 10px);
+  }
   [data-layout="familiar"] .cards-layout.expanded > .details-card {
-    width: calc(50% - 10px);
+    width: calc(56% - 10px);
   }
 }
 @media (max-width: 900px) {
@@ -2282,7 +2291,8 @@ main.wide-main {
     position: fixed;
     inset: 96px 12px 12px auto;
     margin: 0;
-    width: min(440px, calc(100% - 24px));
+    width: min(600px, calc(100% - 24px));
+    height: calc(100dvh - 108px);
     max-height: calc(100dvh - 108px);
     color: var(--text);
     box-shadow: 0 20px 80px #0008;
@@ -2371,8 +2381,9 @@ main.wide-main {
     min-height: 40px;
   }
   [data-layout="familiar"] .cards-layout dialog.details-card {
-    inset: auto 8px 8px;
+    inset: 104px 8px 8px;
     width: calc(100% - 16px);
+    height: calc(100dvh - 112px);
     max-height: calc(100dvh - 112px);
     border-radius: 16px;
   }
@@ -2414,4 +2425,72 @@ main.wide-main {
 .loading-state-compact p {
   font-size: 12px;
   margin: 0;
+}
+
+/* The synopsis uses the reading surface, never a second scrolling text box. */
+.details-card .full-synopsis {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+  margin: 0;
+}
+.details-header h2 {
+  padding-right: 24px;
+}
+.details-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  border-bottom: 1px solid #355261;
+  margin-top: 20px;
+}
+.details-tabs [role="tab"] {
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #c5d0dd;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.details-tabs [aria-selected="true"] {
+  color: #89e8f1;
+  border-bottom-color: #79dbe6;
+  font-weight: 650;
+}
+.details-tabs [role="tab"]:focus-visible,
+.details-body [role="tabpanel"]:focus-visible {
+  outline: 2px solid #79dbe6;
+  outline-offset: 3px;
+}
+.details-body [role="tabpanel"][hidden] {
+  display: none;
+}
+.details-body .detail-facts {
+  margin-top: 0;
+  border-top: 0;
+}
+.details-body .external-button {
+  margin-top: 24px;
+}
+@media (max-width: 900px) {
+  [data-layout="familiar"] .cards-layout .details-header {
+    padding-bottom: 0;
+  }
+  [data-layout="familiar"] .cards-layout .details-body {
+    flex: 1;
+  }
+}
+@media (max-width: 560px) {
+  .details-tabs {
+    gap: 0;
+    margin-top: 14px;
+  }
+  .details-tabs [role="tab"] {
+    font-size: 13px;
+  }
 }

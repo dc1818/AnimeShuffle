@@ -50,6 +50,8 @@ test("responsive details switch between modal and inline panel, release scroll l
     englishTitle: "Attack on Titan",
     genres: [],
     studios: [],
+    synopsis: "A long synopsis that must remain available in full.",
+    score: 8.5,
   };
   try {
     await act(async () =>
@@ -68,6 +70,50 @@ test("responsive details switch between modal and inline panel, release scroll l
     assert.equal(
       document.querySelector(".english-title").textContent,
       "Attack on Titan",
+    );
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    let panels = [...document.querySelectorAll('[role="tabpanel"]')];
+    assert.equal(tabs.length, 3);
+    assert.equal(panels[0].hidden, false);
+    assert.equal(panels[1].hidden, true);
+    assert.equal(
+      document.querySelector(".full-synopsis").textContent,
+      anime.synopsis,
+    );
+    await act(async () => tabs[1].click());
+    panels = [...document.querySelectorAll('[role="tabpanel"]')];
+    assert.equal(panels[0].hidden, true);
+    assert.equal(panels[1].hidden, false);
+    assert.match(panels[1].textContent, /8.50 \/ 10/);
+    await act(async () =>
+      tabs[1].dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          bubbles: true,
+        }),
+      ),
+    );
+    assert.equal(document.activeElement, tabs[2]);
+    assert.equal(tabs[2].getAttribute("aria-selected"), "true");
+    assert.equal(
+      document.querySelectorAll('[role="tabpanel"]')[2].hidden,
+      false,
+    );
+    await act(async () =>
+      root.render(
+        React.createElement(AnimeDetails, {
+          anime: { ...anime, id: 2 },
+          responsive: true,
+          onClose: () => {
+            closes++;
+          },
+        }),
+      ),
+    );
+    assert.equal(
+      document.querySelector('[role="tab"]').getAttribute("aria-selected"),
+      "true",
+      "New titles open at Synopsis",
     );
     await act(async () =>
       document

@@ -2,7 +2,7 @@ import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 import { synopsisText } from "../lib/synopsis.js";
 
@@ -245,6 +245,25 @@ export function AnimeCard({
 
 export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
   const panel = useRef(null);
+  const tabId = useId();
+  const tabs = ["Synopsis", "Details", "Why this pick?"];
+  const [activeTab, setActiveTab] = useState(0);
+  // Each anime starts at its synopsis, including when a parent reuses this panel.
+  useEffect(() => {
+    setActiveTab(0);
+  }, [anime.id]);
+  function changeTab(event, index) {
+    let next;
+    if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft")
+      next = (index + tabs.length - 1) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    setActiveTab(next);
+    panel.current.querySelectorAll('[role="tab"]')[next].focus();
+  }
   const [narrow, setNarrow] = useState(
     () => window.matchMedia?.("(max-width: 900px)").matches || false,
   );
@@ -328,27 +347,72 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
           <Icon name="close" />
         </button>
         <span className="eyebrow">About this anime</span>
-      </div>
-      <div className="details-body">
         <h2 id="details-heading">
           <AnimeTitle anime={anime} />
         </h2>
-        <p className="full-synopsis">
-          {synopsisText(anime.synopsis) || "No synopsis available."}
-        </p>
-        <dl className="detail-facts">
-          {Object.entries(facts).map(([name, value]) => (
-            <div className="fact" key={name}>
-              <dt>{name}</dt>
-              <dd>{value}</dd>
-            </div>
+        <div
+          className="details-tabs"
+          role="tablist"
+          aria-label="Anime information"
+        >
+          {tabs.map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              role="tab"
+              id={`${tabId}-tab-${index}`}
+              aria-controls={`${tabId}-panel-${index}`}
+              aria-selected={activeTab === index}
+              tabIndex={activeTab === index ? 0 : -1}
+              onClick={() => setActiveTab(index)}
+              onKeyDown={(event) => changeTab(event, index)}
+            >
+              {label}
+            </button>
           ))}
-        </dl>
-        <div className="why-card">
-          <Icon name="shuffle" />
-          <div>
-            <h3>Why this pick?</h3>
-            <p>{reason || "Something new for your next watch."}</p>
+        </div>
+      </div>
+      <div className="details-body" key={`${anime.id}-${activeTab}`}>
+        <div
+          role="tabpanel"
+          id={`${tabId}-panel-0`}
+          aria-labelledby={`${tabId}-tab-0`}
+          hidden={activeTab !== 0}
+          tabIndex={0}
+        >
+          <p className="full-synopsis">
+            {synopsisText(anime.synopsis) || "No synopsis available."}
+          </p>
+        </div>
+        <div
+          role="tabpanel"
+          id={`${tabId}-panel-1`}
+          aria-labelledby={`${tabId}-tab-1`}
+          hidden={activeTab !== 1}
+          tabIndex={0}
+        >
+          <dl className="detail-facts">
+            {Object.entries(facts).map(([name, value]) => (
+              <div className="fact" key={name}>
+                <dt>{name}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <div
+          role="tabpanel"
+          id={`${tabId}-panel-2`}
+          aria-labelledby={`${tabId}-tab-2`}
+          hidden={activeTab !== 2}
+          tabIndex={0}
+        >
+          <div className="why-card">
+            <Icon name="shuffle" />
+            <div>
+              <h3>Why this pick?</h3>
+              <p>{reason || "Something new for your next watch."}</p>
+            </div>
           </div>
         </div>
         <a
