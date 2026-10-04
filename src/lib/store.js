@@ -594,7 +594,13 @@ export function createAnimeStore({
    */
   async function react(action, target = null) {
     const anime = target || state.current;
-    if (state.busy || !anime || !REACTIONS.includes(action)) return;
+    if (!anime || !REACTIONS.includes(action)) return;
+    if (state.busy) {
+      notify(
+        "Your choice has not been saved yet. Please wait for loading to finish, then choose again.",
+      );
+      return;
+    }
     // A tab switch can happen before freshness checks complete. Never accept a
     // second vote for a title already selected or present on the connected list.
     if (state.reactions[anime.id] || state.list.some((a) => a.id === anime.id))
@@ -1162,6 +1168,13 @@ export function createAnimeStore({
       } finally {
         update({ busy: false });
       }
+    },
+    // A loaded card stays fixed unless the user has since decided that title.
+    // Checking on entry avoids fetching Discover while using another page.
+    async ensureUndecidedDiscovery() {
+      if (state.busy || !state.current || !state.reactions[state.current.id])
+        return;
+      await next();
     },
     react,
     undo,

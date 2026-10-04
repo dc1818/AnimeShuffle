@@ -20,6 +20,11 @@ export function App({ store }) {
   );
   const [view, setView] = useState("discover");
   const [freshnessTick, setFreshnessTick] = useState(0);
+  const decidedCurrent = !!state.current && !!state.reactions[state.current.id];
+  useEffect(() => {
+    if (view === "discover" && decidedCurrent && !state.busy)
+      store.ensureUndecidedDiscovery?.();
+  }, [view, decidedCurrent, state.busy, store]);
   const [details, setDetails] = useState(false);
   useEffect(() => {
     setDetails(false);
@@ -294,7 +299,9 @@ export function App({ store }) {
                 {Object.keys(state.reactions).length} reactions
               </span>
             </div>
-            {!state.ready || state.discoveryLoading ? (
+            {!state.ready ||
+            state.discoveryLoading ||
+            (decidedCurrent && !state.busy) ? (
               <LoadingIndicator
                 progress={state.discoveryProgress}
                 label="Loading your discovery queue…"

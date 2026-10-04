@@ -7,11 +7,20 @@ import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover, onPreferences }) {
+  // Keep the batch stable, but a saved title belongs only on the watchlist.
+  const savedIds = new Set(
+    state.list
+      .filter((a) => a.listStatus?.status === "plan_to_watch")
+      .map((a) => a.id),
+  );
+  const picks = state.recommendationPicks.filter(
+    (pick) =>
+      state.reactions[pick.anime.id]?.action !== "watch" &&
+      !savedIds.has(pick.anime.id),
+  );
   const [opened, setOpened] = useState(undefined);
   const [about, setAbout] = useState(null);
-  const aboutAvailable = state.recommendationPicks.some(
-    (pick) => pick.anime.id === about,
-  );
+  const aboutAvailable = picks.some((pick) => pick.anime.id === about);
   const aboutReaction = state.reactions[about]?.action;
   useEffect(() => {
     if (!aboutAvailable || aboutReaction) setAbout(null);
@@ -47,9 +56,13 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
     state.preferences.favoriteGenres.length > 0 ||
     [...taste.records.values()].some((r) => r.weight !== 0);
   // Keep this batch and its numbering stable until Refresh picks. Undo re-enables a row.
-  const picks = state.recommendationPicks || [];
   // Open the first pick initially; null means the user explicitly collapsed it.
-  const openedId = opened === undefined ? picks[0]?.anime.id : opened;
+  const openedId =
+    opened === null
+      ? null
+      : picks.some((p) => p.anime.id === opened)
+        ? opened
+        : picks[0]?.anime.id;
   return (
     <section
       className="recommendations-page"
