@@ -114,7 +114,11 @@ export function createAnimeStore({
 
   // Every published snapshot has a new identity, as React's subscription API requires.
   function update(patch) {
-    state = { ...state, ...patch };
+    state = {
+      ...state,
+      ...patch,
+      ...(patch.busy === false ? { busyMessage: "" } : {}),
+    };
     listeners.forEach((listener) => listener());
   }
   const notify = (message) => update({ message });
@@ -138,14 +142,11 @@ export function createAnimeStore({
                 "X-CSRF-Token": state.session.csrf,
               },
           body: read ? undefined : JSON.stringify(data),
-          // A hung read must release the loading UI. Server requests have their own deadline.
-          ...(read
-            ? {
-                signal: AbortSignal.timeout(
-                  url.startsWith("/api/taste") ? 2500 : 45000,
-                ),
-              }
-            : {}),
+          // Bound writes too: a lost MAL response must not lock both feeds forever.
+          // Mutations are never retried automatically because the server may have applied them.
+          signal: AbortSignal.timeout(
+            url.startsWith("/api/taste") ? 2500 : 45000,
+          ),
         });
         if (!response.ok) {
           const error = new Error(result.error || "Request failed.");
@@ -610,7 +611,13 @@ export function createAnimeStore({
       notify("This anime has not aired yet. Save it to watch later instead.");
       return;
     }
-    update({ busy: true });
+    update({
+      busy: true,
+      busyMessage:
+        action === "watch" && state.settings.autoAdd && state.session.connected
+          ? "Saving to your watchlist and MyAnimeList…"
+          : "Saving your choice…",
+    });
     const entry = {
       anime,
       before: state.reactions[anime.id],
@@ -738,7 +745,7 @@ export function createAnimeStore({
       );
       return;
     }
-    update({ busy: true });
+    update({ busy: true, busyMessage: "Undoing your choice…" });
     history.splice(index, 1);
     let message = entry.skip ? "Skip undone." : "Reaction undone.";
     if (entry.receipt) {
@@ -950,33 +957,49 @@ export function createAnimeStore({
       let checked = 0;
       let eligibleCount = 0;
       update({ recommendationProgress: 0 });
-      for (const { anime } of ranked) {
-        try {
-          const full = state.preview ? anime : await animeDetails(anime.id);
-          mergePool(full);
-          verified.push(full);
-          if (
-            isEligible(
-              full,
-              state.reactions,
-              state.list,
-              new Set(),
-              false,
-              state.preferences,
+      // Three concurrent detail reads shorten the network wait without flooding MAL.
+      // Settle a whole batch before continuing; retain ranking order regardless of
+      // response order, and never leave requests running after releasing busy.
+      let batchSize = 3;
+      for (
+        let offset = 0;
+        offset < ranked.length && eligibleCount < 25;
+        offset += batchSize
+      ) {
+        batchSize = Math.min(3, 25 - eligibleCount);
+        const batch = ranked.slice(offset, offset + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(({ anime }) =>
+            state.preview ? Promise.resolve(anime) : animeDetails(anime.id),
+          ),
+        );
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            const full = result.value;
+            mergePool(full);
+            verified.push(full);
+            if (
+              isEligible(
+                full,
+                state.reactions,
+                state.list,
+                new Set(),
+                false,
+                state.preferences,
+              )
             )
-          )
-            eligibleCount++;
-        } catch (error) {
-          failures++;
-          if ([401, 429, 502, 503, 504].includes(error.status)) throw error;
+              eligibleCount++;
+          } else {
+            failures++;
+            if ([401, 429, 502, 503, 504].includes(result.reason.status))
+              throw result.reason;
+          }
+          checked++;
         }
-        // Count settled detail checks, including failures. Publish the batch only at the end.
-        checked++;
         update({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
         });
-        if (eligibleCount >= 25) break;
-        if (checked % 6 === 0) await yieldToBrowser();
+        await yieldToBrowser();
       }
       update({
         recommendationPicks: rankRecommendations(verified, {

@@ -482,7 +482,9 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   );
   await store.loadRecommendations({ force: true });
   assert.ok(
-    store.getSnapshot().recommendationPicks.every((a) => a.anime.id !== 1),
+    store
+      .getSnapshot()
+      .recommendationPicks.every((a) => a.anime.id !== displayed.id),
   );
   fail = true;
   clock += BACKGROUND_REFRESH_MS + 1;
@@ -492,7 +494,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   assert.equal(reads, attempts, "Failures are throttled");
   assert.equal(
     store.getSnapshot().list[0].id,
-    1,
+    displayed.id,
     "Failed reads preserve the previous list",
   );
   assert.match(store.getSnapshot().message, /last synced list/);
@@ -1160,4 +1162,43 @@ test("Discover stops at exhausted sources and does not loop on a stuck upstream 
       assert.equal(store.getSnapshot().error, "");
     } else assert.match(store.getSnapshot().error, /invalid next page/);
   }
+});
+
+test("shortlist detail checks overlap with a three-request cap and reuse the loaded batch", async () => {
+  const catalog = Array.from({ length: 35 }, (_, i) => ({
+    ...anime,
+    id: i + 1,
+  }));
+  let active = 0,
+    peak = 0,
+    reads = 0;
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      if (url === "/api/session") return Response.json({ configured: true });
+      if (url.startsWith("/api/catalog"))
+        return Response.json({ data: catalog, nextOffset: null });
+      if (url.startsWith("/api/taste")) return Response.json({ profiles: {} });
+      if (url.startsWith("/api/anime/")) {
+        reads++;
+        peak = Math.max(peak, ++active);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        active--;
+        return Response.json(catalog[Number(url.split("/").pop()) - 1]);
+      }
+      throw Error(url);
+    },
+  });
+  await store.initialize();
+  await store.savePreferences({ favoriteGenres: ["Action"] });
+  const current = store.getSnapshot().current;
+  await store.loadRecommendations();
+  assert.equal(peak, 3);
+  assert.equal(active, 0);
+  const picks = store.getSnapshot().recommendationPicks;
+  const completedReads = reads;
+  await store.loadRecommendations();
+  assert.equal(reads, completedReads);
+  assert.equal(store.getSnapshot().recommendationPicks, picks);
+  assert.equal(store.getSnapshot().current, current);
 });

@@ -1,6 +1,6 @@
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useMemo, useState } from "react";
-import { LoadingIndicator } from "./LoadingIndicator.jsx";
+import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
 import { buildTaste, tasteReadiness } from "../lib/recommend.js";
@@ -156,6 +156,13 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                 </button>
               </div>
             )}
+          {state.busy && (
+            <LoadingIndicator
+              compact
+              label={pendingWorkLabel(state)}
+              detail="Your loaded picks will stay in place."
+            />
+          )}
           <div
             className="recommendations-stack"
             aria-label="Anime leaderboard: tiers 1 to 25"

@@ -1,8 +1,11 @@
 /** Progress measures completed work, never a timer pretending to know network speed. */
-export function LoadingIndicator({ progress, label, detail }) {
+export function LoadingIndicator({ progress, label, detail, compact = false }) {
   const measured = Number.isFinite(progress);
   return (
-    <div className="loading-state" aria-busy="true">
+    <div
+      className={`loading-state${compact ? " loading-state-compact" : ""}`}
+      aria-busy="true"
+    >
       <div
         className="loading-ring"
         role="progressbar"
@@ -24,4 +27,11 @@ export function LoadingIndicator({ progress, label, detail }) {
       <p>{detail}</p>
     </div>
   );
+}
+
+/** Describe the actual shared task when the other feed already has a pick. */
+export function pendingWorkLabel(state) {
+  if (state.discoveryLoading) return "Finding your next Discover pick…";
+  if (state.recommendationsLoading) return "Calculating your recommendations…";
+  return state.busyMessage || "Saving your changes…";
 }

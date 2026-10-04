@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
-import { LoadingIndicator } from "./components/LoadingIndicator.jsx";
+import {
+  LoadingIndicator,
+  pendingWorkLabel,
+} from "./components/LoadingIndicator.jsx";
 import { Recommendations } from "./components/Recommendations.jsx";
 import { Watchlist } from "./components/Watchlist.jsx";
 import { combinedWatchlist } from "./lib/watchlist.js";
@@ -283,7 +286,7 @@ export function App({ store }) {
             <div className="feed-top">
               <span className="reason">
                 <Icon name="shuffle" />
-                {state.busy
+                {state.discoveryLoading
                   ? "Finding your next anime…"
                   : state.reason || "Find your next anime"}
               </span>
@@ -302,41 +305,50 @@ export function App({ store }) {
                 }
               />
             ) : state.current ? (
-              <div className={`cards-layout ${details ? "expanded" : ""}`}>
-                <AnimeCard
-                  key={state.current.id}
-                  anime={state.current}
-                  selectedGenres={state.preferences.favoriteGenres}
-                  onPreferences={() => setDialog("preferences")}
-                  busy={state.busy}
-                  reactionDisabled={
-                    !!state.reactions[state.current.id] ||
-                    state.list.some((a) => a.id === state.current.id)
-                  }
-                  selectionNote={
-                    state.reactions[state.current.id]
-                      ? "You’ve already made a choice for this anime. Skip to continue."
-                      : state.list.some((a) => a.id === state.current.id)
-                        ? "This anime is now on your MyAnimeList. Skip to continue."
-                        : ""
-                  }
-                  canUndo={state.canUndo}
-                  detailsOpen={details}
-                  onDetails={() => setDetails((value) => !value)}
-                  onReact={store.react}
-                  onSkip={store.skip}
-                  onUndo={store.undo}
-                  dynamic={state.settings.dynamic}
-                />
-                {details && (
-                  <AnimeDetails
-                    responsive
-                    anime={state.current}
-                    reason={state.detailReason || state.reason}
-                    onClose={() => setDetails(false)}
+              <>
+                {state.busy && (
+                  <LoadingIndicator
+                    compact
+                    label={pendingWorkLabel(state)}
+                    detail="Your current pick will stay here."
                   />
                 )}
-              </div>
+                <div className={`cards-layout ${details ? "expanded" : ""}`}>
+                  <AnimeCard
+                    key={state.current.id}
+                    anime={state.current}
+                    selectedGenres={state.preferences.favoriteGenres}
+                    onPreferences={() => setDialog("preferences")}
+                    busy={state.busy}
+                    reactionDisabled={
+                      !!state.reactions[state.current.id] ||
+                      state.list.some((a) => a.id === state.current.id)
+                    }
+                    selectionNote={
+                      state.reactions[state.current.id]
+                        ? "You’ve already made a choice for this anime. Skip to continue."
+                        : state.list.some((a) => a.id === state.current.id)
+                          ? "This anime is now on your MyAnimeList. Skip to continue."
+                          : ""
+                    }
+                    canUndo={state.canUndo}
+                    detailsOpen={details}
+                    onDetails={() => setDetails((value) => !value)}
+                    onReact={store.react}
+                    onSkip={store.skip}
+                    onUndo={store.undo}
+                    dynamic={state.settings.dynamic}
+                  />
+                  {details && (
+                    <AnimeDetails
+                      responsive
+                      anime={state.current}
+                      reason={state.detailReason || state.reason}
+                      onClose={() => setDetails(false)}
+                    />
+                  )}
+                </div>
+              </>
             ) : (
               <div className="empty">
                 <Icon name="shuffle" />
