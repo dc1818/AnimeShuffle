@@ -139,6 +139,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       p.formats.length ||
       p.lengths.length ||
       p.finishedOnly ||
+      p.includeNonCanonMovies ||
       !p.includeUnknown ||
       (p.childrenTitles && p.childrenTitles !== "hide") ||
       state.settings.autoAdd,
@@ -289,6 +290,31 @@ export function ViewingPreferences({ state, store, onComplete }) {
           }
         />
       </div>
+      <fieldset className="preference-group" disabled={pending || state.busy}>
+        <legend>Movie continuity</legend>
+        <div className="setting-row">
+          <div>
+            <strong>Include non-canon movies</strong>
+            <p>
+              Off hides movies identified as outside their main story
+              continuity. Movies with unknown continuity can still appear;
+              MyAnimeList does not label every movie.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Include non-canon movies"
+            checked={value.includeNonCanonMovies === true}
+            onChange={(event) =>
+              setValue((current) => ({
+                ...current,
+                includeNonCanonMovies: event.target.checked,
+              }))
+            }
+          />
+        </div>
+      </fieldset>
       <div className="setting-row">
         <div>
           <strong>Finished shows only</strong>

@@ -101,6 +101,7 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
       finishedOnly: false,
       includeUnknown: false,
       childrenTitles: "hide",
+      includeNonCanonMovies: false,
     },
   );
 });
@@ -180,4 +181,16 @@ test("viewing genres restrict both feeds with any-match semantics and Any genre 
     }).length,
     3,
   );
+});
+
+test("Experimental aliases preserve canonical MAL matching and OR genre filtering", () => {
+  const preferences = normalizePreferences({
+    favoriteGenres: ["Experimental", "Avant Garde", "Action"],
+  });
+  assert.deepEqual(preferences.favoriteGenres, ["Avant Garde", "Action"]);
+  const pool = [
+    anime(1, { genres: ["Romance"] }),
+    anime(2, { genres: ["Avant Garde"] }),
+  ];
+  assert.equal(chooseNext(pool, { preferences }).anime.id, 2);
 });

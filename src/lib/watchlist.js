@@ -1,3 +1,4 @@
+import { genreLabel, canonicalGenre } from "./genres.js";
 import {
   matchesTitle,
   titleFields,
@@ -119,7 +120,7 @@ export function watchlistText(entries, label = "Watchlist") {
     entries
       .map(
         ({ anime, addedAt }, i) =>
-          `${i + 1}. ${primaryTitle(anime)}${englishTitle(anime) ? " — " + englishTitle(anime) : ""}\n${releaseLabel(anime)} · ${runtimeLabel(anime)}\nGenres: ${(anime.genres || []).join(", ") || "Unknown"}\nAdded: ${addedAt ? new Date(addedAt).toISOString().slice(0, 10) : "Unknown"}\nhttps://myanimelist.net/anime/${anime.id}`,
+          `${i + 1}. ${primaryTitle(anime)}${englishTitle(anime) ? " — " + englishTitle(anime) : ""}\n${releaseLabel(anime)} · ${runtimeLabel(anime)}\nGenres: ${(anime.genres || []).map(genreLabel).join(", ") || "Unknown"}\nAdded: ${addedAt ? new Date(addedAt).toISOString().slice(0, 10) : "Unknown"}\nhttps://myanimelist.net/anime/${anime.id}`,
       )
       .join("\n\n") +
     "\n"
@@ -198,7 +199,7 @@ export function parseWatchlistBackup(text) {
           ? a.genres
               .filter((g) => typeof g === "string")
               .slice(0, 20)
-              .map((g) => g.slice(0, 60))
+              .map((g) => canonicalGenre(g.slice(0, 60)))
           : [],
         image:
           typeof a.image === "string" &&
@@ -312,7 +313,8 @@ export function parseWatchlistImport(text) {
       anime: {
         id: Number(id[1]),
         title: heading[2],
-        genres: genres === "Unknown" ? [] : genres.split(", "),
+        genres:
+          genres === "Unknown" ? [] : genres.split(", ").map(canonicalGenre),
         status: statuses[status[1]],
       },
     };

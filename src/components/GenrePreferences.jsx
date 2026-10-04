@@ -1,3 +1,4 @@
+import { genreLabel } from "../lib/genres.js";
 import { GENRES } from "../lib/preferences.js";
 
 /** An empty selection removes the explicit genre filter, keeping learned taste. */
@@ -6,7 +7,19 @@ export function GenrePreferences({ value, setValue, disabled }) {
   return (
     <fieldset className="preference-group" disabled={disabled}>
       <legend>What genres do you like?</legend>
-      <p>Show anime from any of these genres, or choose Any genre.</p>
+      <p>
+        This filters Discover and Recommendations: only anime matching at least
+        one selected genre will appear. Choose Any genre to remove the
+        restriction.
+      </p>
+      {selected.length > 0 && (
+        <p className="genre-focus" role="status">
+          <span>
+            Only <strong>{selected.map(genreLabel).join(", ")}</strong> anime
+            will appear in new picks after you save these preferences.
+          </span>
+        </p>
+      )}
       <div className="genre-choices">
         <button
           className="any-choice"
@@ -31,7 +44,7 @@ export function GenrePreferences({ value, setValue, disabled }) {
               }))
             }
           >
-            {genre}
+            {genreLabel(genre)}
           </button>
         ))}
       </div>
@@ -44,8 +57,9 @@ export function GenreFocus({ genres = [], onChange }) {
   return (
     <div className="genre-focus" aria-label="Current genre preferences">
       <span>
-        Only showing anime in: <strong>{genres.join(", ")}</strong>, based on
-        your viewing preferences.
+        Only showing anime in:{" "}
+        <strong>{genres.map(genreLabel).join(", ")}</strong>, based on your
+        viewing preferences.
       </span>
       {onChange && (
         <button className="genre-change" onClick={onChange}>

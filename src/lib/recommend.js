@@ -1,3 +1,4 @@
+import { isNonCanonMovie } from "./movie-continuity.js";
 import { primaryTitle, englishTitle } from "./titles.js";
 import { explainPick, storyConnection } from "./pick-explanation.js";
 import { trainContentModel, terms } from "./content-model.js";
@@ -263,6 +264,7 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
     )
       return false;
     if (!allowChildren && isAudienceFilteredTitle(a)) return false;
+    if (!initial.includeNonCanonMovies && isNonCanonMovie(a)) return false;
     // Selected viewing genres match any one genre, not every selected genre.
     if (
       initial.favoriteGenres.length &&

@@ -1,3 +1,4 @@
+import { genreLabel } from "../lib/genres.js";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useState } from "react";
 import { GenrePreferences } from "./GenrePreferences.jsx";
@@ -141,7 +142,7 @@ export function TasteSetup({
                     <strong>
                       <AnimeTitle anime={a} />
                     </strong>
-                    <small>{a.genres?.join(" · ")}</small>
+                    <small>{a.genres?.map(genreLabel).join(" · ")}</small>
                   </span>
                 </button>
               </li>

@@ -1,3 +1,4 @@
+import { genreLabel } from "../lib/genres.js";
 import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
@@ -162,7 +163,7 @@ export function AnimeCard({
         <div className="genres">
           {anime.genres?.map((genre) => (
             <span className="genre" key={genre}>
-              {genre}
+              {genreLabel(genre)}
             </span>
           ))}
         </div>

@@ -1,3 +1,4 @@
+import { canonicalGenre } from "./genres.js";
 import { titleFields } from "./titles.js";
 // Selected genres guide ranking and restrict Discover/Recommendations.
 export const GENRES = [
@@ -73,6 +74,7 @@ export const defaultPreferences = () => ({
   finishedOnly: false,
   includeUnknown: true,
   childrenTitles: "hide",
+  includeNonCanonMovies: false,
 });
 
 /** Shared by client and server; discard unknown keys rather than persisting arbitrary input. */
@@ -86,7 +88,13 @@ export function normalizePreferences(value = {}) {
         ]
       : [];
   const favoriteGenres = Array.isArray(value?.favoriteGenres)
-    ? [...new Set(value.favoriteGenres.filter((g) => GENRES.includes(g)))]
+    ? [
+        ...new Set(
+          value.favoriteGenres
+            .map(canonicalGenre)
+            .filter((g) => GENRES.includes(g)),
+        ),
+      ]
     : [];
   const favoriteAnime = Array.isArray(value?.favoriteAnime)
     ? [
@@ -108,7 +116,7 @@ export function normalizePreferences(value = {}) {
                   ? a.genres
                       .filter((g) => typeof g === "string")
                       .slice(0, 20)
-                      .map((g) => g.slice(0, 60))
+                      .map((g) => canonicalGenre(g.slice(0, 60)))
                   : [],
                 format:
                   typeof a.format === "string"
@@ -127,6 +135,7 @@ export function normalizePreferences(value = {}) {
       ].slice(0, 3)
     : [];
   return {
+    includeNonCanonMovies: value?.includeNonCanonMovies === true,
     favoriteGenres,
     favoriteAnime,
     formats: clean(value?.formats, FORMAT_OPTIONS),

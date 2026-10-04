@@ -1,3 +1,4 @@
+import { genreLabel } from "../lib/genres.js";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { primaryTitle, englishTitle } from "../lib/titles.js";
 import { useEffect, useRef, useState } from "react";
@@ -158,7 +159,9 @@ export function Watchlist({ state, store, onDiscover }) {
             ]
               .sort()
               .map((g) => (
-                <option key={g}>{g}</option>
+                <option key={g} value={g}>
+                  {genreLabel(g)}
+                </option>
               ))}
           </select>
         </label>
@@ -365,7 +368,7 @@ export function Watchlist({ state, store, onDiscover }) {
               <h3>
                 <AnimeTitle anime={anime} />
               </h3>
-              <p>{anime.genres?.slice(0, 3).join(" · ")}</p>
+              <p>{anime.genres?.slice(0, 3).map(genreLabel).join(" · ")}</p>
               <p>
                 {releaseLabel(anime)} · {runtimeLabel(anime)}
               </p>

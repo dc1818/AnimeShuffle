@@ -1,3 +1,4 @@
+import { genreLabel } from "./genres.js";
 import { reviewTraits } from "./taste-traits.js";
 import {
   storyAspects as evidence,
@@ -259,10 +260,11 @@ export function explainPick(
       if (!mentioned.has(related.record.anime.id))
         parts.push(personalConnection(related.record));
       parts.push(
-        `Its ${join(related.shared)} mix is another reason it may suit you.`,
+        `Its ${join(related.shared.map(genreLabel))} mix is another reason it may suit you.`,
       );
       mentioned.add(related.record.anime.id);
-    } else parts.push(`It fits your interest in ${join(genres)}.`);
+    } else
+      parts.push(`It fits your interest in ${join(genres.map(genreLabel))}.`);
   }
   const studios = contributing("studio");
   if (studios.length && analysis.groups.studio > 0.00001) {

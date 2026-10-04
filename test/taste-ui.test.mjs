@@ -177,6 +177,34 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
         .click(),
     );
     assert.deepEqual(saved[0].favoriteGenres, ["Drama"]);
+    assert.match(document.body.textContent, /only anime matching at least/);
+    assert.match(
+      document.querySelector('[role="status"]').textContent,
+      /Only Drama anime/,
+    );
+    assert.ok(!document.body.textContent.includes("Avant Garde"));
+    const movieSwitch = document.querySelector(
+      '[aria-label="Include non-canon movies"]',
+    );
+    assert.equal(movieSwitch.checked, false);
+    assert.equal(
+      movieSwitch.closest("fieldset").querySelector("legend").textContent,
+      "Movie continuity",
+    );
+    await act(async () => movieSwitch.click());
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Experimental")
+        .click(),
+    );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Save preferences")
+        .click(),
+    );
+    assert.equal(saved[0].includeNonCanonMovies, true);
+    assert.deepEqual(saved[0].favoriteGenres, ["Drama", "Avant Garde"]);
+
     await act(async () =>
       root.render(
         React.createElement(ViewingPreferences, {
