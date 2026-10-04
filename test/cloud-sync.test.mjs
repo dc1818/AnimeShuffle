@@ -118,3 +118,35 @@ test("a slow background snapshot cannot erase a reaction acknowledged during the
   );
   assert.deepEqual(remote.reactions[1], reaction);
 });
+
+test("more than 100 queued account reactions are all flushed in bounded batches", async () => {
+  const batches = [];
+  let revision = 0;
+  const saved = {};
+  const sync = createCloudSync({
+    storage: memory(),
+    key: "many",
+    onStatus() {},
+    onRemote() {},
+    api: async (_url, body) => {
+      if (!body) return { revision, reactions: saved, settings: {} };
+      assert.equal(body.revision, revision);
+      batches.push(body.changes.length);
+      for (const { id, reaction } of body.changes) saved[id] = reaction;
+      return { revision: ++revision };
+    },
+  });
+  await sync.initialize();
+  sync.queue({
+    settings: {},
+    reactions: Object.fromEntries(
+      Array.from({ length: 250 }, (_, i) => [
+        i + 1,
+        { action: "watch", anime: { id: i + 1 }, at: i },
+      ]),
+    ),
+  });
+  await sync.flush();
+  assert.deepEqual(batches, [100, 100, 50]);
+  assert.equal(Object.keys(saved).length, 250);
+});

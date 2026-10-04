@@ -1,3 +1,4 @@
+import { createBrowserBackup, browserLocalStorage } from "./browser-storage.js";
 import { matchesTitle } from "./titles.js";
 import { BACKGROUND_REFRESH_MS } from "./refresh-policy.js";
 import { createDiagnostics } from "./diagnostics.js";
@@ -56,7 +57,8 @@ function sameReaction(a, b) {
 
 export function createAnimeStore({
   request = fetch,
-  storage = localStorage,
+  storage = browserLocalStorage(),
+  browserBackup = createBrowserBackup(),
   staticMode = false,
   now = Date.now,
   diagnostics = createDiagnostics({ storage }),
@@ -88,6 +90,7 @@ export function createAnimeStore({
     onboardingComplete: false,
     settings: { autoAdd: false, dynamic: true },
     syncError: "",
+    storageError: "",
     malSyncProgress: null,
     malSyncError: "",
     message: "",
@@ -170,29 +173,79 @@ export function createAnimeStore({
   }
   // Awaiting an already-cached promise does not give the browser a paint opportunity.
   const yieldToBrowser = () => new Promise((resolve) => setTimeout(resolve, 0));
+  let saveSequence = 0;
+  let lastSavedAt = 0;
+  // Serialize backup transactions, including writes caused by background account reads.
+  let backupWrites = Promise.resolve();
   function persist(sync = true) {
+    const sequence = ++saveSequence;
+    const key = "anime-shuffle:" + profileKey;
+    const snapshot = {
+      reactions: state.reactions,
+      settings: state.settings,
+      preferences: state.preferences,
+      onboardingComplete: state.onboardingComplete,
+      savedAt: (lastSavedAt = Math.max(Date.now(), lastSavedAt + 1)),
+    };
+    let localSaved = false;
     try {
-      storage.setItem(
-        "anime-shuffle:" + profileKey,
-        JSON.stringify({
-          reactions: state.reactions,
-          settings: state.settings,
-          preferences: state.preferences,
-          onboardingComplete: state.onboardingComplete,
-        }),
-      );
+      storage.setItem(key, JSON.stringify(snapshot));
+      localSaved = true;
     } catch {
-      notify("Browser storage is full. Your latest changes may not be saved.");
+      /* IndexedDB can still persist when localStorage is full or blocked. */
     }
     if (sync) cloudSync?.queue(state);
+    const finish = (saved) => {
+      if (sequence === saveSequence)
+        update({
+          storageError: saved
+            ? ""
+            : "Your latest changes could not be saved in this browser. Keep this tab open and retry saving before you leave.",
+        });
+    };
+    if (!browserBackup) {
+      finish(localSaved);
+      return Promise.resolve(localSaved);
+    }
+    if (!localSaved)
+      update({ storageError: "Saving your changes to browser storage…" });
+    const pending = backupWrites.then(() => browserBackup.write(key, snapshot));
+    backupWrites = pending.catch(() => {});
+    return pending.then(
+      () => {
+        finish(true);
+        return true;
+      },
+      () => {
+        finish(localSaved);
+        return localSaved;
+      },
+    );
   }
-  function loadLocal() {
+  async function loadLocal() {
     let stored = {};
+    let localReadFailed = false;
+    const key = "anime-shuffle:" + profileKey;
     try {
-      stored =
-        JSON.parse(storage.getItem("anime-shuffle:" + profileKey) || "{}") ||
-        {};
-    } catch {}
+      stored = JSON.parse(storage.getItem(key) || "{}") || {};
+    } catch {
+      localReadFailed = true;
+    }
+    if (browserBackup) {
+      try {
+        await backupWrites;
+        const backup = await browserBackup.read(key);
+        if (backup && (!stored.savedAt || backup.savedAt > stored.savedAt))
+          stored = backup;
+      } catch {
+        if (localReadFailed || !Object.keys(stored).length)
+          update({
+            storageError:
+              "Saved browser progress could not be read. Reload before making new choices to avoid replacing it.",
+          });
+      }
+    }
+    lastSavedAt = Number(stored.savedAt) || 0;
     update({
       reactions: stored.reactions || {},
       preferences: normalizePreferences(stored.preferences),
@@ -639,7 +692,7 @@ export function createAnimeStore({
       },
     });
     entry.after = state.reactions[anime.id];
-    persist();
+    await persist();
     try {
       if (
         action === "watch" &&
@@ -844,7 +897,7 @@ export function createAnimeStore({
         notify(error.message);
       }
     }
-    loadLocal();
+    await loadLocal();
     if (session.account)
       update({
         preferences: normalizePreferences(session.preferences),
@@ -1068,6 +1121,29 @@ export function createAnimeStore({
     },
     refreshMalIfStale,
     loadRecommendations,
+    async inspectPersistence() {
+      const key = "anime-shuffle:" + profileKey;
+      let localCount = null,
+        backupCount = null;
+      try {
+        localCount = Object.keys(
+          JSON.parse(storage.getItem(key) || "{}").reactions || {},
+        ).length;
+      } catch {}
+      try {
+        backupCount = Object.keys(
+          (await browserBackup?.read(key))?.reactions || {},
+        ).length;
+      } catch {}
+      return {
+        mode: state.session.account ? "account" : "guest",
+        currentReactions: Object.keys(state.reactions).length,
+        localStorageReactions: localCount,
+        indexedDBReactions: browserBackup ? backupCount : null,
+        storageError: state.storageError,
+        syncError: state.syncError,
+      };
+    },
     inspectDiscovery() {
       return {
         lastSearch: lastDiscoverySearch ? { ...lastDiscoverySearch } : null,
@@ -1180,6 +1256,7 @@ export function createAnimeStore({
     undo,
     skip,
     notify,
+    retryBrowserSave: () => persist(false),
     dismissMessage: () => update({ message: "" }),
     retry: () => !state.busy && next(),
     revisit: () => {

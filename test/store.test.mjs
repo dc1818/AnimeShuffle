@@ -845,6 +845,7 @@ test("background account reads leave loaded cards interactive and do not unlock 
     "watch",
     "Click is accepted while polling",
   );
+  await reaction; // Browser persistence settles independently of the blocked account read.
   assert.equal(
     store.getSnapshot().busy,
     false,

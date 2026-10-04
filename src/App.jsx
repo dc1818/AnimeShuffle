@@ -186,6 +186,18 @@ export function App({ store }) {
           </button>
         </div>
       )}
+      {state.storageError && (
+        <div className="sync-warning" role="alert">
+          {state.storageError}
+          <button
+            className="quiet"
+            disabled={state.busy}
+            onClick={store.retryBrowserSave}
+          >
+            Retry browser save
+          </button>
+        </div>
+      )}
       {state.syncError && (
         <div className="sync-warning" role="status">
           {state.syncError}{" "}

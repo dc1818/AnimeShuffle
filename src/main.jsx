@@ -1,3 +1,4 @@
+import { browserLocalStorage } from "./lib/browser-storage.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.jsx";
@@ -7,7 +8,7 @@ import { createAnimeStore } from "./lib/store.js";
 // A single store survives component remounts. Secrets and OAuth tokens remain
 // in server.mjs; this entry point only calls our same-origin API routes.
 const diagnostics = createDiagnostics({
-  storage: localStorage,
+  storage: browserLocalStorage(),
   enabled: new URLSearchParams(location.search).get("debugPerf") === "1",
 });
 // Read-only developer helpers; these never expose accounts, cookies or API credentials.
@@ -21,6 +22,11 @@ const store = createAnimeStore({
   diagnostics,
   staticMode: document.documentElement.dataset.hosting === "pages",
 });
+window.animeShuffleDebug.storage = async () => {
+  const result = await store.inspectPersistence();
+  console.log("[Anime Shuffle storage]", result);
+  return result;
+};
 window.animeShuffleDebug.discovery = () => {
   const result = store.inspectDiscovery();
   console.log("[Anime Shuffle discovery]", result);
