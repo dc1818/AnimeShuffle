@@ -63,6 +63,11 @@ export function createAnimeStore({
   now = Date.now,
   diagnostics = createDiagnostics({ storage }),
 } = {}) {
+  // Serialize account writes without borrowing the feed's global busy state.
+  let preferenceWrites = Promise.resolve();
+  let preferenceVersion = 0;
+  let preferencesUnsynced = false;
+  let viewingPreferencesBefore = null;
   let state = {
     session: {},
     profile: null,
@@ -852,6 +857,9 @@ export function createAnimeStore({
   }
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
+    preferenceVersion++;
+    preferencesUnsynced = false;
+    viewingPreferencesBefore = null;
     lastMalCheck = -Infinity;
     lastAccountCheck = -Infinity;
     cloudSync?.dispose();
@@ -909,7 +917,9 @@ export function createAnimeStore({
         storage,
         key: "anime-shuffle:" + profileKey + ":pending-sync",
         onRemote(remote) {
-          const preferences = normalizePreferences(remote.preferences);
+          const preferences = preferencesUnsynced
+            ? state.preferences
+            : normalizePreferences(remote.preferences);
           const reactionsChanged = !sameData(state.reactions, remote.reactions);
           const preferencesChanged = !sameData(state.preferences, preferences);
           update({
@@ -1218,6 +1228,50 @@ export function createAnimeStore({
       } finally {
         update({ busy: false });
       }
+    },
+    async finishViewingPreferences() {
+      if (state.busy || !viewingPreferencesBefore) return;
+      const before = viewingPreferencesBefore;
+      viewingPreferencesBefore = null;
+      if (sameData(before, state.preferences)) return;
+      const eligible = (preferences) =>
+        isEligible(
+          state.current,
+          state.reactions,
+          state.list,
+          new Set(),
+          false,
+          preferences,
+        );
+      // Close first; only replace a card made ineligible by these edits.
+      if (!state.current || (eligible(before) && !eligible(state.preferences)))
+        await next();
+    },
+    async saveViewingPreferences(input) {
+      const preferences = normalizePreferences(input);
+      const version = ++preferenceVersion;
+      const accountId = state.session.account?.id;
+      preferencesUnsynced = true;
+      // Keep the loaded card and shortlist intact while the preferences dialog is open.
+      viewingPreferencesBefore ??= state.preferences;
+      update({ preferences });
+      skipped.clear();
+      const localSave = persist(false);
+      const write = preferenceWrites
+        .catch(() => {})
+        .then(async () => {
+          if (state.session.account?.id !== accountId)
+            throw new Error("Your account changed. Please reopen preferences.");
+          if (accountId) await api("/api/account/preferences", { preferences });
+          const stored = await localSave;
+          if (!stored && !accountId)
+            throw new Error(
+              "Your preferences could not be saved in this browser. Please retry.",
+            );
+          if (version === preferenceVersion) preferencesUnsynced = false;
+        });
+      preferenceWrites = write;
+      return write;
     },
     async savePreferences(input, settings = {}) {
       if (state.busy) throw new Error("Please wait for the current request.");

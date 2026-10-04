@@ -152,6 +152,9 @@ export function App({ store }) {
     state.list,
     state.reactions,
   ]);
+  useEffect(() => {
+    if (!dialog && !state.busy) void store.finishViewingPreferences?.();
+  }, [dialog, state.busy, store]);
   function closeDialog() {
     // Closing the welcome screen continues as a guest; it does not skip preferences.
     if (!store.getSnapshot().onboardingComplete) {

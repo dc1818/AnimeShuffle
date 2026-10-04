@@ -1,5 +1,5 @@
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GenrePreferences } from "./GenrePreferences.jsx";
 import { TasteSetup } from "./TasteSetup.jsx";
 import {
@@ -134,6 +134,12 @@ export function ViewingPreferences({ state, store, onComplete }) {
   const valueRef = useRef(value);
   const saving = useRef(false);
   const [saved, setSaved] = useState(false);
+  const saveVersion = useRef(0);
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 2200);
+    return () => clearTimeout(timer);
+  }, [saved]);
   const [hasChosen, setHasChosen] = useState(() => {
     const p = state.preferences;
     return Boolean(
@@ -150,7 +156,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
   });
   // Choosing an explicit “Anything”/“Any length” also counts as user input.
   function setValue(change) {
-    if (saving.current || state.busy) return;
+    if (initialSetup && (saving.current || state.busy)) return;
     setHasChosen(true);
     const next =
       typeof change === "function" ? change(valueRef.current) : change;
@@ -171,6 +177,18 @@ export function ViewingPreferences({ state, store, onComplete }) {
     }));
   }
   async function save(preferences, closeWhenDone = true) {
+    if (!initialSetup) {
+      const version = ++saveVersion.current;
+      setSaved(false);
+      setError("");
+      try {
+        await store.saveViewingPreferences(preferences);
+        if (version === saveVersion.current) setSaved(true);
+      } catch (failure) {
+        if (version === saveVersion.current) setError(failure.message);
+      }
+      return;
+    }
     if (saving.current || state.busy) return;
     saving.current = true;
     setSaved(false);
@@ -196,16 +214,10 @@ export function ViewingPreferences({ state, store, onComplete }) {
       </span>
       <h2>What are you in the mood for?</h2>
       <p>Pick as many as you like. You can change these in Settings anytime.</p>
-      {!initialSetup && (
-        <p className="preference-save-status" role="status" aria-live="polite">
-          {pending
-            ? "Saving…"
-            : error
-              ? "Changes could not be saved."
-              : saved
-                ? "Saved"
-                : "Changes save automatically."}
-        </p>
+      {!initialSetup && saved && (
+        <div className="preference-save-toast" role="status" aria-live="polite">
+          Preferences saved
+        </div>
       )}
       {initialSetup && state.session.connected && (
         <>
@@ -219,26 +231,29 @@ export function ViewingPreferences({ state, store, onComplete }) {
               setHasChosen(true);
               setAutoAdd(enabled);
             }}
-            disabled={pending || state.busy}
+            disabled={initialSetup && (pending || state.busy)}
           />
         </>
       )}
       <GenrePreferences
         value={value}
         setValue={setValue}
-        disabled={pending || state.busy}
+        disabled={initialSetup && (pending || state.busy)}
       />
       {showTasteSetup && (
         <TasteSetup
           value={value}
           setValue={setValue}
           store={store}
-          disabled={pending || state.busy}
+          disabled={initialSetup && (pending || state.busy)}
           preview={state.preview}
           showGenres={false}
         />
       )}
-      <fieldset className="preference-group" disabled={pending || state.busy}>
+      <fieldset
+        className="preference-group"
+        disabled={initialSetup && (pending || state.busy)}
+      >
         <legend>What would you like to watch?</legend>
         <button
           className="any-choice"
@@ -261,7 +276,10 @@ export function ViewingPreferences({ state, store, onComplete }) {
           ))}
         </div>
       </fieldset>
-      <fieldset className="preference-group" disabled={pending || state.busy}>
+      <fieldset
+        className="preference-group"
+        disabled={initialSetup && (pending || state.busy)}
+      >
         <legend>How long a series?</legend>
         <p className="preference-help">
           Movies and standalone specials aren't restricted by this choice.
@@ -305,7 +323,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
           role="switch"
           aria-label="Include children’s and all-ages anime"
           checked={value.childrenTitles === "include"}
-          disabled={pending || state.busy}
+          disabled={initialSetup && (pending || state.busy)}
           onChange={(event) =>
             setValue((current) => ({
               ...current,
@@ -314,7 +332,10 @@ export function ViewingPreferences({ state, store, onComplete }) {
           }
         />
       </div>
-      <fieldset className="preference-group" disabled={pending || state.busy}>
+      <fieldset
+        className="preference-group"
+        disabled={initialSetup && (pending || state.busy)}
+      >
         <legend>Movie continuity</legend>
         <div className="setting-row">
           <div>
@@ -349,7 +370,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
           role="switch"
           aria-label="Finished shows only"
           checked={value.finishedOnly}
-          disabled={pending || state.busy}
+          disabled={initialSetup && (pending || state.busy)}
           onChange={(event) =>
             setValue((current) => ({
               ...current,
@@ -368,7 +389,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
           role="switch"
           aria-label="Include unknown lengths or formats"
           checked={value.includeUnknown}
-          disabled={pending || state.busy}
+          disabled={initialSetup && (pending || state.busy)}
           onChange={(event) =>
             setValue((current) => ({
               ...current,
@@ -385,7 +406,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       {!initialSetup && error && (
         <button
           className="quiet"
-          disabled={pending || state.busy}
+          disabled={initialSetup && (pending || state.busy)}
           onClick={() => save(value, false)}
         >
           Retry
@@ -403,7 +424,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       {initialSetup && !hasChosen && (
         <button
           className="quiet"
-          disabled={pending || state.busy}
+          disabled={initialSetup && (pending || state.busy)}
           onClick={() => save(defaultPreferences())}
         >
           Surprise me — any anime

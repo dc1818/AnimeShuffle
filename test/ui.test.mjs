@@ -262,10 +262,15 @@ for (const staticMode of [false, true])
       );
       await act(async () => new Promise((resolve) => setTimeout(resolve, 30)));
       assert.equal(
-        document.querySelector(".preference-save-status").textContent,
-        "Saved",
+        document.querySelector(".preference-save-toast").textContent,
+        "Preferences saved",
       );
-      assert.equal(store.getSnapshot().current.format, "movie");
+      assert.equal(
+        store.getSnapshot().current.title,
+        "Cowboy Bebop",
+        "Saving filters must not replace the loaded card",
+      );
+      assert.deepEqual(store.getSnapshot().preferences.formats, ["movies"]);
       assert.ok(
         document
           .querySelector(".runtime-estimate")

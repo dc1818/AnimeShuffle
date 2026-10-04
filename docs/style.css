@@ -2495,9 +2495,20 @@ main.wide-main {
   }
 }
 
-/* Stable space keeps the preference controls still while save status changes. */
-.preference-save-status {
-  min-height: 1.5em;
+/* Inside the native dialog's top layer, anchored to the viewport without layout shifts. */
+.preference-save-toast {
+  position: fixed;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  pointer-events: none;
+  padding: 8px 14px;
+  border: 1px solid #52778b;
+  border-radius: 10px;
+  background: #17313ef5;
   color: #b5f3fa;
-  font-size: 0.85rem;
+  font-size: 13px;
+  box-shadow: 0 4px 18px #0004;
+  white-space: nowrap;
 }

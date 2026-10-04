@@ -97,7 +97,7 @@ export function Dialogs({
   if (kind === "preferences")
     return (
       <Dialog
-        busy={state.busy}
+        busy={!state.onboardingComplete && state.busy}
         dismissable={state.onboardingComplete}
         onClose={onClose}
       >
