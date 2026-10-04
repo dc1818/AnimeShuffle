@@ -1,3 +1,4 @@
+import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -124,6 +125,31 @@ for (const staticMode of [false, true])
       await act(async () => document.querySelector(".reaction.watch").click());
       assert.equal(store.getSnapshot().reactions[1].action, "watch");
       await click("Recommendations");
+      assert.match(
+        document.querySelector(".recommendations-page").textContent,
+        /1 \/ 50 reactions/,
+      );
+      assert.equal(store.getSnapshot().recommendationsReady, false);
+      await click("Discover");
+      await act(async () => {
+        seedRecommendationHistory(store);
+        store.notify("");
+      });
+      assert.ok(document.querySelector(".nav-new-badge"));
+      assert.match(
+        document.querySelector(".recommendations-unlock-toast").textContent,
+        /Recommendations unlocked/,
+      );
+      await act(async () =>
+        [...document.querySelectorAll("nav button")]
+          .find((b) => b.textContent.includes("Recommendations"))
+          .click(),
+      );
+      assert.equal(document.querySelector(".nav-new-badge"), null);
+      assert.equal(
+        document.querySelector(".recommendations-unlock-toast"),
+        null,
+      );
       // Saved picks no longer reappear in recommendations.
       // Discovery and recommendations intentionally yield to the browser. Wait
       // for the completed state instead of assuming a single React flush is enough.
@@ -226,7 +252,12 @@ for (const staticMode of [false, true])
         document.getElementById("anime-title").textContent,
         "Cowboy Bebop",
       );
-      assert.equal(Object.keys(store.getSnapshot().reactions).length, 0);
+      assert.equal(
+        Object.keys(store.getSnapshot().reactions).filter(
+          (id) => Number(id) < 9000000,
+        ).length,
+        0,
+      );
       for (const action of ["good", "bad", "nope"]) {
         await click("More about this anime");
         await act(async () =>
@@ -250,7 +281,12 @@ for (const staticMode of [false, true])
         document.getElementById("anime-title").textContent,
         "Cowboy Bebop",
       );
-      assert.equal(Object.keys(store.getSnapshot().reactions).length, 0);
+      assert.equal(
+        Object.keys(store.getSnapshot().reactions).filter(
+          (id) => Number(id) < 9000000,
+        ).length,
+        0,
+      );
       await act(async () =>
         document.querySelector('[aria-label="Open settings"]').click(),
       );

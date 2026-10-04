@@ -1,3 +1,4 @@
+import { recommendationsUnlocked } from "./lib/recommendation-access.js";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
@@ -30,6 +31,27 @@ export function App({ store }) {
     setDetails(false);
   }, [state.current?.id, state.discoveryLoading, view]);
   const [dialog, setDialog] = useState(null);
+  const unlocked = recommendationsUnlocked(state.reactions);
+  const [unlockNotice, setUnlockNotice] = useState(false);
+  useEffect(() => {
+    if (
+      state.ready &&
+      unlocked &&
+      !state.settings.recommendationsNotified &&
+      !state.settings.recommendationsVisited
+    ) {
+      setUnlockNotice(true);
+      store.announceRecommendationsUnlock?.();
+    }
+    if (!unlocked || view === "recommendations") setUnlockNotice(false);
+  }, [
+    state.ready,
+    unlocked,
+    state.settings.recommendationsNotified,
+    state.settings.recommendationsVisited,
+    view,
+    store,
+  ]);
   const [authError, setAuthError] = useState("");
   const onboardingShown = useRef(false);
   useEffect(() => {
@@ -244,6 +266,11 @@ export function App({ store }) {
                     ? "Watchlist"
                     : "Recommendations"}
               </span>
+              {name === "recommendations" &&
+                unlocked &&
+                !state.settings.recommendationsVisited && (
+                  <span className="nav-new-badge">New</span>
+                )}
               {name === "watchlist" && savedCount > 0 && (
                 <span className="count">{savedCount}</span>
               )}
@@ -452,6 +479,30 @@ export function App({ store }) {
               : "Live discovery · Guest"}
         </span>
       </footer>
+      {unlockNotice && unlocked && (
+        <div className="recommendations-unlock-toast" role="status">
+          <span>
+            <strong>Recommendations unlocked!</strong> You’ve reached 50
+            reactions. Check out your top recommendations.
+          </span>
+          <button
+            className="quiet"
+            onClick={() => {
+              setUnlockNotice(false);
+              setView("recommendations");
+            }}
+          >
+            View recommendations
+          </button>
+          <button
+            className="quiet"
+            aria-label="Dismiss recommendations notification"
+            onClick={() => setUnlockNotice(false)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {state.message && (
         <div id="toast" role="status" aria-live="polite">
           {state.message}

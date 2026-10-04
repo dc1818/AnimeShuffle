@@ -1,3 +1,4 @@
+import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BACKGROUND_REFRESH_MS } from "../src/lib/refresh-policy.js";
@@ -282,6 +283,7 @@ test("loading reports completed work and publishes recommendations as a complete
   );
   assert.equal(store.getSnapshot().discoveryLoading, false);
   snapshots.length = 0;
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const loading = snapshots.filter((s) => s.recommendationsLoading);
   assert.ok(loading.length > 0);
@@ -317,11 +319,13 @@ test("recommendations reuse discovery details and avoid unnecessary catalog page
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
   const discoveryId = store.getSnapshot().current.id;
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const first = { ...counts };
   assert.equal(store.getSnapshot().recommendationPicks.length, 25);
   assert.ok(first.details <= 26);
   assert.equal(first.catalog, 1);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.deepEqual(
     counts,
@@ -398,6 +402,7 @@ test("recommendations retrieve off-chart MAL neighbors while enforcing known-sho
   });
   await store.initialize();
   await store.savePreferences({});
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const ids = store.getSnapshot().recommendationPicks.map((p) => p.anime.id);
   assert.ok(ids.includes(900), "finds a title never present on catalog pages");
@@ -440,6 +445,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   });
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const picks = store.getSnapshot().recommendationPicks;
   assert.ok(picks.length > 0);
@@ -475,11 +481,13 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   await store.skip();
   assert.notEqual(store.getSnapshot().current?.id, displayed.id);
   assert.equal(store.getSnapshot().recommendationsReady, true);
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.ok(
     store.getSnapshot().recommendationPicks === picks,
     "A refreshed MAL list does not replace a loaded batch",
   );
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.ok(
     store
@@ -528,6 +536,7 @@ test("saving viewing filters updates Discover but keeps a loaded batch until exp
   });
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.ok(store.getSnapshot().recommendationPicks.length > 1);
   const original = store.getSnapshot().recommendationPicks;
@@ -541,8 +550,10 @@ test("saving viewing filters updates Discover but keeps a loaded batch until exp
   await store.savePreferences(filters);
   assert.equal(store.getSnapshot().current.id, 10);
   assert.equal(store.getSnapshot().recommendationsReady, true);
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.equal(store.getSnapshot().recommendationPicks, original);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.deepEqual(
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
@@ -550,6 +561,7 @@ test("saving viewing filters updates Discover but keeps a loaded batch until exp
   );
   await store.savePreferences({ ...filters, formats: ["movies"] });
   assert.equal(store.getSnapshot().current.id, 14);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.deepEqual(
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
@@ -628,6 +640,7 @@ test("account polling and preference changes preserve a loaded batch until expli
     },
   });
   await store.initialize();
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const picks = store.getSnapshot().recommendationPicks;
   assert.ok(picks.length);
@@ -652,8 +665,10 @@ test("account polling and preference changes preserve a loaded batch until expli
   };
   await store.syncAccount();
   assert.equal(store.getSnapshot().recommendationsReady, true);
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.equal(store.getSnapshot().recommendationPicks, picks);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   const refreshed = store.getSnapshot().recommendationPicks;
   await store.syncAccount();
@@ -736,6 +751,7 @@ test("populated recommendations never restart from changing MAL metadata or repe
   });
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.ok(store.getSnapshot().recommendationPicks.length);
   const originalPicks = store.getSnapshot().recommendationPicks;
@@ -758,6 +774,7 @@ test("populated recommendations never restart from changing MAL metadata or repe
       1,
       "Only the freshness request runs, with no new candidate requests",
     );
+    seedRecommendationHistory(store);
     await store.loadRecommendations();
     assert.equal(store.getSnapshot().recommendationsReady, true);
     assert.equal(
@@ -773,8 +790,10 @@ test("populated recommendations never restart from changing MAL metadata or repe
     "Background MAL checks never disable reaction buttons",
   );
   const before = network;
+  seedRecommendationHistory(store);
   await Promise.all([store.loadRecommendations(), store.loadRecommendations()]);
   assert.equal(network, before);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.equal(
     loadingStarts,
@@ -826,6 +845,7 @@ test("background account reads leave loaded cards interactive and do not unlock 
     },
   });
   await store.initialize();
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   delay = true;
   const before = reads;
@@ -938,6 +958,7 @@ test("per-card Undo reverses the requested vote and its own MAL receipt without 
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
   store.setSettings({ autoAdd: true });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const batch = store.getSnapshot().recommendationPicks;
   const current = store.getSnapshot().current;
@@ -971,6 +992,7 @@ test("per-card Undo reverses the requested vote and its own MAL receipt without 
     second.anime.id,
     "Seen recommendations stay excluded from Discover",
   );
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.ok(
     store
@@ -986,6 +1008,7 @@ test("all recommendation choices stay out of Discover and new shortlists; import
   await store.savePreferences({
     favoriteGenres: ["Action", "Drama", "Comedy", "Fantasy"],
   });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const batch = store.getSnapshot().recommendationPicks;
   assert.ok(batch.length >= 4);
@@ -1009,8 +1032,10 @@ test("all recommendation choices stay out of Discover and new shortlists; import
     }),
   );
   assert.equal(store.getSnapshot().recommendationPicks, batch);
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.equal(store.getSnapshot().recommendationPicks, batch);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.ok(
     store
@@ -1193,11 +1218,13 @@ test("shortlist detail checks overlap with a three-request cap and reuse the loa
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
   const current = store.getSnapshot().current;
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.equal(peak, 3);
   assert.equal(active, 0);
   const picks = store.getSnapshot().recommendationPicks;
   const completedReads = reads;
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.equal(reads, completedReads);
   assert.equal(store.getSnapshot().recommendationPicks, picks);

@@ -1,3 +1,4 @@
+import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import { createAnimeStore } from "../src/lib/store.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -435,14 +436,17 @@ test("fresh review snapshots affect manual refresh, while revisiting a loaded ba
   });
   await store.initialize();
   await store.savePreferences({ favoriteAnime: [seed] });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   const picks = store.getSnapshot().recommendationPicks;
   assert.equal(picks[0].anime.id, 1);
   const count = reads;
   swapped = true;
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.equal(store.getSnapshot().recommendationPicks, picks);
   assert.equal(reads, count);
+  seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.equal(store.getSnapshot().recommendationPicks[0].anime.id, 2);
   assert.equal(reads, count + 1);

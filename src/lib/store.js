@@ -1,3 +1,4 @@
+import { recommendationsUnlocked } from "./recommendation-access.js";
 import { createBrowserBackup, browserLocalStorage } from "./browser-storage.js";
 import { matchesTitle } from "./titles.js";
 import { BACKGROUND_REFRESH_MS } from "./refresh-policy.js";
@@ -975,7 +976,12 @@ export function createAnimeStore({
   }
   /** Fetch verified details for a bounded shortlist, never render unverified MAL list stubs. */
   async function loadRecommendations({ force = false } = {}) {
-    if (state.busy || !state.onboardingComplete) return;
+    if (
+      !recommendationsUnlocked(state.reactions) ||
+      state.busy ||
+      !state.onboardingComplete
+    )
+      return;
     if (
       !force &&
       (state.recommendationsReady || state.recommendationPicks.length)
@@ -1228,6 +1234,32 @@ export function createAnimeStore({
       } finally {
         update({ busy: false });
       }
+    },
+    announceRecommendationsUnlock() {
+      if (
+        !recommendationsUnlocked(state.reactions) ||
+        state.settings.recommendationsNotified
+      )
+        return;
+      update({
+        settings: { ...state.settings, recommendationsNotified: true },
+      });
+      void persist();
+    },
+    visitRecommendations() {
+      if (
+        !recommendationsUnlocked(state.reactions) ||
+        state.settings.recommendationsVisited
+      )
+        return;
+      update({
+        settings: {
+          ...state.settings,
+          recommendationsVisited: true,
+          recommendationsNotified: true,
+        },
+      });
+      void persist();
     },
     async finishViewingPreferences() {
       if (state.busy || !viewingPreferencesBefore) return;

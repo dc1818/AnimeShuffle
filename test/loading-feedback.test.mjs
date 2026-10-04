@@ -1,3 +1,4 @@
+import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
@@ -32,6 +33,7 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
     });
     await store.initialize();
     await store.savePreferences({ favoriteGenres: ["Action"] });
+    seedRecommendationHistory(store);
     await store.loadRecommendations();
     const original = store.getSnapshot();
     const current = original.current;

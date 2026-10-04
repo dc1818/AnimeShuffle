@@ -157,6 +157,12 @@ export function createCloudApp(
     return {
       autoAdd: value.autoAdd === true,
       dynamic: value.dynamic !== false,
+      ...(value.recommendationsNotified === true
+        ? { recommendationsNotified: true }
+        : {}),
+      ...(value.recommendationsVisited === true
+        ? { recommendationsVisited: true }
+        : {}),
     };
   }
   function accountInfo(row) {

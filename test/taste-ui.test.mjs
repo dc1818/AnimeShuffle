@@ -1,3 +1,4 @@
+import { unlockedReactions } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -391,7 +392,7 @@ test("recommendation details and page markup stay stable after equivalent backgr
     busy: false,
     onboardingComplete: true,
     preferences: { ...defaultPreferences(), favoriteGenres: ["Action"] },
-    reactions: {},
+    reactions: unlockedReactions(),
     list: [],
     recommendationsReady: true,
     recommendationPicks: [
@@ -433,7 +434,7 @@ test("recommendation details and page markup stay stable after equivalent backgr
     for (let i = 0; i < 5; i++) {
       state = {
         ...state,
-        reactions: {},
+        reactions: unlockedReactions(),
         list: [...state.list],
         recommendationPicks: [...state.recommendationPicks],
       };

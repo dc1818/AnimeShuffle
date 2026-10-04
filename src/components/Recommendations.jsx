@@ -1,3 +1,7 @@
+import {
+  reactionCount,
+  RECOMMENDATION_MINIMUM,
+} from "../lib/recommendation-access.js";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
@@ -7,6 +11,8 @@ import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover, onPreferences }) {
+  const count = reactionCount(state.reactions);
+  const unlocked = count >= RECOMMENDATION_MINIMUM;
   // Keep the batch stable, but a saved title belongs only on the watchlist.
   const savedIds = new Set(
     state.list
@@ -19,6 +25,9 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
       !savedIds.has(pick.anime.id),
   );
   const [opened, setOpened] = useState(undefined);
+  useEffect(() => {
+    if (unlocked) store.visitRecommendations?.();
+  }, [unlocked, store]);
   const [about, setAbout] = useState(null);
   const aboutAvailable = picks.some((pick) => pick.anime.id === about);
   const aboutReaction = state.reactions[about]?.action;
@@ -27,6 +36,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
   }, [aboutAvailable, aboutReaction]);
   useEffect(() => {
     if (
+      unlocked &&
       !state.recommendationsReady &&
       !state.recommendationPicks.length &&
       state.ready &&
@@ -37,6 +47,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
       store.loadRecommendations();
     }
   }, [
+    unlocked,
     state.ready,
     state.onboardingComplete,
     state.busy,
@@ -63,6 +74,31 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
       : picks.some((p) => p.anime.id === opened)
         ? opened
         : picks[0]?.anime.id;
+  if (!unlocked)
+    return (
+      <section
+        className="recommendations-page"
+        aria-labelledby="recommendations-title"
+      >
+        <span className="eyebrow">Keep discovering</span>
+        <h1 id="recommendations-title">
+          Your recommendations are getting closer
+        </h1>
+        <p>
+          React to 50 anime to unlock your top recommendations. Good, Bad, Would
+          watch and Won’t watch all count.
+        </p>
+        <p>
+          <strong>
+            {count} / {RECOMMENDATION_MINIMUM} reactions
+          </strong>{" "}
+          · {RECOMMENDATION_MINIMUM - count} to go
+        </p>
+        <button className="primary" onClick={onDiscover}>
+          Continue discovering
+        </button>
+      </section>
+    );
   return (
     <section
       className="recommendations-page"

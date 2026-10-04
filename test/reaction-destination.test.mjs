@@ -1,3 +1,4 @@
+import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createAnimeStore } from "../src/lib/store.js";
@@ -51,6 +52,7 @@ for (const source of ["discover", "recommendations"]) {
       let store = createAnimeStore(options);
       await store.initialize();
       await store.savePreferences({ favoriteGenres: ["Drama"] });
+      seedRecommendationHistory(store);
       await store.loadRecommendations();
       const chosen = source === "discover" ? store.getSnapshot().current : kimi;
       await store.react(action, source === "recommendations" ? chosen : null);
@@ -67,6 +69,7 @@ for (const source of ["discover", "recommendations"]) {
       await store.initialize();
       assert.equal(store.getSnapshot().reactions[chosen.id].action, action);
       assert.notEqual(store.getSnapshot().current?.id, chosen.id);
+      seedRecommendationHistory(store);
       await store.loadRecommendations();
       assert.ok(
         store
@@ -87,6 +90,7 @@ test("failed MAL auto-add cannot remove a Would watch save from the site or allo
   const store = createAnimeStore(options);
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Drama"] });
+  seedRecommendationHistory(store);
   await store.loadRecommendations();
   store.setSettings({ autoAdd: true });
   await store.react("watch", kimi);
