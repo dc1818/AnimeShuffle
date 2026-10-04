@@ -108,9 +108,11 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     favoriteGenres: ["Action"],
     favoriteAnime: [{ id: 1, title: "Favorite" }],
   };
-  let saved;
+  let saved,
+    failSave = false;
   const store = {
     savePreferences: async (...args) => {
+      if (failSave) throw new Error("Storage unavailable");
       saved = args;
     },
     searchAnime: async () => [],
@@ -144,26 +146,23 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       "Include unknown lengths or formats",
     ])
       assert.ok(document.body.textContent.includes(text));
-    await act(async () =>
-      [...document.querySelectorAll("button")]
-        .find((b) => b.textContent === "Save preferences")
-        .click(),
-    );
-    assert.deepEqual(
+
+    assert.equal(
       saved,
-      [preferences, {}],
-      "Favorite anime and auto-add choices are preserved",
+      undefined,
+      "Opening preferences must not trigger a write",
+    );
+    assert.ok(
+      ![...document.querySelectorAll("button")].some(
+        (b) => b.textContent === "Save preferences",
+      ),
     );
     await act(async () =>
       [...document.querySelectorAll("button")]
         .find((b) => b.textContent === "Any genre")
         .click(),
     );
-    await act(async () =>
-      [...document.querySelectorAll("button")]
-        .find((b) => b.textContent === "Save preferences")
-        .click(),
-    );
+
     assert.deepEqual(saved[0].favoriteGenres, []);
     assert.deepEqual(saved[0].favoriteAnime, preferences.favoriteAnime);
     await act(async () =>
@@ -171,15 +170,15 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
         .find((b) => b.textContent === "Drama")
         .click(),
     );
-    await act(async () =>
-      [...document.querySelectorAll("button")]
-        .find((b) => b.textContent === "Save preferences")
-        .click(),
-    );
+
     assert.deepEqual(saved[0].favoriteGenres, ["Drama"]);
+    assert.equal(
+      document.querySelector(".preference-save-status").textContent,
+      "Saved",
+    );
     assert.match(document.body.textContent, /only anime matching at least/);
     assert.match(
-      document.querySelector('[role="status"]').textContent,
+      document.querySelector('.genre-focus[role="status"]').textContent,
       /Only Drama anime/,
     );
     assert.ok(!document.body.textContent.includes("Avant Garde"));
@@ -197,13 +196,34 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
         .find((b) => b.textContent === "Experimental")
         .click(),
     );
-    await act(async () =>
-      [...document.querySelectorAll("button")]
-        .find((b) => b.textContent === "Save preferences")
-        .click(),
-    );
+
     assert.equal(saved[0].includeNonCanonMovies, true);
     assert.deepEqual(saved[0].favoriteGenres, ["Drama", "Avant Garde"]);
+    failSave = true;
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Any genre")
+        .click(),
+    );
+    assert.equal(
+      document.querySelector(".preference-save-status").textContent,
+      "Changes could not be saved.",
+    );
+    assert.match(
+      document.querySelector('[role="alert"]').textContent,
+      /Storage unavailable/,
+    );
+    failSave = false;
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Retry")
+        .click(),
+    );
+    assert.deepEqual(saved[0].favoriteGenres, []);
+    assert.equal(
+      document.querySelector(".preference-save-status").textContent,
+      "Saved",
+    );
 
     await act(async () =>
       root.render(

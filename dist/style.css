@@ -2494,3 +2494,10 @@ main.wide-main {
     font-size: 13px;
   }
 }
+
+/* Stable space keeps the preference controls still while save status changes. */
+.preference-save-status {
+  min-height: 1.5em;
+  color: #b5f3fa;
+  font-size: 0.85rem;
+}

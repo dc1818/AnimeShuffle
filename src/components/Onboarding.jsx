@@ -1,5 +1,5 @@
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { GenrePreferences } from "./GenrePreferences.jsx";
 import { TasteSetup } from "./TasteSetup.jsx";
 import {
@@ -131,6 +131,9 @@ export function ViewingPreferences({ state, store, onComplete }) {
   const showTasteSetup =
     initialSetup || !(state.session.account || state.session.connected);
   const [value, updateValue] = useState(state.preferences);
+  const valueRef = useRef(value);
+  const saving = useRef(false);
+  const [saved, setSaved] = useState(false);
   const [hasChosen, setHasChosen] = useState(() => {
     const p = state.preferences;
     return Boolean(
@@ -147,8 +150,14 @@ export function ViewingPreferences({ state, store, onComplete }) {
   });
   // Choosing an explicit “Anything”/“Any length” also counts as user input.
   function setValue(change) {
+    if (saving.current || state.busy) return;
     setHasChosen(true);
-    updateValue(change);
+    const next =
+      typeof change === "function" ? change(valueRef.current) : change;
+    valueRef.current = next;
+    updateValue(next);
+    // Start the write immediately, so closing the dialog cannot cancel a timer.
+    if (!initialSetup) void save(next, false);
   }
   const [autoAdd, setAutoAdd] = useState(state.settings.autoAdd);
   const [pending, setPending] = useState(false);
@@ -161,16 +170,20 @@ export function ViewingPreferences({ state, store, onComplete }) {
         : [...current[field], id],
     }));
   }
-  async function save(preferences) {
-    if (pending || state.busy) return;
+  async function save(preferences, closeWhenDone = true) {
+    if (saving.current || state.busy) return;
+    saving.current = true;
+    setSaved(false);
     setPending(true);
     setError("");
     try {
       await store.savePreferences(preferences, initialSetup ? { autoAdd } : {});
-      onComplete();
+      setSaved(true);
+      if (closeWhenDone) onComplete();
     } catch (failure) {
       setError(failure.message);
     } finally {
+      saving.current = false;
       setPending(false);
     }
   }
@@ -183,6 +196,17 @@ export function ViewingPreferences({ state, store, onComplete }) {
       </span>
       <h2>What are you in the mood for?</h2>
       <p>Pick as many as you like. You can change these in Settings anytime.</p>
+      {!initialSetup && (
+        <p className="preference-save-status" role="status" aria-live="polite">
+          {pending
+            ? "Saving…"
+            : error
+              ? "Changes could not be saved."
+              : saved
+                ? "Saved"
+                : "Changes save automatically."}
+        </p>
+      )}
       {initialSetup && state.session.connected && (
         <>
           <p>
@@ -358,19 +382,24 @@ export function ViewingPreferences({ state, store, onComplete }) {
           {error}
         </p>
       )}
-      <button
-        className="primary full-width"
-        disabled={pending || state.busy || (initialSetup && !hasChosen)}
-        onClick={() => save(value)}
-      >
-        {pending
-          ? initialSetup
-            ? "Finding your anime…"
-            : "Updating your picks…"
-          : initialSetup
-            ? "Start shuffling"
-            : "Save preferences"}
-      </button>
+      {!initialSetup && error && (
+        <button
+          className="quiet"
+          disabled={pending || state.busy}
+          onClick={() => save(value, false)}
+        >
+          Retry
+        </button>
+      )}
+      {initialSetup && (
+        <button
+          className="primary full-width"
+          disabled={pending || state.busy || !hasChosen}
+          onClick={() => save(value)}
+        >
+          {pending ? "Finding your anime…" : "Start shuffling"}
+        </button>
+      )}
       {initialSetup && !hasChosen && (
         <button
           className="quiet"

@@ -16,7 +16,7 @@ export function GenrePreferences({ value, setValue, disabled }) {
         <p className="genre-focus" role="status">
           <span>
             Only <strong>{selected.map(genreLabel).join(", ")}</strong> anime
-            will appear in new picks after you save these preferences.
+            will appear in new picks with these preferences.
           </span>
         </p>
       )}

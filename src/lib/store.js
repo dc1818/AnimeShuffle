@@ -1237,9 +1237,14 @@ export function createAnimeStore({
         history = history.filter((entry) => entry.fromRecommendations);
         update(undoState());
         skipped.clear();
-        persist();
+        const stored = await persist();
+        if (!stored && !state.session.account)
+          throw new Error(
+            "Your preferences could not be saved in this browser. Please retry.",
+          );
         await cloudSync?.flush();
-        if (state.settings.autoAdd) await syncWatchlistToMal();
+        // Filter edits do not change watchlist entries; only onboarding opt-in needs a sync.
+        if (settings.autoAdd === true) await syncWatchlistToMal();
         await next();
       } finally {
         update({ busy: false });

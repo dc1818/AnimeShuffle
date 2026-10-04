@@ -260,7 +260,11 @@ for (const staticMode of [false, true])
           .find((element) => element.textContent.startsWith("Movies"))
           .click(),
       );
-      await click("Save preferences");
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 30)));
+      assert.equal(
+        document.querySelector(".preference-save-status").textContent,
+        "Saved",
+      );
       assert.equal(store.getSnapshot().current.format, "movie");
       assert.ok(
         document
