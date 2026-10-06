@@ -1972,7 +1972,8 @@ main.wide-main {
   gap: 8px;
   margin: 20px 0;
 }
-.audience-preference select {
+.audience-preference select,
+.preference-score-range select {
   background: #12232e;
   color: #e3eef5;
   border: 1px solid #456171;
@@ -2517,3 +2518,7 @@ main.wide-main {
 .recommendations-unlock-toast { position: fixed; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 110; width: min(560px, calc(100% - 30px)); display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px solid #52778b; border-radius: 13px; background: #17313efa; box-shadow: 0 8px 30px #0006; font-size: 14px; }
 .recommendations-unlock-toast strong { display: block; color: #b5f3fa; }
 @media (max-width: 520px) { .recommendations-unlock-toast { flex-wrap: wrap; } .nav-new-badge { padding: 1px 3px; font-size: 9px; } }
+
+.preference-score-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.preference-score-range label { display: grid; gap: 7px; color: #b6cbd7; font-size: 13px; }
+.preference-score-range select { width: 100%; min-width: 0; }

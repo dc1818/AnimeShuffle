@@ -147,6 +147,8 @@ export function ViewingPreferences({ state, store, onComplete }) {
       p.favoriteAnime.length ||
       p.formats.length ||
       p.lengths.length ||
+      p.scoreMin != null ||
+      p.scoreMax != null ||
       p.finishedOnly ||
       p.includeNonCanonMovies ||
       !p.includeUnknown ||
@@ -308,6 +310,63 @@ export function ViewingPreferences({ state, store, onComplete }) {
           *Examples assume 24-minute episodes. Cards show an estimate using the
           title's own runtime.
         </small>
+      </fieldset>
+      <fieldset
+        className="preference-group"
+        disabled={initialSetup && (pending || state.busy)}
+      >
+        <legend>MyAnimeList score</legend>
+        <p>
+          Only show anime within this community rating range, out of 10. This
+          uses the anime’s overall MAL score.
+        </p>
+        <div className="preference-score-range">
+          {[
+            ["scoreMin", "Minimum score"],
+            ["scoreMax", "Maximum score"],
+          ].map(([field, label]) => (
+            <label key={field}>
+              {label}
+              <select
+                aria-label={label}
+                value={value[field] ?? "any"}
+                onChange={(event) => {
+                  const score =
+                    event.target.value === "any"
+                      ? null
+                      : Number(event.target.value);
+                  setValue((current) => {
+                    const next = { ...current, [field]: score };
+                    if (
+                      next.scoreMin != null &&
+                      next.scoreMax != null &&
+                      next.scoreMin > next.scoreMax
+                    ) {
+                      next[field === "scoreMin" ? "scoreMax" : "scoreMin"] =
+                        score;
+                    }
+                    return next;
+                  });
+                }}
+              >
+                <option value="any">Any</option>
+                {Array.from({ length: 19 }, (_, i) => 1 + i * 0.5).map(
+                  (score) => (
+                    <option key={score} value={score}>
+                      {score.toFixed(1)}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+          ))}
+        </div>
+        {(value.scoreMin != null || value.scoreMax != null) && (
+          <p className="preference-help">
+            Unscored anime are excluded. Changes apply to new Discover picks and
+            when you refresh Recommendations.
+          </p>
+        )}
       </fieldset>
       <div className="setting-row">
         <div>

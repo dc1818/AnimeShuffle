@@ -5,7 +5,7 @@ import {
   normalizePreferences,
   runtimeLabel,
 } from "../src/lib/preferences.js";
-import { chooseNext } from "../src/lib/recommend.js";
+import { chooseNext, rankRecommendations } from "../src/lib/recommend.js";
 const anime = (episodes, extra = {}) => ({
   id: episodes || 1,
   episodes,
@@ -102,6 +102,8 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
       includeUnknown: false,
       childrenTitles: "hide",
       includeNonCanonMovies: false,
+      scoreMin: null,
+      scoreMax: null,
     },
   );
 });
@@ -193,4 +195,34 @@ test("Experimental aliases preserve canonical MAL matching and OR genre filterin
     anime(2, { genres: ["Avant Garde"] }),
   ];
   assert.equal(chooseNext(pool, { preferences }).anime.id, 2);
+});
+
+test("MAL score ranges use community scores, include endpoints, and exclude unscored titles only when restricted", () => {
+  const p = { scoreMin: 7, scoreMax: 8.5 };
+  for (const score of [7, 8, 8.5])
+    assert.ok(matchesPreferences(anime(12, { score }), p));
+  for (const score of [6.99, 8.51, null, 0, undefined])
+    assert.equal(
+      matchesPreferences(anime(12, { score, listStatus: { score: 10 } }), p),
+      false,
+    );
+  assert.ok(matchesPreferences(anime(12, { score: null }), {}));
+  assert.deepEqual(
+    normalizePreferences({ scoreMin: 9, scoreMax: 7 }).scoreMin,
+    7,
+  );
+  assert.equal(
+    normalizePreferences({ scoreMin: "8", scoreMax: 20 }).scoreMin,
+    null,
+  );
+  const pool = [
+    anime(1, { score: 6 }),
+    anime(2, { score: 8 }),
+    anime(3, { score: 9 }),
+  ];
+  assert.equal(chooseNext(pool, { preferences: p }).anime.id, 2);
+  assert.deepEqual(
+    rankRecommendations(pool, { preferences: p }).map((pick) => pick.anime.id),
+    [2],
+  );
 });

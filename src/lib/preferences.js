@@ -75,6 +75,8 @@ export const defaultPreferences = () => ({
   includeUnknown: true,
   childrenTitles: "hide",
   includeNonCanonMovies: false,
+  scoreMin: null,
+  scoreMax: null,
 });
 
 /** Shared by client and server; discard unknown keys rather than persisting arbitrary input. */
@@ -134,7 +136,15 @@ export function normalizePreferences(value = {}) {
         ).values(),
       ].slice(0, 3)
     : [];
+  const scoreBound = (n) =>
+    typeof n === "number" && Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
+  let scoreMin = scoreBound(value?.scoreMin),
+    scoreMax = scoreBound(value?.scoreMax);
+  if (scoreMin !== null && scoreMax !== null && scoreMin > scoreMax)
+    [scoreMin, scoreMax] = [scoreMax, scoreMin];
   return {
+    scoreMin,
+    scoreMax,
     includeNonCanonMovies: value?.includeNonCanonMovies === true,
     favoriteGenres,
     favoriteAnime,
@@ -150,6 +160,18 @@ export function normalizePreferences(value = {}) {
 
 export function matchesPreferences(anime, input) {
   const preferences = normalizePreferences(input);
+  // MAL's community mean is separate from the connected user's personal score.
+  if (preferences.scoreMin !== null || preferences.scoreMax !== null) {
+    const score = anime.score;
+    if (
+      !Number.isFinite(score) ||
+      score <= 0 ||
+      score > 10 ||
+      (preferences.scoreMin !== null && score < preferences.scoreMin) ||
+      (preferences.scoreMax !== null && score > preferences.scoreMax)
+    )
+      return false;
+  }
   const format = anime.format;
   const duration = Number(anime.duration) || 0;
   const episodes = Number(anime.episodes) || 0;
