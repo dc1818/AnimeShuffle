@@ -14,6 +14,8 @@ import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
 import {
   chooseNext,
+  eligibleCandidates,
+  detailedExplanation,
   buildTaste,
   recommendationSeeds,
   isEligible,
@@ -65,6 +67,12 @@ export function createAnimeStore({
   diagnostics = createDiagnostics({ storage }),
 } = {}) {
   // Serialize account writes without borrowing the feed's global busy state.
+  let prefetchTimer = null;
+  let prefetchRunning = false;
+  let sessionGeneration = 0;
+  let refillPending = null;
+  let replacementSlots = [];
+  let replacementRunning = false;
   let preferenceWrites = Promise.resolve();
   let preferenceVersion = 0;
   let preferencesUnsynced = false;
@@ -345,12 +353,14 @@ export function createAnimeStore({
   }
   // Share verified public details across both feeds, with a bounded freshness window.
   async function animeDetails(id) {
+    const generation = sessionGeneration;
     const cached = details.get(id);
     if (cached?.expires > Date.now()) return cached.anime;
     const anime = {
       ...(pool.find((a) => a.id === id) || {}),
       ...(await api("/api/anime/" + id)),
     };
+    if (generation !== sessionGeneration) throw new Error("Session changed.");
     if (details.size >= 250) details.delete(details.keys().next().value);
     details.set(id, { anime, expires: Date.now() + 1800000 });
     // Keep prequels and ratings in the pool, not only in the detail cache.
@@ -359,6 +369,7 @@ export function createAnimeStore({
   }
   let tasteCheckedAt = 0;
   async function refreshTasteMetadata(force = false) {
+    const generation = sessionGeneration;
     if (state.preview || (!force && Date.now() - tasteCheckedAt < 300000))
       return;
     // Enrich both liked and disliked examples; broad MAL lists must not crowd out
@@ -403,6 +414,7 @@ export function createAnimeStore({
     try {
       // Snapshot only: never wait for review fetches, poll, or repaint a loaded batch.
       const data = await api("/api/taste?ids=" + ids.join(","));
+      if (generation !== sessionGeneration) return;
       diagnostics.record?.({
         operation: "taste_enrichment",
         ...data.enrichment,
@@ -435,6 +447,7 @@ export function createAnimeStore({
   }
   /** Add a bounded set of candidates beyond ranking pages, using only positive taste seeds. */
   async function expandFromTaste(seedLimit = 2, candidateLimit = 4) {
+    const generation = sessionGeneration;
     if (state.preview) return;
     const known = new Set([
       ...state.list.map((a) => a.id),
@@ -450,6 +463,7 @@ export function createAnimeStore({
       .slice(0, seedLimit);
     let added = 0;
     for (const seed of seeds) {
+      if (generation !== sessionGeneration) return;
       try {
         const full = await animeDetails(seed.id);
         mergePool(full); // Enrich the training example as well as retrieving neighbors.
@@ -477,7 +491,16 @@ export function createAnimeStore({
       }
     }
   }
-  async function refill() {
+  function refill() {
+    if (refillPending) return refillPending;
+    const pending = refillPage().finally(() => {
+      if (refillPending === pending) refillPending = null;
+    });
+    refillPending = pending;
+    return pending;
+  }
+  async function refillPage() {
+    const generation = sessionGeneration;
     if (state.preview) return false;
     const sources = ["popular", "top", "season"];
     for (let n = 0; n < sources.length; n++) {
@@ -490,6 +513,7 @@ export function createAnimeStore({
       const page = await api(
         `/api/catalog?source=${source}&offset=${offsets[source]}`,
       );
+      if (generation !== sessionGeneration) return false;
       // Follow MAL pagination beyond the old 5,000-title cutoff. Reject a stuck
       // cursor instead of repeatedly downloading the same page.
       if (
@@ -542,10 +566,8 @@ export function createAnimeStore({
     try {
       await yieldToBrowser();
       await checkMalFreshness();
-      // Keep the first card fast; expand from explicit feedback on subsequent discoveries.
-      if (state.current && Object.keys(state.reactions).length >= 3)
-        await expandFromTaste(1, 2);
-      await refreshTasteMetadata();
+      // Optional enrichment and neighbor expansion run after the card is visible.
+      // A first card needs catalog metadata and verification, not a completed enrichment pass.
       // Page reads and detail checks have separate budgets. Filtered/duplicate
       // pages do not spend candidate checks. Keep a time bound for slow upstreams.
       const searchStarted = performance.now();
@@ -556,12 +578,22 @@ export function createAnimeStore({
       ) {
         if (attempt && attempt % 6 === 0) await yieldToBrowser();
         const finishRank = diagnostics.start("discovery_rank");
+        const readyIds = new Set(
+          pool
+            .filter(
+              (a) =>
+                a.id !== state.current?.id &&
+                details.get(a.id)?.expires > Date.now(),
+            )
+            .map((a) => a.id),
+        );
         const pick = chooseNext(pool, {
           reactions: state.reactions,
           list: state.list,
           skipped,
           recent,
           preferences: state.preferences,
+          readyIds,
         });
         finishRank();
         if (!pick) {
@@ -614,6 +646,7 @@ export function createAnimeStore({
             ? pick.reason.replace("of 8", "of 7")
             : pick.reason,
         });
+        schedulePrefetch();
         return;
       }
       if (search.outcome === "searching") search.outcome = "search_paused";
@@ -640,6 +673,49 @@ export function createAnimeStore({
         discoveryProgress: null,
       });
     }
+  }
+  function schedulePrefetch() {
+    if (state.preview || prefetchTimer || prefetchRunning) return;
+    const generation = sessionGeneration;
+    prefetchTimer = setTimeout(async () => {
+      prefetchTimer = null;
+      if (
+        generation !== sessionGeneration ||
+        state.recommendationsLoading ||
+        state.busy
+      )
+        return;
+      prefetchRunning = true;
+      try {
+        const candidates = rankRecommendations(
+          pool.filter((a) => a.id !== state.current?.id),
+          { ...state, limit: 3 },
+        );
+        for (const { anime } of candidates) {
+          if (
+            generation !== sessionGeneration ||
+            state.busy ||
+            state.recommendationsLoading
+          )
+            break;
+          await animeDetails(anime.id);
+        }
+        if (
+          generation === sessionGeneration &&
+          !state.busy &&
+          !state.recommendationsLoading
+        ) {
+          await refreshTasteMetadata();
+          if (Object.keys(state.reactions).length >= 3)
+            await expandFromTaste(1, 2);
+        }
+      } catch {
+        /* Look-ahead is optional; a real selection can retry normally. */
+      } finally {
+        prefetchRunning = false;
+      }
+    }, 80);
+    prefetchTimer.unref?.();
   }
   function recordHistory(entry) {
     history.push(entry);
@@ -697,6 +773,20 @@ export function createAnimeStore({
         [anime.id]: { action, anime, at: Date.now() },
       },
     });
+    if (!target) {
+      const removed = state.recommendationPicks.find(
+        (pick) => pick.anime.id === anime.id,
+      );
+      if (removed) {
+        replacementSlots.push(removed.tier);
+        update({
+          recommendationPicks: state.recommendationPicks.filter(
+            (pick) => pick.anime.id !== anime.id,
+          ),
+        });
+        void replaceDecidedRecommendations();
+      }
+    }
     entry.after = state.reactions[anime.id];
     await persist();
     try {
@@ -858,6 +948,11 @@ export function createAnimeStore({
   }
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
+    sessionGeneration++;
+    clearTimeout(prefetchTimer);
+    prefetchTimer = null;
+    refillPending = null;
+    replacementSlots = [];
     preferenceVersion++;
     preferencesUnsynced = false;
     viewingPreferencesBefore = null;
@@ -882,6 +977,7 @@ export function createAnimeStore({
       recommendationPicks: [],
       recommendationPool: [],
       recommendationsReady: false,
+      recommendationsLoading: false,
       recommendationError: "",
       reactions: {},
       canUndo: false,
@@ -978,7 +1074,8 @@ export function createAnimeStore({
   async function loadRecommendations({ force = false } = {}) {
     if (
       !recommendationsUnlocked(state.reactions) ||
-      state.busy ||
+      state.recommendationsLoading ||
+      replacementRunning ||
       !state.onboardingComplete
     )
       return;
@@ -987,9 +1084,10 @@ export function createAnimeStore({
       (state.recommendationsReady || state.recommendationPicks.length)
     )
       return;
+    const generation = sessionGeneration;
+    replacementSlots = [];
     const finishTiming = diagnostics.start("recommendations_total");
     update({
-      busy: true,
       recommendationError: "",
       recommendationsLoading: true,
       recommendationProgress: null,
@@ -1009,13 +1107,11 @@ export function createAnimeStore({
       await expandFromTaste();
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
-          if (
-            rankRecommendations(pool, { ...state, limit: 75 }).length >= 75 ||
-            !(await refill())
-          )
+          if (eligibleCandidates(pool, state).length >= 75 || !(await refill()))
             break;
         }
       await refreshTasteMetadata(true);
+      if (generation !== sessionGeneration) return;
       const candidates = new Map(pool.map((a) => [a.id, a]));
       for (const a of state.list)
         if (a.listStatus?.status === "plan_to_watch") candidates.set(a.id, a);
@@ -1038,9 +1134,11 @@ export function createAnimeStore({
       let batchSize = 3;
       for (
         let offset = 0;
-        offset < ranked.length && eligibleCount < 25;
+        offset < ranked.length &&
+        eligibleCandidates(verified, state).length < 25;
         offset += batchSize
       ) {
+        eligibleCount = eligibleCandidates(verified, state).length;
         batchSize = Math.min(3, 25 - eligibleCount);
         const batch = ranked.slice(offset, offset + batchSize);
         const results = await Promise.allSettled(
@@ -1048,6 +1146,7 @@ export function createAnimeStore({
             state.preview ? Promise.resolve(anime) : animeDetails(anime.id),
           ),
         );
+        if (generation !== sessionGeneration) return;
         for (const result of results) {
           if (result.status === "fulfilled") {
             const full = result.value;
@@ -1071,11 +1170,13 @@ export function createAnimeStore({
           }
           checked++;
         }
+        eligibleCount = eligibleCandidates(verified, state).length;
         update({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
         });
         await yieldToBrowser();
       }
+      if (generation !== sessionGeneration) return;
       update({
         recommendationPicks: rankRecommendations(verified, {
           ...state,
@@ -1089,17 +1190,108 @@ export function createAnimeStore({
           : "",
       });
     } catch (error) {
+      if (generation !== sessionGeneration) return;
       update({
         recommendationError: error.message,
         recommendationsReady: true,
       });
     } finally {
       finishTiming();
+      if (generation !== sessionGeneration) return;
       update({
-        busy: false,
         recommendationsLoading: false,
         recommendationProgress: null,
       });
+      replacementSlots = [];
+    }
+  }
+  async function replaceDecidedRecommendations() {
+    if (
+      replacementRunning ||
+      state.recommendationsLoading ||
+      !replacementSlots.length
+    )
+      return;
+    const generation = sessionGeneration;
+    replacementRunning = true;
+    const attempted = new Set();
+    try {
+      let checked = 0;
+      let filled = false;
+      while (
+        replacementSlots.length &&
+        checked < 30 &&
+        generation === sessionGeneration
+      ) {
+        const used = new Set(state.recommendationPicks.map((p) => p.anime.id));
+        const candidates = rankRecommendations(
+          pool.filter((a) => !used.has(a.id) && !attempted.has(a.id)),
+          { ...state, limit: 1 },
+        );
+        if (!candidates.length) {
+          if (!filled && !state.preview) {
+            filled = true;
+            if (await refill()) continue;
+          }
+          break;
+        }
+        const candidate = candidates[0];
+        attempted.add(candidate.anime.id);
+        checked++;
+        const anime = state.preview
+          ? candidate.anime
+          : await animeDetails(candidate.anime.id);
+        if (generation !== sessionGeneration) return;
+        if (
+          !isEligible(
+            anime,
+            state.reactions,
+            state.list,
+            new Set(),
+            false,
+            state.preferences,
+          )
+        )
+          continue;
+        const pick = rankRecommendations([anime], {
+          ...state,
+          metadata: pool,
+        })[0];
+        if (!pick) continue;
+        const tier = replacementSlots.shift();
+        update({
+          recommendationPool: [
+            ...state.recommendationPool.filter((a) => a.id !== anime.id),
+            anime,
+          ],
+          recommendationPicks: [
+            ...state.recommendationPicks,
+            {
+              ...pick,
+              tier,
+              detailReason: detailedExplanation(
+                anime,
+                buildTaste(
+                  state.reactions,
+                  state.list,
+                  state.preferences,
+                  pool,
+                ),
+                { mode: "recommendations" },
+              ),
+            },
+          ].sort((a, b) => a.tier - b.tier),
+        });
+        await yieldToBrowser();
+      }
+    } catch (error) {
+      if (generation === sessionGeneration)
+        update({
+          recommendationError:
+            "A replacement could not be loaded. Refresh picks to try again.",
+        });
+    } finally {
+      replacementRunning = false;
     }
   }
   function buildRecommendationTaste() {

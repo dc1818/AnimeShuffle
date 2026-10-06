@@ -1,3 +1,4 @@
+import { isPublicMetadataRequest } from "./public-routes.mjs";
 import { DurableObject } from "cloudflare:workers";
 import { createCloudApp } from "./app.mjs";
 import { secure } from "./security.mjs";
@@ -18,6 +19,14 @@ export class AnimeBackend extends DurableObject {
     return this.app.alarm();
   }
   fetch(request) {
+    // Public metadata uses its own cache and MAL throttle, with no session writes.
+    // Keep account mutations and token refreshes serialized as before.
+    if (isPublicMetadataRequest(request))
+      return this.app.fetch(request).then((response) => {
+        if (request.headers.get("X-AnimeShuffle-Debug") === "1")
+          response.headers.append("Server-Timing", "coordinator_queue;dur=0.0");
+        return response;
+      });
     const queuedAt = performance.now();
     const next = this.tail.then(async () => {
       const wait = performance.now() - queuedAt;

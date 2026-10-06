@@ -20,7 +20,9 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     external: ["cloudflare:workers"],
     target: "es2022",
   });
-  let tokenRedirect = false;
+  let tokenRedirect = false,
+    releaseMetadata,
+    metadataStarted = false;
   const requests = [];
   const mf = new Miniflare(
     convertV4MiniflareOptions({
@@ -42,6 +44,17 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       outboundService: async (request) => {
         const url = new URL(request.url);
         requests.push(url.hostname + url.pathname);
+        if (url.pathname === "/v2/anime/999") {
+          metadataStarted = true;
+          await new Promise((resolve) => {
+            releaseMetadata = resolve;
+          });
+          return WorkerResponse.json({
+            id: 999,
+            title: "Slow metadata",
+            nsfw: "white",
+          });
+        }
         if (
           url.hostname === "myanimelist.net" &&
           url.pathname === "/v1/oauth2/token"
@@ -161,6 +174,29 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       requests.filter((s) => s.startsWith("api.tenrai.org")).length,
       1,
     );
+    const pendingMetadata = call("/api/anime/999");
+    for (let i = 0; !metadataStarted && i < 100; i++)
+      await new Promise((r) => setTimeout(r, 20));
+    assert.ok(metadataStarted);
+    try {
+      const sessionRead = await Promise.race([
+        call("/api/session"),
+        new Promise((resolve) => setTimeout(() => resolve(null), 1200)),
+      ]);
+      assert.ok(
+        sessionRead,
+        "Public metadata must not block account/session requests",
+      );
+      assert.equal((await sessionRead.json()).account.name, "RuntimeViewer");
+      assert.equal(
+        timed.headers.get("set-cookie"),
+        null,
+        "Public reads must not rotate or rewrite cookies",
+      );
+    } finally {
+      releaseMetadata();
+      await pendingMetadata;
+    }
     tokenRedirect = true;
     const before = requests.length;
     assert.equal(

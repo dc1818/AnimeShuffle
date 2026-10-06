@@ -118,13 +118,14 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
             fewer than 25 picks while we learn your taste or when eligible
             titles run low. React to more anime in Discover to help shape fresh
             suggestions. A loaded shortlist stays in place until you choose
-            Refresh picks, including after changing preferences.
+            Refresh picks, including after changing preferences. Choices made in
+            Discover replace matching recommendations automatically.
           </p>
         </div>
         <div>
           <button
             className="outline"
-            disabled={state.busy || !hasTaste}
+            disabled={state.busy || state.recommendationsLoading || !hasTaste}
             onClick={() => {
               setOpened(undefined);
               setAbout(null);

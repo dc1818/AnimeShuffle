@@ -1,3 +1,4 @@
+import { isPublicMetadataRequest } from "./public-routes.mjs";
 import { communitySimilarities } from "../lib/community-taste.mjs";
 import {
   createReviewEnrichment,
@@ -6,7 +7,7 @@ import {
 import { removeMalPlan } from "../lib/watchlist-removal.mjs";
 import { requestTiming } from "../lib/timing.mjs";
 /** Persistent Cloudflare API. SQL statements bind every user-controlled value.
- * A single small-installation Durable Object serializes requests, including MAL mutations.
+ * Account operations stay serialized; public metadata uses a separate cached read path.
  * Accounts/reactions live in SQLite; tokens and OAuth verifiers are encrypted at rest.
  */
 import {
@@ -216,6 +217,48 @@ export function createCloudApp(
       throw new AppError("Invalid identifier.");
     return n;
   }
+  // These endpoints never read or write a session, account, receipt or OAuth token.
+  async function publicMetadata(u, mal) {
+    const path = u.pathname;
+    let response;
+    if (path === "/api/catalog") {
+      const offset = number(u.searchParams.get("offset") || 0, 1000000),
+        source = u.searchParams.get("source") || "popular";
+      if (!["popular", "top", "season"].includes(source))
+        throw new AppError("Invalid discovery source.");
+      const q = new URLSearchParams({
+        fields: catalogFields,
+        limit: "50",
+        offset: String(offset),
+        nsfw: "false",
+      });
+      let endpoint = "/anime/ranking";
+      if (source === "season") {
+        const d = new Date();
+        endpoint = `/anime/season/${d.getUTCFullYear()}/${["winter", "spring", "summer", "fall"][Math.floor(d.getUTCMonth() / 3)]}`;
+      } else q.set("ranking_type", source === "top" ? "all" : "bypopularity");
+      const d = await mal.request(endpoint + "?" + q, {
+        publicCache: true,
+      });
+      response = json({
+        data: (d.data || []).map((x) => reviews.attach(normalize(x.node))),
+        nextOffset: d.paging?.next ? offset + 50 : null,
+      });
+    } else if (/^\/api\/anime\/\d+$/.test(path)) {
+      response = json(
+        reviews.attach(
+          normalize(
+            await mal.request(
+              `/anime/${number(path.split("/").pop())}?fields=${encodeURIComponent(fields)}`,
+              { publicCache: true },
+            ),
+          ),
+          2,
+        ),
+      );
+    }
+    return response;
+  }
   return {
     alarm: () => reviews.run(),
     async fetch(req) {
@@ -235,6 +278,12 @@ export function createCloudApp(
           );
         if (!["GET", "POST"].includes(req.method))
           throw new AppError("Method not allowed.", 405);
+        if (isPublicMetadataRequest(req)) {
+          const response = await publicMetadata(u, mal);
+          if (measured.header())
+            response.headers.set("Server-Timing", measured.header());
+          return secure(response);
+        }
         encryption = vault(env.TOKEN_ENCRYPTION_KEY);
         const cookieName = origin.startsWith("https:")
           ? "__Host-as_session"
@@ -683,42 +732,6 @@ export function createCloudApp(
                 .map((id) => [id, community[id]]),
             ),
           });
-        } else if (path === "/api/catalog" && req.method === "GET") {
-          const offset = number(u.searchParams.get("offset") || 0, 1000000),
-            source = u.searchParams.get("source") || "popular";
-          if (!["popular", "top", "season"].includes(source))
-            throw new AppError("Invalid discovery source.");
-          const q = new URLSearchParams({
-            fields: catalogFields,
-            limit: "50",
-            offset: String(offset),
-            nsfw: "false",
-          });
-          let endpoint = "/anime/ranking";
-          if (source === "season") {
-            const d = new Date();
-            endpoint = `/anime/season/${d.getUTCFullYear()}/${["winter", "spring", "summer", "fall"][Math.floor(d.getUTCMonth() / 3)]}`;
-          } else
-            q.set("ranking_type", source === "top" ? "all" : "bypopularity");
-          const d = await mal.request(endpoint + "?" + q, {
-            publicCache: true,
-          });
-          response = json({
-            data: (d.data || []).map((x) => reviews.attach(normalize(x.node))),
-            nextOffset: d.paging?.next ? offset + 50 : null,
-          });
-        } else if (/^\/api\/anime\/\d+$/.test(path) && req.method === "GET") {
-          response = json(
-            reviews.attach(
-              normalize(
-                await mal.request(
-                  `/anime/${number(path.split("/").pop())}?fields=${encodeURIComponent(fields)}`,
-                  { publicCache: true },
-                ),
-              ),
-              2,
-            ),
-          );
         } else if (path === "/api/plan" && req.method === "POST") {
           auth();
           const b = await input(req, 32000),

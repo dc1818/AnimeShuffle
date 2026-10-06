@@ -277,6 +277,15 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
     return !(a.prequels || []).some((id) => !seen.has(id));
   };
 }
+/** Cheap eligibility pass for catalog fill checks; no taste-model training or ranking. */
+export function eligibleCandidates(
+  pool,
+  { reactions = {}, list = [], preferences } = {},
+) {
+  return pool.filter(
+    eligibilityFilter(reactions, list, new Set(), false, preferences),
+  );
+}
 /** Balance learned preferences, recent variety, and a 20% exploration branch. */
 export function chooseNext(
   pool,
@@ -286,6 +295,7 @@ export function chooseNext(
     skipped = new Set(),
     recent = [],
     random = Math.random,
+    readyIds = new Set(),
     preferences,
   } = {},
 ) {
@@ -335,7 +345,12 @@ export function chooseNext(
       return { a, score, index };
     })
     .sort((a, b) => b.score - a.score);
-  const anime = ranked[0].a;
+  // Prefer a verified candidate only among near-equal matches.
+  // A materially stronger uncached match still wins, preserving exploration and taste.
+  const nearBest = ranked.filter(
+    (p) => p.score >= ranked[0].score - (cold ? 0.3 : 0.025),
+  );
+  const anime = (nearBest.find((p) => readyIds.has(p.a.id)) || ranked[0]).a;
   let reason = "What do you think of this one?";
   if (cold) reason = "Let’s find something you’ll enjoy.";
   else if (explore) reason = "How about something a little different?";

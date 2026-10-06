@@ -228,7 +228,13 @@ for (const staticMode of [false, true])
         0,
       );
       await click("Refresh picks");
-      for (let n = 0; n < 100 && store.getSnapshot().busy; n++)
+      for (
+        let n = 0;
+        n < 100 &&
+        (store.getSnapshot().busy ||
+          store.getSnapshot().recommendationsLoading);
+        n++
+      )
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 5));
         });
