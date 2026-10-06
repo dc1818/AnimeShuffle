@@ -279,8 +279,10 @@ test("loading reports completed work and publishes recommendations as a complete
   await store.initialize();
   await store.savePreferences({ favoriteGenres: ["Action"] });
   assert.ok(
-    snapshots.some((s) => s.discoveryLoading && s.discoveryProgress === 50),
+    store.getSnapshot().current,
+    "A cached/demo card appears without a loading flash",
   );
+  assert.ok(!snapshots.some((s) => s.discoveryProgress === 50));
   assert.equal(store.getSnapshot().discoveryLoading, false);
   snapshots.length = 0;
   seedRecommendationHistory(store);

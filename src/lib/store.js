@@ -1,3 +1,4 @@
+import { readCatalogCache, writeCatalogCache } from "./catalog-cache.js";
 import { recommendationsUnlocked } from "./recommendation-access.js";
 import { createBrowserBackup, browserLocalStorage } from "./browser-storage.js";
 import { matchesTitle } from "./titles.js";
@@ -89,6 +90,8 @@ export function createAnimeStore({
     ready: false,
     discoveryLoading: false,
     discoveryProgress: null,
+    discoveryStage: "Connecting to Anime Shuffle…",
+    discoveryWork: "",
     discoveryStatus: "",
     recommendationsLoading: false,
     recommendationProgress: null,
@@ -299,6 +302,11 @@ export function createAnimeStore({
       do {
         const page = await api("/api/list?offset=" + offset);
         imported.push(...page.data);
+        if (!state.current && state.busy)
+          update({
+            discoveryStage: "Checking your MyAnimeList…",
+            discoveryWork: `${imported.length} list entries checked`,
+          });
         offset = page.nextOffset;
         if (imported.length >= 10000 && offset !== null) {
           notify("Loaded the first 10,000 MAL entries.");
@@ -363,6 +371,7 @@ export function createAnimeStore({
     if (generation !== sessionGeneration) throw new Error("Session changed.");
     if (details.size >= 250) details.delete(details.keys().next().value);
     details.set(id, { anime, expires: Date.now() + 1800000 });
+    writeCatalogCache(storage, [...details.values()]);
     // Keep prequels and ratings in the pool, not only in the detail cache.
     mergePool(anime);
     return anime;
@@ -556,10 +565,48 @@ export function createAnimeStore({
       outcome: "searching",
     };
     lastDiscoverySearch = search;
+    // Cached, verified picks can advance without ever entering the loading UI.
+    if (
+      pool.length &&
+      (!state.session.connected || now() - lastMalCheck < BACKGROUND_REFRESH_MS)
+    ) {
+      const readyIds = new Set(
+        [...details]
+          .filter(([, e]) => e.expires > Date.now())
+          .map(([id]) => id),
+      );
+      const pick = chooseNext(pool, { ...state, skipped, recent, readyIds });
+      if (pick && (state.preview || readyIds.has(pick.anime.id))) {
+        update({
+          current: pick.anime,
+          reason: pick.reason,
+          detailReason: pick.detailReason,
+          busy: false,
+          discoveryLoading: false,
+          discoveryProgress: null,
+          error: "",
+          discoveryStatus: "",
+          canUndo: history.length > 0,
+        });
+        search.outcome = "cache_hit";
+        diagnostics.record?.({
+          operation: "discovery_search",
+          ...search,
+          poolSize: pool.length,
+        });
+        finishTiming();
+        schedulePrefetch();
+        return;
+      }
+    }
     update({
       busy: true,
       error: "",
       discoveryLoading: true,
+      discoveryStage: state.session.connected
+        ? "Checking your MyAnimeList…"
+        : "Finding a match…",
+      discoveryWork: "",
       discoveryStatus: "",
       discoveryProgress: null,
     });
@@ -597,6 +644,10 @@ export function createAnimeStore({
         });
         finishRank();
         if (!pick) {
+          update({
+            discoveryStage: "Searching the anime catalog…",
+            discoveryWork: `${search.pagesLoaded} ${search.pagesLoaded === 1 ? "page" : "pages"} searched · ${search.detailChecks} ${search.detailChecks === 1 ? "candidate" : "candidates"} checked`,
+          });
           if (search.pagesLoaded < 30 && (await refill())) {
             search.pagesLoaded++;
             continue;
@@ -608,8 +659,12 @@ export function createAnimeStore({
               : "search_paused";
           break;
         }
-        // The candidate is selected; verifying its details is the remaining step.
-        update({ discoveryProgress: 50 });
+        // The number of rejected candidates and network latency are unknown; no invented percentage.
+        update({
+          discoveryStage: "Checking this anime’s details…",
+          discoveryWork: `${search.pagesLoaded} ${search.pagesLoaded === 1 ? "page" : "pages"} searched · ${search.detailChecks} ${search.detailChecks === 1 ? "candidate" : "candidates"} checked`,
+          discoveryProgress: null,
+        });
         let anime = pick.anime;
         if (!state.preview) {
           search.detailChecks++;
@@ -828,7 +883,10 @@ export function createAnimeStore({
     else await next();
   }
   async function addToMal(anime) {
+    const generation = sessionGeneration;
     const result = await api("/api/plan", { id: anime.id });
+    if (generation !== sessionGeneration)
+      throw new Error("Account changed during watchlist sync.");
     const existing = state.list.find((entry) => entry.id === anime.id);
     update({
       list: [
@@ -852,13 +910,16 @@ export function createAnimeStore({
    */
   async function syncWatchlistToMal(refresh = true) {
     if (!state.session.connected || state.preview) return;
+    const generation = sessionGeneration;
     update({ malSyncError: "" });
     try {
       if (refresh) await readList();
+      if (generation !== sessionGeneration) return;
       const entries = missingMalPlans(state.reactions, state.list);
       let done = 0;
       update({ malSyncProgress: { done, total: entries.length } });
       for (const { anime } of entries) {
+        if (generation !== sessionGeneration) return;
         await addToMal(anime);
         update({ malSyncProgress: { done: ++done, total: entries.length } });
       }
@@ -867,13 +928,14 @@ export function createAnimeStore({
           `Synced ${done} saved shows with MAL. Existing MAL statuses were kept.`,
         );
     } catch (error) {
+      if (generation !== sessionGeneration) return;
       update({
         malSyncError:
           "Your site watchlist is saved, but MAL sync stopped. " +
           error.message,
       });
     } finally {
-      update({ malSyncProgress: null });
+      if (generation === sessionGeneration) update({ malSyncProgress: null });
     }
   }
   /** Server receipts authorize Undo only for entries created by this session. */
@@ -985,6 +1047,17 @@ export function createAnimeStore({
       preview: !session.configured,
       busy: true,
     });
+    pool = state.preview ? [...demo] : [];
+    if (!state.preview)
+      for (const entry of readCatalogCache(storage)) {
+        details.set(entry.anime.id, entry);
+        mergePool(entry.anime);
+      }
+    // Public catalog work can overlap account/list synchronization without exposing a pick early.
+    const catalogWarmup =
+      !state.preview && !pool.length && session.onboardingComplete
+        ? refill().catch(() => false)
+        : null;
     profileKey =
       session.account?.provider === "local"
         ? session.account.id
@@ -992,8 +1065,19 @@ export function createAnimeStore({
           ? session.account.id.slice(4)
           : "guest";
     if (session.connected) {
+      update({
+        discoveryStage: "Connecting to MyAnimeList…",
+        discoveryWork: "",
+      });
       try {
-        const profile = await api("/api/profile");
+        const profile =
+          session.account?.provider === "mal" &&
+          /^mal:\d+$/.test(session.account.id)
+            ? {
+                id: Number(session.account.id.slice(4)),
+                name: session.account.name,
+              }
+            : await api("/api/profile");
         if (!session.account) profileKey = String(profile.id);
         update({ profile });
         await readList();
@@ -1035,17 +1119,28 @@ export function createAnimeStore({
         },
       });
       try {
+        update({
+          discoveryStage: "Syncing your saved choices…",
+          discoveryWork: "",
+        });
         await cloudSync.initialize();
       } catch (error) {
         update({ syncError: "Account sync is unavailable. " + error.message });
       }
     }
-    if (state.settings.autoAdd && state.session.connected)
-      await syncWatchlistToMal(false);
-    pool = state.preview ? [...demo] : [];
+    if (catalogWarmup) {
+      update({
+        discoveryStage: "Loading the anime catalog…",
+        discoveryWork: "",
+      });
+      await catalogWarmup;
+    }
     // Onboarding precedes discovery, including for authenticated first-time visitors.
     if (state.onboardingComplete) await next();
     else update({ busy: false });
+    // Saved watchlist uploads do not have to finish before a verified discovery card appears.
+    if (state.settings.autoAdd && state.session.connected)
+      void syncWatchlistToMal(false);
   }
   /** Idempotent initialization also handles React StrictMode's repeated effects. */
   function initialize() {

@@ -346,11 +346,10 @@ export function App({ store }) {
             (decidedCurrent && !state.busy) ? (
               <LoadingIndicator
                 progress={state.discoveryProgress}
-                label="Loading your discovery queue…"
+                label={state.discoveryStage || "Loading your discovery queue…"}
                 detail={
-                  state.discoveryProgress === null
-                    ? "Finding anime for you to explore"
-                    : "Verifying anime details · loading steps completed"
+                  state.discoveryWork ||
+                  "Finding anime that match your preferences"
                 }
               />
             ) : state.current ? (
