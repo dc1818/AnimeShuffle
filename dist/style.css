@@ -3568,3 +3568,165 @@ main.wide-main {
     height: 60px;
   }
 }
+
+/* Owner operations: compact at desktop widths, stacked and scroll-safe on phones. */
+.admin-research-section[hidden] {
+  display: none;
+}
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 20px 0 24px;
+  border-bottom: 1px solid #344653;
+  padding-bottom: 16px;
+}
+.admin-tabs button {
+  color: #c5d3dd;
+  background: #14232f;
+  border: 1px solid #344653;
+  border-radius: 10px;
+  padding: 11px 18px;
+  cursor: pointer;
+}
+.admin-tabs button.active {
+  background: #284a56;
+  border-color: #80d9e2;
+  color: #fff;
+}
+.admin-operations h2,
+.admin-operations h3 {
+  margin-top: 0;
+}
+.admin-operations .admin-panel {
+  margin-bottom: 20px;
+}
+.admin-operations label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 12px 0;
+}
+.admin-operations input:not([type="checkbox"]),
+.admin-operations select,
+.admin-operations textarea {
+  color: #edf2f7;
+  background: #0c1821;
+  border: 1px solid #405562;
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-width: 100%;
+  min-width: 0;
+}
+.admin-operations textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+.admin-account-search {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.admin-account-search label:first-child {
+  flex: 1;
+  min-width: 200px;
+}
+.admin-account-search button {
+  margin-bottom: 12px;
+}
+.admin-text-button {
+  background: transparent;
+  border: 0;
+  color: #80d9e2;
+  padding: 4px;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.admin-account-detail {
+  border-top: 1px solid #405562;
+  margin-top: 24px;
+  padding-top: 24px;
+}
+.admin-account-detail .admin-account-id {
+  margin-bottom: 18px;
+}
+.admin-taste-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.admin-taste-grid details {
+  background: #142630;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.admin-preference-editor fieldset {
+  border: 1px solid #405562;
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 14px 0;
+}
+.admin-preference-editor label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.admin-sparkbars {
+  height: 150px;
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  margin: 16px 0 32px;
+}
+.admin-sparkbars > div {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+.admin-sparkbars span {
+  display: block;
+  width: 100%;
+  background: #5ba9b8;
+  border-radius: 4px 4px 0 0;
+}
+.admin-sparkbars small {
+  position: absolute;
+  top: 100%;
+  color: #a6becb;
+  font-size: 10px;
+}
+.admin-operations .admin-diagnostics dd {
+  overflow-wrap: anywhere;
+}
+.admin-operations td {
+  overflow-wrap: anywhere;
+  max-width: 350px;
+}
+@media (max-width: 700px) {
+  .admin-taste-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-tabs button {
+    flex: 1 1 40%;
+    padding: 10px;
+  }
+  .admin-account-search {
+    display: block;
+  }
+  .admin-operations .admin-actions {
+    flex-wrap: wrap;
+  }
+}

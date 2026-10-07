@@ -1,3 +1,4 @@
+import { createAdminOperations } from "../lib/admin-operations.mjs";
 import {
   createResearchStore,
   isResearchAdmin,
@@ -93,6 +94,7 @@ export function createCloudApp(
   };
   const research = createResearchStore(storage);
   research.installSeed(RESEARCH_SEED, "2026-10-pilot-v1");
+  const operations = createAdminOperations({ storage, env, research });
   const episodes = createEpisodeEnrichment({
     sql,
     fetcher,
@@ -190,7 +192,7 @@ export function createCloudApp(
     )
       return communityCache;
     const rows = all(
-      "SELECT account_id,anime_id,json_extract(value,'$.action') AS action FROM reactions WHERE account_id != ? ORDER BY account_id,anime_id LIMIT 10000",
+      "SELECT r.account_id,r.anime_id,json_extract(r.value,'$.action') AS action FROM reactions r LEFT JOIN account_controls c ON c.id=r.account_id WHERE r.account_id != ? AND COALESCE(c.disabled,0)=0 ORDER BY r.account_id,r.anime_id LIMIT 10000",
       accountId || "",
     );
     communityCache = communitySimilarities(rows);
@@ -330,11 +332,13 @@ export function createCloudApp(
   }
   return {
     alarm: async () => {
+      operations.cleanup();
       await reviews.run();
       await episodes.run();
       await catalogModel.run();
     },
     async fetch(req) {
+      const startedAt = performance.now();
       const measured = requestTiming(
         malClient,
         req.headers.get("X-AnimeShuffle-Debug") === "1",
@@ -359,6 +363,10 @@ export function createCloudApp(
           );
           if (measured.header())
             response.headers.set("Server-Timing", measured.header());
+          operations.record(req, {
+            status: response.status,
+            duration: performance.now() - startedAt,
+          });
           return secure(response);
         }
         encryption = vault(env.TOKEN_ENCRYPTION_KEY);
@@ -387,6 +395,7 @@ export function createCloudApp(
           session = {
             csrf: random(),
             accountId,
+            authVersion: accountId ? operations.control(accountId).epoch : 0,
             expires: Date.now() + (accountId ? 30 * DAY : 3600000),
             receipts: {},
           };
@@ -403,7 +412,13 @@ export function createCloudApp(
         account = session.accountId
           ? one("SELECT * FROM accounts WHERE id=?", session.accountId)
           : null;
-        if (session.accountId && !account) {
+        if (
+          session.accountId &&
+          (!account ||
+            operations.control(session.accountId).disabled ||
+            (session.authVersion || 0) !==
+              operations.control(session.accountId).epoch)
+        ) {
           rotate();
           account = null;
         }
@@ -462,19 +477,28 @@ export function createCloudApp(
               403,
             );
           rateLimit("admin:" + account.id, 60, 60000);
+          const adminBody =
+            req.method === "POST" ? await input(req, 2 * 1024 * 1024) : null;
+          const result = operations.route(u, req.method, adminBody, account.id);
+          if (result?.changed) communityCache = null;
           response = json(
-            researchAdminRoute(
-              research,
-              u,
-              req.method,
-              req.method === "POST" ? await input(req, 2 * 1024 * 1024) : null,
-              account.id,
-              {
-                reviews: reviews.diagnostics(),
-                episodes: episodes.diagnostics(),
-                model: catalogModel.diagnostics(),
-              },
-            ),
+            result ?? {
+              ...researchAdminRoute(
+                research,
+                u,
+                req.method,
+                adminBody,
+                account.id,
+                {
+                  reviews: reviews.diagnostics(),
+                  episodes: episodes.diagnostics(),
+                  model: catalogModel.diagnostics(),
+                },
+              ),
+              ...(path === "/api/admin/status"
+                ? { operationsAvailable: true }
+                : {}),
+            },
           );
         } else if (
           ["/api/account/register", "/api/account/login"].includes(path) &&
@@ -524,6 +548,7 @@ export function createCloudApp(
               "local",
             );
             row = one("SELECT * FROM accounts WHERE id=?", id);
+            operations.created(id);
           } else {
             const actual = passwordHash(
               body.password,
@@ -532,6 +557,12 @@ export function createCloudApp(
             if (!row || !equal(actual, row.password_hash))
               throw new AppError("Incorrect username or password.", 401);
           }
+          if (operations.control(row.id).disabled)
+            throw new AppError(
+              "This account is suspended. Contact the site owner.",
+              403,
+              "account_suspended",
+            );
           rotate(row.id);
           account = row;
           tokenSession.tokens = row.tokens ? encryption.open(row.tokens) : null;
@@ -697,7 +728,14 @@ export function createCloudApp(
                   409,
                 );
               const id = account?.id || target?.id || `mal:${profile.id}`;
-              if (!account && !target)
+              if (operations.control(id).disabled)
+                throw new AppError(
+                  "This account is suspended.",
+                  403,
+                  "account_suspended",
+                );
+              const newAccount = !account && !target;
+              if (newAccount)
                 sql.exec(
                   "INSERT INTO accounts(id,username,provider,mal_id) VALUES (?,?,?,?)",
                   id,
@@ -711,6 +749,7 @@ export function createCloudApp(
                 encryption.seal(tokens),
                 id,
               );
+              if (newAccount) operations.created(id);
               rotate(id);
               account = one("SELECT * FROM accounts WHERE id=?", id);
               tokenSession.tokens = tokens;
@@ -945,6 +984,11 @@ export function createCloudApp(
         if (setCookie) response.headers.set("Set-Cookie", setCookie);
         if (measured.header())
           response.headers.set("Server-Timing", measured.header());
+        operations.record(req, {
+          accountId: account?.id,
+          status: response.status,
+          duration: performance.now() - startedAt,
+        });
         return secure(response);
       } catch (error) {
         // Consume OAuth state even when an unexpected failure occurs. No secret-bearing messages in logs.
@@ -979,6 +1023,11 @@ export function createCloudApp(
         if (setCookie) response.headers.set("Set-Cookie", setCookie);
         if (measured.header())
           response.headers.set("Server-Timing", measured.header());
+        operations.record(req, {
+          accountId: account?.id,
+          status: response.status,
+          duration: performance.now() - startedAt,
+        });
         return secure(response);
       }
     },

@@ -105,6 +105,17 @@ export default {
         "X-AnimeShuffle-Country",
         countryCode(request.cf?.country) || "",
       );
+      for (const [header, key] of [
+        ["Region", "region"],
+        ["City", "city"],
+        ["Timezone", "timezone"],
+      ]) {
+        // Only trusted edge metadata reaches analytics; overwrite client values.
+        const value = String(request.cf?.[key] || "")
+          .replace(/[^\x20-\x7E]/g, "")
+          .slice(0, 100);
+        forwarded.headers.set("X-AnimeShuffle-" + header, value);
+      }
       return env.BACKEND.get(env.BACKEND.idFromName("anime-shuffle-v1")).fetch(
         forwarded,
       );
