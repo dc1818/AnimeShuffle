@@ -1,3 +1,4 @@
+import { RESEARCH_TRAITS } from "./research-taxonomy.js";
 /** Shared, versioned vocabulary. Presence, prominence and reviewer opinion are
  * separate evidence: a synopsis cannot establish animation or writing quality. */
 export const NUANCE_VERSION = 1;
@@ -488,6 +489,42 @@ export function nuancedTraits(anime) {
           support: o.support,
         });
     }
+  // Research evidence stays separate from review-vote counts. Only validated
+  // numeric attributes reach clients; free-form notes never become explanations.
+  if (anime.researchTaste?.version === 1) {
+    const labels = new Map(
+      [...NUANCES, ...RESEARCH_TRAITS].map((n) => [n.key, n.label]),
+    );
+    for (const o of (anime.researchTaste.observations || []).slice(
+      0,
+      labels.size,
+    )) {
+      if (
+        !labels.has(o.key) ||
+        !Number.isFinite(o.score) ||
+        o.score < 0 ||
+        o.score > 1 ||
+        !Number.isFinite(o.confidence) ||
+        o.confidence < 0.45 ||
+        o.confidence > 1
+      )
+        continue;
+      if (o.score <= 0.1 && o.confidence >= 0.8) {
+        out.delete(o.key);
+        continue;
+      }
+      if (o.score < 0.3) continue;
+      const prominence = { central: 1, supporting: 0.8, incidental: 0.45 }[
+        o.prominence
+      ];
+      if (!prominence) continue;
+      out.set(o.key, {
+        description: labels.get(o.key),
+        strength: Math.min(0.9, o.score * o.confidence * prominence),
+        source: "research",
+      });
+    }
+  }
   // Contradictory prominence estimates should not manufacture a precise match.
   for (const [a, b] of OPPOSITES)
     if (out.has(a) && out.has(b)) {

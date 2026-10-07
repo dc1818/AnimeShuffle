@@ -1,6 +1,15 @@
+import {
+  createResearchStore,
+  isResearchAdmin,
+  researchAdminRoute,
+} from "../lib/research-profiles.mjs";
+import { RESEARCH_SEED } from "../data/research-seed.mjs";
 import { normalizeReactionReason } from "../src/lib/reaction-reasons.js";
 import { createEpisodeEnrichment } from "../lib/episode-enrichment.mjs";
-import { createModelAnalyzer } from "../lib/model-taste.mjs";
+import {
+  createCatalogModel,
+  createCatalogAnalyzer,
+} from "../lib/catalog-model.mjs";
 import { createTrailerService } from "../lib/trailers.mjs";
 import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
@@ -82,14 +91,14 @@ export function createCloudApp(
     waitUntil(scheduled);
     return scheduled;
   };
+  const research = createResearchStore(storage);
+  research.installSeed(RESEARCH_SEED, "2026-10-pilot-v1");
   const episodes = createEpisodeEnrichment({
     sql,
     fetcher,
     schedule: scheduleEnrichment,
   });
   const reviews = createReviewEnrichment({
-    modelAnalyzer:
-      env.AI_TASTE_ENRICHMENT === "true" ? createModelAnalyzer(env.AI) : null,
     store: reviewStore(sql),
     fetcher,
     enabled: (env.REVIEW_ENRICHMENT ?? env.JIKAN_REVIEWS) !== "false",
@@ -107,8 +116,31 @@ export function createCloudApp(
         console.log(JSON.stringify(event));
     },
   });
-  const attachTaste = (anime, priority = 0) =>
-    episodes.attach(reviews.attach(anime, priority), priority);
+  const modelName = env.AI_TASTE_MODEL || "@cf/meta/llama-3.1-8b-instruct";
+  const catalogModel = createCatalogModel({
+    storage,
+    research,
+    fetcher,
+    schedule: scheduleEnrichment,
+    model: modelName,
+    discover: (offset) =>
+      candidates.page(
+        new URL(
+          `https://catalog.invalid/api/catalog?source=popular&offset=${offset}`,
+        ),
+      ),
+    analyzer:
+      env.AI_TASTE_ENRICHMENT === "true"
+        ? createCatalogAnalyzer(env.AI, { model: modelName })
+        : null,
+    dailyLimit: Math.max(0, Number(env.AI_DAILY_REQUEST_LIMIT) || 0),
+  });
+  const attachTaste = (anime, priority = 0) => {
+    catalogModel.enqueue(anime, priority);
+    return research.attach(
+      episodes.attach(reviews.attach(anime, priority), priority),
+    );
+  };
   const publicStore = {
     get(path) {
       const row = one(
@@ -300,6 +332,7 @@ export function createCloudApp(
     alarm: async () => {
       await reviews.run();
       await episodes.run();
+      await catalogModel.run();
     },
     async fetch(req) {
       const measured = requestTiming(
@@ -401,6 +434,7 @@ export function createCloudApp(
           connected: !!tokenSession.tokens,
           csrf: session.csrf,
           account: accountInfo(account),
+          admin: isResearchAdmin(account, env.ADMIN_ACCOUNT_IDS),
           preferences: normalizePreferences(
             JSON.parse(account?.preferences || "{}"),
           ),
@@ -420,7 +454,29 @@ export function createCloudApp(
         let response;
         if (path === "/api/session" && req.method === "GET")
           response = json(info());
-        else if (
+        else if (path.startsWith("/api/admin/")) {
+          signedIn();
+          if (!isResearchAdmin(account, env.ADMIN_ACCOUNT_IDS))
+            throw new AppError(
+              "This account does not have administrator access.",
+              403,
+            );
+          rateLimit("admin:" + account.id, 60, 60000);
+          response = json(
+            researchAdminRoute(
+              research,
+              u,
+              req.method,
+              req.method === "POST" ? await input(req, 2 * 1024 * 1024) : null,
+              account.id,
+              {
+                reviews: reviews.diagnostics(),
+                episodes: episodes.diagnostics(),
+                model: catalogModel.diagnostics(),
+              },
+            ),
+          );
+        } else if (
           ["/api/account/register", "/api/account/login"].includes(path) &&
           req.method === "POST"
         ) {
@@ -723,7 +779,7 @@ export function createCloudApp(
           });
           response = json({
             data: (d.data || []).map((x) => ({
-              ...normalize(x.node),
+              ...attachTaste(normalize(x.node), 3),
               listStatus: x.list_status,
             })),
             nextOffset: d.paging?.next ? offset + 100 : null,
@@ -745,7 +801,7 @@ export function createCloudApp(
           );
           response = json({
             data: (d.data || [])
-              .map((x) => normalize(x.node))
+              .map((x) => attachTaste(normalize(x.node), 2))
               .filter((a) => a.nsfw === "white"),
           });
         } else if (path === "/api/taste" && req.method === "GET") {
@@ -773,9 +829,15 @@ export function createCloudApp(
             enrichment: {
               ...reviews.diagnostics(),
               episodes: episodes.diagnostics(),
+              model: catalogModel.diagnostics(),
             },
             episodes: Object.fromEntries(
               ids.map((id) => [id, episodes.cached(id)]).filter(([, p]) => p),
+            ),
+            research: Object.fromEntries(
+              ids
+                .map((id) => [id, research.projection(id)])
+                .filter(([, p]) => p),
             ),
             profiles: Object.fromEntries(
               ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),

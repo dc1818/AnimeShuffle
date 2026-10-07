@@ -460,6 +460,9 @@ export function createAnimeStore({
           ...a,
           ...(pool.find((item) => item.id === a.id) || {}),
           reviewTaste: data.profiles?.[a.id] || a.reviewTaste,
+          researchTaste: data.research
+            ? data.research[a.id] || null
+            : a.researchTaste,
           episodeTaste: data.episodes?.[a.id] || a.episodeTaste,
           communityTaste: data.community?.[a.id] || [],
         };

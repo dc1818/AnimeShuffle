@@ -40,6 +40,17 @@ function database() {
   const db = new DatabaseSync(":memory:");
   return {
     db,
+    transactionSync(fn) {
+      db.exec("BEGIN");
+      try {
+        const value = fn();
+        db.exec("COMMIT");
+        return value;
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
     sql: {
       exec(query, ...args) {
         const s = db.prepare(query);

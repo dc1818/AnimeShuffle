@@ -4,6 +4,7 @@ node_modules/
 .DS_Store
 .react-test-*/
 .react-test-*.mjs
+.react-test-*.js
 
 # Local accounts and private installation data
 .data/

@@ -109,6 +109,10 @@ export default {
         forwarded,
       );
     }
+    if (["/admin", "/admin/"].includes(url.pathname)) {
+      const entry = new URL("/index.html", url);
+      return secure(await env.ASSETS.fetch(new Request(entry, request)));
+    }
     return secure(await env.ASSETS.fetch(request));
   },
 };

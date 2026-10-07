@@ -16,5 +16,5 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AnimeBackend"] }],
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "ai": { "binding": "AI" },
-  "vars": { "AI_TASTE_ENRICHMENT": "false" },
+  "vars": { "AI_TASTE_ENRICHMENT": "true", "AI_DAILY_REQUEST_LIMIT": "0" },
 }

@@ -60,7 +60,13 @@ After a reaction, **Add a reason** lets you identify the part that mattered: cha
 
 Episode flags are checked separately in the background, up to 150 requests per UTC day. Details shows how many episodes were checked and distinguishes partial from complete coverage. Only complete available episode lists contribute a filler-rate feature. Provider filler flags are not a canon judgment, and filler, recaps, slow pacing, and total length remain separate concepts.
 
-Optional **Cloudflare Workers AI** analysis can recognize descriptions beyond the rule vocabulary. The repository declares an `AI` binding; set `AI_TASTE_ENRICHMENT=true` on the Worker to enable it. It is off by default. The model analyzes small samples of public, spoiler-filtered reviews, selects only known attributes, and must cite sentence references from at least three independent reviewers. Profiles are shared and cached per anime; personal lists and reactions are never sent to the model. Model calls are capped at 20 per UTC day, including failed calls, and failures fall back to rule analysis. Workers AI usage is subject to Cloudflare's account limits and pricing. The local Node server uses rule analysis without an AI service.
+**Cloudflare Workers AI** catalog analysis is enabled in `wrangler.jsonc` and runs in a separate persistent background queue. It combines the public synopsis with a bounded sample of non-spoiler reviews; no accounts, private lists, ratings, or reviewer identities are sent to the model. Premise traits require cited synopsis sentences; critical traits require at least three independent review authors. Invalid or unsupported output is discarded. The model can select from the full research vocabulary, distinguishing prominence and confidence. Automated profiles stay preliminary and never override owner-imported traits.
+
+There is no default 20-request app cap. `AI_DAILY_REQUEST_LIMIT=0` runs until Cloudflare reports exhaustion; the queue pauses until after the next midnight UTC and resumes automatically. Temporary capacity errors back off separately. Set a positive limit to add an app cap, or `AI_TASTE_ENRICHMENT=false` to turn model work off. The `AI` binding is required. On a Workers Free account, Cloudflare enforces its free allowance. This mode is not a spending cap on a Paid account; choose a positive limit before upgrading if desired. Request counts and reported tokens appear in the dashboard; they are not a remaining-neuron meter.
+
+Titles encountered in Discover, details and imported viewing history are queued, with history and opened titles prioritized. The background catalog scan starts with popular titles and advances one 50-title page every six hours, gradually widening coverage. Jobs, source fingerprints and accepted model profiles survive deployment and have no 2,000-profile eviction limit. Unchanged completed titles reuse their saved analysis; changed metadata or an analysis-version change queues reassessment. Airing/upcoming titles are checked again after 14 days. Identical evidence avoids another model call. A source outage retains the premise profile and retries review evidence later. Existing recommendations work throughout, and loaded picks are never replaced by background results.
+
+The website model does not search the general web. Broader official/editorial research is supported by source-linked JSON imports through `/admin`. The bundled pilot includes that external research for five titles, with the other twenty marked preliminary. The local Node server runs rule analysis and supports research imports without a Workers AI binding.
 
 The model never writes the explanation shown to a user. Explanations use fixed descriptions and the features that actually contributed to ranking. This reduces spoiler leakage and unsupported prose, but neither text rules nor a model can guarantee a correct reading of irony or subjective criticism. These are evidence-based guesses, not objective scores for writing or animation quality. There is no claim of a trained embedding model or visual analysis of trailers.
 
@@ -142,3 +148,20 @@ Tests cover rating behavior, title exclusions, backup validation, OAuth handling
 Anime information and cover images are provided by [MyAnimeList](https://myanimelist.net). Anime Shuffle is an independent project and is not affiliated with MyAnimeList.
 
 Third-party license notices are included in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+
+### Research workspace
+
+The owner workspace at `/admin` manages shared anime taste profiles. It exports catalog batches with an analysis checklist and vocabulary, validates researched JSON before import, and keeps source links, confidence, scope, unknowns and revision history. The latest import can be undone. Imported profiles are stored separately from expiring API caches and are reused by Discover and Recommendations without running a model during a swipe.
+
+Access uses an existing account and the server-side `ADMIN_ACCOUNT_IDS` allowlist; it is denied by default. Public exports contain anime metadata, never account records or OAuth tokens. A source-linked pilot includes 25 titles: five with additional critical research and 20 preliminary premise profiles. Scores describe evidence judgments, not probabilities or guarantees of enjoyment.
+
+### Activate the owner workspace
+
+1. Deploy the latest `main` commit to the existing Cloudflare Worker. Keep its existing `BACKEND` binding, stable object name, database migration and authentication secrets.
+2. Sign in to your existing Anime Shuffle account and open `/admin`. The page displays your exact account ID if access has not yet been granted.
+3. In that Worker's **Settings → Variables and Secrets**, add **Secret** `ADMIN_ACCOUNT_IDS` containing that ID. Multiple owner IDs can be comma-separated. Save and deploy, then refresh `/admin`. A username or MAL client ID is not an account ID. No visitor can self-assign admin access.
+4. Confirm Background services shows model enabled, then a successful run or a specific pause reason. The repository enables `AI_TASTE_ENRICHMENT=true` and declares the `AI` binding. Check these in the deployed settings if the dashboard reports disabled.
+
+The workspace shows source links, evidence notes, confidence, unknowns, coverage, model attempts/tokens, queue state, and import history. Export pending/catalog inputs for research, manual profiles for backup, or automatic profiles from the export selector. Validate a JSON file first, review the changes, then import. Changed inputs or revision conflicts require a fresh preview. Undo restores the previous manual profiles; automated background results never overwrite those records. Downloads contain public metadata and shared analyses only.
+
+`data/research-seed.mjs` installs the 25-profile pilot once per database. Future deployments preserve imported revisions. Functional tests validate authorization, input validation, persistence, quota retries and ranking integration; model accuracy and recommendation quality still need real-user evaluation.

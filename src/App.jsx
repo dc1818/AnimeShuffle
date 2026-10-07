@@ -282,6 +282,11 @@ export function App({ store }) {
           ))}
         </nav>
         <div className="account-actions">
+          {state.session.admin && (
+            <a className="soft-button" href="/admin">
+              Admin
+            </a>
+          )}
           <button
             className="account"
             aria-label={state.session.account ? "Open your profile" : "Sign in"}

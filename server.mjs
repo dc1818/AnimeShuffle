@@ -1,3 +1,9 @@
+import {
+  createResearchStore,
+  isResearchAdmin,
+  researchAdminRoute,
+} from "./lib/research-profiles.mjs";
+import { RESEARCH_SEED } from "./data/research-seed.mjs";
 import { createEpisodeEnrichment } from "./lib/episode-enrichment.mjs";
 import { validProxyImage } from "./lib/media-images.mjs";
 import { createTrailerService } from "./lib/trailers.mjs";
@@ -105,8 +111,23 @@ const reviews = createReviewEnrichment({
       console.log(JSON.stringify(event));
   },
 });
+const research = createResearchStore({
+  sql: episodeSql,
+  transactionSync(fn) {
+    reviewDb.exec("BEGIN");
+    try {
+      const result = fn();
+      reviewDb.exec("COMMIT");
+      return result;
+    } catch (error) {
+      reviewDb.exec("ROLLBACK");
+      throw error;
+    }
+  },
+});
+research.installSeed(RESEARCH_SEED, "2026-10-pilot-v1");
 const attachTaste = (anime, priority = 0) =>
-  episodes.attach(reviews.attach(anime, priority), priority);
+  research.attach(episodes.attach(reviews.attach(anime, priority), priority));
 // Resume durable jobs after a local restart, without holding up server startup.
 void reviews.run();
 const sessions = new Map();
@@ -172,14 +193,16 @@ async function sessionInfo(s) {
     connected: !!s.tokens,
     csrf: s.csrf,
     account: s.account || null,
+    admin: isResearchAdmin(s.account, process.env.ADMIN_ACCOUNT_IDS),
     ...saved,
   };
 }
-async function body(req) {
+async function body(req, limit = 32000) {
   let data = "";
   for await (const chunk of req) {
     data += chunk;
-    if (data.length > 32000) throw new AppError("Request too large.", 413);
+    if (Buffer.byteLength(data) > limit)
+      throw new AppError("Request too large.", 413);
   }
   try {
     return JSON.parse(data || "{}");
@@ -255,6 +278,26 @@ const server = http.createServer(async (req, res) => {
     }
     if (u.pathname === "/api/session" && req.method === "GET")
       return json(res, 200, await sessionInfo(s));
+    if (u.pathname.startsWith("/api/admin/")) {
+      if (!s.account) throw new AppError("Sign in first.", 401);
+      if (!isResearchAdmin(s.account, process.env.ADMIN_ACCOUNT_IDS))
+        throw new AppError(
+          "This account does not have administrator access.",
+          403,
+        );
+      return json(
+        res,
+        200,
+        researchAdminRoute(
+          research,
+          u,
+          req.method,
+          req.method === "POST" ? await body(req, 2 * 1024 * 1024) : null,
+          s.account.id,
+          { reviews: reviews.diagnostics(), episodes: episodes.diagnostics() },
+        ),
+      );
+    }
     // Local authentication rotates the cookie and drops any previous account's MAL tokens.
     if (
       ["/api/account/register", "/api/account/login"].includes(u.pathname) &&
@@ -427,6 +470,9 @@ const server = http.createServer(async (req, res) => {
         },
         episodes: Object.fromEntries(
           ids.map((id) => [id, episodes.cached(id)]).filter(([, p]) => p),
+        ),
+        research: Object.fromEntries(
+          ids.map((id) => [id, research.projection(id)]).filter(([, p]) => p),
         ),
         profiles: Object.fromEntries(
           ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
@@ -616,7 +662,12 @@ const server = http.createServer(async (req, res) => {
     const local = path.resolve(
       root,
       "dist",
-      "." + decodeURIComponent(u.pathname === "/" ? "/index.html" : u.pathname),
+      "." +
+        decodeURIComponent(
+          ["/", "/admin", "/admin/"].includes(u.pathname)
+            ? "/index.html"
+            : u.pathname,
+        ),
     );
     if (!local.startsWith(path.join(root, "dist") + path.sep))
       throw new AppError("Not found.", 404);

@@ -1,3 +1,4 @@
+import { Admin } from "./components/Admin.jsx";
 import { browserLocalStorage } from "./lib/browser-storage.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -44,7 +45,11 @@ window.animeShuffleDebug.enrichment = async () => {
 };
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App store={store} />
+    {location.pathname.replace(/\/$/, "") === "/admin" ? (
+      <Admin />
+    ) : (
+      <App store={store} />
+    )}
   </StrictMode>,
 );
 
