@@ -73,6 +73,7 @@ export function createAnimeStore({
   let sessionGeneration = 0;
   let refillPending = null;
   let startupCatalog = null;
+  let watchlistSyncPending = null;
   const detailRequests = new Map();
   let replacementSlots = [];
   let replacementRunning = false;
@@ -361,6 +362,8 @@ export function createAnimeStore({
     // card is a snapshot: only explicit navigation/reactions may advance it.
     if (!state.ready || state.busy) return;
     await checkMalFreshness();
+    if (state.settings.autoAdd && state.session.connected)
+      await syncWatchlistToMal(false);
   }
   // Share verified public details across both feeds, with a bounded freshness window.
   function animeDetails(id) {
@@ -922,7 +925,15 @@ export function createAnimeStore({
    * so a stale import can never turn a completed/dropped show back into a plan.
    * Stop on the first failure; a retry refreshes MAL before resuming missing titles.
    */
-  async function syncWatchlistToMal(refresh = true) {
+  function syncWatchlistToMal(refresh = true) {
+    if (watchlistSyncPending) return watchlistSyncPending;
+    const pending = runWatchlistSync(refresh).finally(() => {
+      if (watchlistSyncPending === pending) watchlistSyncPending = null;
+    });
+    watchlistSyncPending = pending;
+    return pending;
+  }
+  async function runWatchlistSync(refresh = true) {
     if (!state.session.connected || state.preview) return;
     const generation = sessionGeneration;
     update({ malSyncError: "" });
@@ -934,6 +945,8 @@ export function createAnimeStore({
       update({ malSyncProgress: { done, total: entries.length } });
       for (const { anime } of entries) {
         if (generation !== sessionGeneration) return;
+        // A save may have been removed while an earlier upload was pending.
+        if (state.reactions[anime.id]?.action !== "watch") continue;
         await addToMal(anime);
         update({ malSyncProgress: { done: ++done, total: entries.length } });
       }
@@ -1028,6 +1041,7 @@ export function createAnimeStore({
     clearTimeout(prefetchTimer);
     prefetchTimer = null;
     refillPending = null;
+    watchlistSyncPending = null;
     replacementSlots = [];
     preferenceVersion++;
     preferencesUnsynced = false;
@@ -1036,7 +1050,12 @@ export function createAnimeStore({
     lastAccountCheck = -Infinity;
     cloudSync?.dispose();
     cloudSync = null;
-    update({ accountDataReady: false, syncError: "", malSyncError: "", malSyncProgress: null });
+    update({
+      accountDataReady: false,
+      syncError: "",
+      malSyncError: "",
+      malSyncProgress: null,
+    });
     history = [];
     expandedSeeds.clear();
     details.clear();
@@ -1768,6 +1787,8 @@ export function createAnimeStore({
       if (state.busy) return { removed: false };
       update({ busy: true });
       try {
+        // Finish any earlier upload before removing, so it cannot recreate the plan.
+        if (watchlistSyncPending) await watchlistSyncPending;
         // Check connected accounts even for site-only saves: MAL may have changed
         // since the last automatic refresh. No local removal precedes MAL success.
         if (state.session.connected) {
@@ -1816,6 +1837,7 @@ export function createAnimeStore({
       update({ busy: true });
       try {
         await readList();
+        if (state.settings.autoAdd) await syncWatchlistToMal(false);
         if (
           state.current &&
           state.list.some((anime) => anime.id === state.current.id)

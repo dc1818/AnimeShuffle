@@ -148,7 +148,7 @@ test("combined watchlist merges MAL plans without duplicate reactions and exclud
   const entries = combinedWatchlist(reactions, list);
   assert.deepEqual(
     entries.map((e) => e.anime.id),
-    [1, 2, 5],
+    [1, 2, 6, 5],
   );
   assert.equal(entries[0].site, true);
   assert.equal(entries[0].mal, true);
@@ -158,7 +158,7 @@ test("combined watchlist merges MAL plans without duplicate reactions and exclud
     missingMalPlans(reactions, list).map((e) => e.anime.id),
     [5],
   );
-  assert.equal(JSON.parse(watchlistBackup(entries)).entries.length, 3);
+  assert.equal(JSON.parse(watchlistBackup(entries)).entries.length, 4);
   assert.equal(
     reactions[2],
     undefined,

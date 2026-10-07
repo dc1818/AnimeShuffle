@@ -9,17 +9,13 @@ import { buildTaste, scoreAnime } from "./recommend.js";
 import { releaseLabel } from "./release.js";
 import { runtimeLabel, matchesPreferences } from "./preferences.js";
 /** One visible watchlist, merged by MAL ID without fabricating local reactions.
- * MAL progress removes stale planned saves; explicit seen/dislike reactions hide plans.
+ * MAL progress removes stale planned saves; current MAL plans remain authoritative.
  */
 export function combinedWatchlist(reactions = {}, list = []) {
   const mal = new Map(list.map((anime) => [anime.id, anime]));
   const entries = new Map();
   for (const anime of list) {
-    const reaction = reactions[anime.id];
-    if (
-      anime.listStatus?.status === "plan_to_watch" &&
-      (!reaction || reaction.action === "watch")
-    )
+    if (anime.listStatus?.status === "plan_to_watch")
       entries.set(anime.id, { anime, addedAt: null, site: false, mal: true });
   }
   for (const reaction of Object.values(reactions)) {
