@@ -100,6 +100,25 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
         if (url.hostname === "api.tenrai.org") {
           assert.equal(request.headers.get("Authorization"), null);
           assert.equal(request.headers.get("X-MAL-CLIENT-ID"), null);
+          if (url.pathname.endsWith("/videos"))
+            return WorkerResponse.json({
+              data: {
+                promo: [
+                  { title: "PV", trailer: { youtube_id: "abcdefghijk" } },
+                ],
+              },
+            });
+          if (url.pathname.endsWith("/pictures"))
+            return WorkerResponse.json({
+              data: [
+                {
+                  jpg: {
+                    image_url:
+                      "https://cdn.myanimelist.net/images/anime/1/1.png",
+                  },
+                },
+              ],
+            });
           assert.equal(url.searchParams.get("spoilers"), "false");
           return WorkerResponse.json({
             data: [1, 2, 3].map((n) => ({
@@ -174,6 +193,17 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       requests.filter((s) => s.startsWith("api.tenrai.org")).length,
       1,
     );
+    const videos = await call("/api/trailer/42");
+    assert.equal(videos.status, 200);
+    assert.equal((await videos.json()).trailers[0].videoId, "abcdefghijk");
+    const pictures = await call("/api/pictures/42");
+    assert.equal(pictures.status, 200);
+    assert.equal((await pictures.json()).pictures.length, 1);
+    assert.equal(pictures.headers.get("set-cookie"), null);
+    const beforeMediaCache = requests.length;
+    await call("/api/trailer/42");
+    await call("/api/pictures/42");
+    assert.equal(requests.length, beforeMediaCache);
     const pendingMetadata = call("/api/anime/999");
     for (let i = 0; !metadataStarted && i < 100; i++)
       await new Promise((r) => setTimeout(r, 20));

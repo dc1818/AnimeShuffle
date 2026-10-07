@@ -228,6 +228,8 @@ export function createCloudApp(
     let response;
     if (/^\/api\/trailer\/\d+$/.test(path))
       return json(await trailers.get(Number(path.split("/").pop())));
+    if (/^\/api\/pictures\/\d+$/.test(path))
+      return json(await trailers.pictures(Number(path.split("/").pop())));
     if (path === "/api/catalog" && u.searchParams.get("provider") === "tenrai")
       return json(await candidates.page(u));
     if (path === "/api/catalog") {

@@ -6,7 +6,8 @@ import path from "node:path";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
-test("preview warms metadata, reuses it across tabs, and cancels stale requests", async () => {
+
+test("reopening retains the paused player; delayed readiness, errors and stale metadata are handled", async () => {
   const folder = await mkdtemp(path.resolve(".react-test-"));
   const outfile = path.join(folder, "Trailer.mjs");
   await build({
@@ -27,13 +28,37 @@ test("preview warms metadata, reuses it across tabs, and cancels stale requests"
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const original = globalThis.fetch;
   let calls = 0,
-    signal,
     release;
-  globalThis.fetch = async (_, options) => {
+  globalThis.fetch = async () => {
     calls++;
-    signal = options.signal;
-    if (calls > 1) await new Promise((r) => (release = r));
-    return Response.json({ videoId: "abcdefghijk" });
+    if (calls === 2) await new Promise((r) => (release = r));
+    return Response.json({
+      videoId: "abcdefghijk",
+      trailers: [{ videoId: "abcdefghijk", title: "PV" }],
+    });
+  };
+  const instances = [];
+  window.YT = {
+    Player: class {
+      constructor(frame, { events }) {
+        this.frame = frame;
+        this.events = events;
+        this.plays = 0;
+        this.pauses = 0;
+        instances.push(this);
+      }
+      mute() {}
+      playVideo() {
+        this.plays++;
+      }
+      pauseVideo() {
+        this.pauses++;
+      }
+      destroy() {
+        this.destroyed = true;
+        this.frame.remove();
+      }
+    },
   };
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root"));
@@ -47,47 +72,72 @@ test("preview warms metadata, reuses it across tabs, and cancels stale requests"
   try {
     await act(async () => render(1));
     assert.equal(calls, 0);
-    assert.equal(document.querySelector("iframe"), null);
-    // Keyboard focus warms only metadata, not a YouTube player.
     await act(async () => document.querySelector(".watch-preview").focus());
     assert.equal(calls, 1);
     assert.equal(document.querySelector("iframe"), null);
     await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 1);
-    assert.match(
-      document.querySelector("iframe").src,
-      /^https:\/\/www.youtube-nocookie.com\/embed\/abcdefghijk/,
+    const frame = document.querySelector("iframe"),
+      instance = instances[0];
+    assert.equal(frame.referrerPolicy, "strict-origin-when-cross-origin");
+    assert.match(frame.src, /enablejsapi=1/);
+    // Close before YouTube becomes ready: it must never play behind the cover.
+    await act(async () =>
+      document.querySelector(".trailer-toolbar button").click(),
     );
-    assert.equal(
-      document.querySelector("iframe").getAttribute("referrerpolicy"),
-      "strict-origin-when-cross-origin",
+    await act(async () => instance.events.onReady({ target: instance }));
+    assert.equal(instance.plays, 0);
+    assert.ok(instance.pauses > 0);
+    assert.equal(document.querySelector(".trailer-panel").hidden, true);
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.equal(document.querySelector("iframe"), frame);
+    assert.equal(instances.length, 1);
+    assert.equal(calls, 1);
+    assert.equal(instance.plays, 1);
+    await act(async () => instance.events.onAutoplayBlocked());
+    assert.match(document.body.textContent, /Press Play/);
+    await act(async () =>
+      instance.events.onStateChange({ target: instance, data: 1 }),
+    );
+    assert.doesNotMatch(
+      document.body.textContent,
+      /Loading YouTube|Starting preview/,
     );
     await act(async () =>
       document.querySelector(".trailer-toolbar button").click(),
     );
-    assert.equal(document.querySelector("iframe"), null);
-    await act(async () => render(2));
-    await act(async () => document.querySelector(".watch-preview").focus());
-    assert.equal(calls, 2);
-    // Clicking during warming joins the pending fetch instead of duplicating it.
+    assert.ok(instance.pauses >= 2);
+    await act(async () =>
+      instance.events.onStateChange({ target: instance, data: 1 }),
+    );
+    assert.ok(
+      instance.pauses >= 3,
+      "Late playing events are paused behind cover",
+    );
     await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 2);
+    await act(async () => instance.events.onError({ data: 150 }));
+    assert.match(document.body.textContent, /publisher doesn’t allow/);
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Retry player")
+        .click(),
+    );
+    assert.equal(instance.destroyed, true);
+    assert.equal(instances.length, 2);
+    await act(async () => render(2));
+    assert.equal(instances[1].destroyed, true);
+    await act(async () => document.querySelector(".watch-preview").focus());
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.equal(calls, 2, "Focus and click share a lookup");
     await act(async () => render(3));
-    assert.equal(signal.aborted, true);
     await act(async () => release());
-    assert.equal(document.querySelector("iframe"), null);
+    assert.equal(
+      document.querySelector("iframe"),
+      null,
+      "Stale response cannot open a new card’s player",
+    );
     await act(async () => render(1));
     await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 2);
-    assert.ok(document.querySelector("iframe"));
-    await act(async () => render(4));
-    await act(async () => new Promise((r) => setTimeout(r, 850)));
-    assert.equal(calls, 3);
-    assert.equal(document.querySelector("iframe"), null);
-    await act(async () => release());
-    await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 3);
-    assert.ok(document.querySelector("iframe"));
+    assert.equal(calls, 2, "Metadata survives tab/card remounts");
   } finally {
     await act(async () => root.unmount());
     globalThis.fetch = original;

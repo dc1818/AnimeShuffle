@@ -1,3 +1,4 @@
+import { AnimeMedia } from "./AnimeMedia.jsx";
 import { TrailerPreview } from "./TrailerPreview.jsx";
 import { genreLabel } from "../lib/genres.js";
 import { GenreFocus } from "./GenrePreferences.jsx";
@@ -251,7 +252,13 @@ export function AnimeCard({
 export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
   const panel = useRef(null);
   const tabId = useId();
-  const tabs = ["Synopsis", "Details", "Why this pick?"];
+  const mediaEnabled = document.documentElement.dataset.hosting !== "pages";
+  const tabs = [
+    "Synopsis",
+    "Details",
+    "Why this pick?",
+    ...(mediaEnabled ? ["Trailers", "Images"] : []),
+  ];
   const [activeTab, setActiveTab] = useState(0);
   // Each anime starts at its synopsis, including when a parent reuses this panel.
   useEffect(() => {
@@ -356,7 +363,7 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
           <AnimeTitle anime={anime} />
         </h2>
         <div
-          className="details-tabs"
+          className={`details-tabs${mediaEnabled ? " with-media" : ""}`}
           role="tablist"
           aria-label="Anime information"
         >
@@ -377,7 +384,7 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
           ))}
         </div>
       </div>
-      <div className="details-body" key={`${anime.id}-${activeTab}`}>
+      <div className="details-body" key={anime.id}>
         <div
           role="tabpanel"
           id={`${tabId}-panel-0`}
@@ -420,6 +427,24 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
             </div>
           </div>
         </div>
+        {mediaEnabled &&
+          ["trailer", "pictures"].map((kind, index) => (
+            <div
+              key={kind}
+              role="tabpanel"
+              id={`${tabId}-panel-${index + 3}`}
+              aria-labelledby={`${tabId}-tab-${index + 3}`}
+              hidden={activeTab !== index + 3}
+              tabIndex={0}
+            >
+              <AnimeMedia
+                key={`${anime.id}-${kind}`}
+                anime={anime}
+                kind={kind}
+                active={activeTab === index + 3}
+              />
+            </div>
+          ))}
         <a
           className="external-button"
           href={`https://myanimelist.net/anime/${anime.id}`}

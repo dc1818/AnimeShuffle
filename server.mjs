@@ -177,7 +177,7 @@ function headers(res) {
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; connect-src 'self'; frame-src https://www.youtube-nocookie.com; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "default-src 'self'; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; connect-src 'self'; frame-src https://www.youtube-nocookie.com; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   );
 }
 const server = http.createServer(async (req, res) => {
@@ -434,6 +434,12 @@ const server = http.createServer(async (req, res) => {
         res,
         200,
         await trailers.get(Number(u.pathname.split("/").pop())),
+      );
+    if (req.method === "GET" && /^\/api\/pictures\/\d+$/.test(u.pathname))
+      return json(
+        res,
+        200,
+        await trailers.pictures(Number(u.pathname.split("/").pop())),
       );
     if (/^\/api\/anime\/\d+$/.test(u.pathname)) {
       const id = number(u.pathname.split("/").pop());

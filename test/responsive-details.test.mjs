@@ -73,7 +73,7 @@ test("responsive details switch between modal and inline panel, release scroll l
     );
     const tabs = [...document.querySelectorAll('[role="tab"]')];
     let panels = [...document.querySelectorAll('[role="tabpanel"]')];
-    assert.equal(tabs.length, 3);
+    assert.equal(tabs.length, 5);
     assert.equal(panels[0].hidden, false);
     assert.equal(panels[1].hidden, true);
     assert.equal(

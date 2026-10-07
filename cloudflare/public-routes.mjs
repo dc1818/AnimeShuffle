@@ -3,6 +3,7 @@ export function isPublicMetadataRequest(request) {
   const path = new URL(request.url).pathname;
   return (
     request.method === "GET" &&
-    (path === "/api/catalog" || /^\/api\/(?:anime|trailer)\/\d+$/.test(path))
+    (path === "/api/catalog" ||
+      /^\/api\/(?:anime|trailer|pictures)\/\d+$/.test(path))
   );
 }

@@ -23,6 +23,8 @@ Start with favorite genres and a few anime you like, then browse individual card
 
 Skip a title without rating it, or undo your last choice. Good and Bad are disabled for anime that haven't aired yet. Viewing preferences let you choose genres (or Any genre), formats, series lengths, and whether to include ongoing or upcoming releases. Selected genres restrict Discover and Recommendations to anime matching at least one choice. Cards on both pages show a small reminder of active genre selections; Any genre shows no reminder. Genre controls are available in preferences for guests and signed-in users.
 
+Watch a trailer inside the Discover card, or open **More about this anime** for separate **Trailers** and **Images** tabs. Return to the cover to pause playback, then reopen it to continue. Media comes from MyAnimeList listings through Tenrai; availability varies by title.
+
 ### Recommendations
 
 Explore up to 25 personalized picks in an expandable leaderboard. Each row has a numbered tier, with gold, silver, and bronze highlighting the first three matches. These tiers describe how a title ranks within your shortlist, not its overall quality or a guaranteed likelihood of enjoying it.

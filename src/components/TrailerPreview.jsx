@@ -1,100 +1,53 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { cachedMedia, loadMedia } from "../lib/media-cache.js";
+import { loadYouTubeAPI } from "../lib/youtube.js";
+import { InlineTrailer } from "./InlineTrailer.jsx";
 
-// Public trailer links survive card/tab remounts; never cache errors or user data.
-const trailerCache = new Map();
-function cachedTrailer(id) {
-  const entry = trailerCache.get(id);
-  if (entry?.expires > Date.now()) return entry.data;
-  trailerCache.delete(id);
-  return null;
-}
-
-/** Mounted with the anime ID as its React key: switching cards stops playback. */
+/** Keyed by anime ID: changing cards disposes its player. Closing only pauses it. */
 export function TrailerPreview({ anime }) {
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState(() => cachedTrailer(anime.id));
+  const [result, setResult] = useState(() => cachedMedia(anime.id));
   const [error, setError] = useState("");
-  const [playerLoaded, setPlayerLoaded] = useState(false);
-  const controller = useRef(null);
-  const pending = useRef(null);
-  const trigger = useRef(null);
-  const wasOpened = useRef(false);
-
-  // Hover, idle warming and a click share the same request. Warming never loads
-  // YouTube, blocks reactions, or changes the current Discover selection.
-  const load = useCallback(() => {
-    const cached = cachedTrailer(anime.id);
-    if (cached) {
-      setResult(cached);
-      return Promise.resolve(cached);
-    }
-    if (pending.current && !controller.current?.signal.aborted)
-      return pending.current;
-    const request = new AbortController();
-    controller.current = request;
-    const timeout = setTimeout(() => request.abort(), 12000);
-    const promise = (async () => {
-      const response = await fetch(`/api/trailer/${anime.id}`, {
-        signal: request.signal,
-      });
-      if (!response.ok)
-        throw new Error("Couldn’t load the preview. Try again.");
-      const data = await response.json();
-      if (
-        data.videoId !== null &&
-        !/^[A-Za-z0-9_-]{11}$/.test(data.videoId || "")
-      )
-        throw new Error("Preview unavailable.");
-      if (request.signal.aborted)
-        throw new DOMException("Aborted", "AbortError");
-      trailerCache.set(anime.id, {
-        data,
-        expires: Date.now() + (data.videoId ? 86400000 : 3600000),
-      });
-      if (trailerCache.size > 100)
-        trailerCache.delete(trailerCache.keys().next().value);
-      setResult(data);
-      return data;
-    })().finally(() => {
-      clearTimeout(timeout);
-      if (controller.current === request) pending.current = null;
-    });
-    pending.current = promise;
-    return promise;
-  }, [anime.id]);
+  const [started, setStarted] = useState(false);
+  const mounted = useRef(false),
+    trigger = useRef(null),
+    closeButton = useRef(null),
+    wasOpened = useRef(false);
+  const load = useCallback(
+    () =>
+      loadMedia(anime.id).then((data) => {
+        if (mounted.current) setResult(data);
+        return data;
+      }),
+    [anime.id],
+  );
   const warm = useCallback(() => {
     load().catch(() => {});
   }, [load]);
-
   useEffect(() => {
-    // A short delay avoids looking up trailers for rapidly skipped cards and
-    // gives the initial card and its next-anime prefetch priority.
+    mounted.current = true;
     const timer = setTimeout(warm, 800);
     return () => {
+      mounted.current = false;
       clearTimeout(timer);
-      controller.current?.abort();
     };
   }, [warm]);
   useEffect(() => {
-    if (!open && wasOpened.current) trigger.current?.focus();
+    if (open) closeButton.current?.focus();
+    else if (wasOpened.current) trigger.current?.focus();
   }, [open]);
-
   async function play() {
     wasOpened.current = true;
     setOpen(true);
-    setPlayerLoaded(false);
+    setStarted(true);
     setError("");
+    // Start API boot and metadata lookup together on this explicit playback click.
+    loadYouTubeAPI().catch(() => {});
     try {
       await load();
     } catch (err) {
-      if (err.name !== "AbortError") setError(err.message);
-      else if (controller.current?.signal.aborted)
-        setError("Preview took too long to load. Try again.");
+      if (mounted.current) setError(err.message);
     }
-  }
-  function close() {
-    setOpen(false);
-    setError("");
   }
   const video = result?.videoId;
   return (
@@ -110,51 +63,40 @@ export function TrailerPreview({ anime }) {
       >
         <span aria-hidden="true">▶</span> Watch preview
       </button>
-      {open && (
+      {started && (
         <div
           className="trailer-panel"
+          hidden={!open}
           onKeyDown={(event) => {
-            if (event.key === "Escape") close();
+            if (event.key === "Escape") setOpen(false);
           }}
         >
           <div className="trailer-toolbar">
             <span>Preview</span>
-            <button onClick={close} autoFocus>
+            <button ref={closeButton} onClick={() => setOpen(false)}>
               Back to cover
             </button>
           </div>
           {video ? (
-            <iframe
+            <InlineTrailer
+              videoId={video}
               title={`${anime.title} promotional trailer`}
-              src={`https://www.youtube-nocookie.com/embed/${video}?autoplay=1&mute=1&playsinline=1&rel=0`}
-              onLoad={() => setPlayerLoaded(true)}
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+              active={open}
             />
           ) : (
             <div className="trailer-status" role="status">
+              {!result && !error && (
+                <span className="media-spinner" aria-hidden="true" />
+              )}
               {error ||
                 (result
                   ? "No preview is available for this anime yet."
-                  : "Loading preview…")}
+                  : "Finding preview…")}
               {error && <button onClick={play}>Try again</button>}
             </div>
           )}
           <div className="trailer-footer">
-            {video ? (
-              <a
-                href={`https://www.youtube.com/watch?v=${video}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {playerLoaded
-                  ? "Playback unavailable? Open on YouTube ↗"
-                  : "Opening player… Open on YouTube ↗"}
-              </a>
-            ) : (
-              "Promotional trailers may contain spoilers."
-            )}
+            Promotional trailers may contain spoilers.
           </div>
         </div>
       )}
