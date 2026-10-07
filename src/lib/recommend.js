@@ -1,3 +1,4 @@
+import { normalizeReactionReason } from "./reaction-reasons.js";
 import { isNonCanonMovie } from "./movie-continuity.js";
 import { primaryTitle, englishTitle } from "./titles.js";
 import { explainPick, storyConnection } from "./pick-explanation.js";
@@ -94,6 +95,7 @@ export function buildTaste(
       ...signals,
       source: "reaction",
       action: r.action,
+      reason: normalizeReactionReason(r.reason),
     });
   }
   const genres = new Map(),

@@ -1,3 +1,4 @@
+import { createEpisodeEnrichment } from "./lib/episode-enrichment.mjs";
 import { validProxyImage } from "./lib/media-images.mjs";
 import { createTrailerService } from "./lib/trailers.mjs";
 import { createCandidateCatalog } from "./lib/candidate-catalog.mjs";
@@ -47,6 +48,32 @@ mkdirSync(reviewDirectory, { recursive: true });
 const reviewDb = new DatabaseSync(
   path.join(reviewDirectory, "review-cache.sqlite"),
 );
+const episodeSql = {
+  exec(query, ...args) {
+    const stmt = reviewDb.prepare(query);
+    if (stmt.columns().length) return stmt.all(...args);
+    stmt.run(...args);
+    return [];
+  },
+};
+let episodeTimer,
+  episodeAt = 0;
+const episodes = createEpisodeEnrichment({
+  sql: episodeSql,
+  schedule(at) {
+    if (episodeTimer && episodeAt <= at) return;
+    clearTimeout(episodeTimer);
+    episodeAt = at;
+    episodeTimer = setTimeout(
+      () => {
+        episodeTimer = null;
+        void episodes.run();
+      },
+      Math.max(0, at - Date.now()),
+    );
+    episodeTimer.unref();
+  },
+});
 let reviewTimer,
   reviewAt = 0;
 const reviews = createReviewEnrichment({
@@ -78,6 +105,8 @@ const reviews = createReviewEnrichment({
       console.log(JSON.stringify(event));
   },
 });
+const attachTaste = (anime, priority = 0) =>
+  episodes.attach(reviews.attach(anime, priority), priority);
 // Resume durable jobs after a local restart, without holding up server startup.
 void reviews.run();
 const sessions = new Map();
@@ -392,7 +421,13 @@ const server = http.createServer(async (req, res) => {
         throw new AppError("Invalid anime identifiers.");
       for (const id of ids.slice(0, 50)) reviews.enqueue(id, 3);
       return json(res, 200, {
-        enrichment: reviews.diagnostics(),
+        enrichment: {
+          ...reviews.diagnostics(),
+          episodes: episodes.diagnostics(),
+        },
+        episodes: Object.fromEntries(
+          ids.map((id) => [id, episodes.cached(id)]).filter(([, p]) => p),
+        ),
         profiles: Object.fromEntries(
           ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
         ),
@@ -402,8 +437,13 @@ const server = http.createServer(async (req, res) => {
     if (
       u.pathname === "/api/catalog" &&
       u.searchParams.get("provider") === "tenrai"
-    )
-      return json(res, 200, await candidates.page(u));
+    ) {
+      const page = await candidates.page(u);
+      return json(res, 200, {
+        ...page,
+        data: page.data.map((a) => attachTaste(a)),
+      });
+    }
     if (u.pathname === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 1000000);
       const source = u.searchParams.get("source") || "popular";
@@ -425,7 +465,7 @@ const server = http.createServer(async (req, res) => {
       }
       const data = await mal.request(endpoint + "?" + q, { publicCache: true });
       return json(res, 200, {
-        data: (data.data || []).map((x) => reviews.attach(normalize(x.node))),
+        data: (data.data || []).map((x) => attachTaste(normalize(x.node))),
         nextOffset: data.paging?.next ? offset + 50 : null,
       });
     }
@@ -447,7 +487,7 @@ const server = http.createServer(async (req, res) => {
         `/anime/${id}?fields=${encodeURIComponent(fields)}`,
         { publicCache: true },
       );
-      return json(res, 200, reviews.attach(normalize(a), 2));
+      return json(res, 200, attachTaste(normalize(a), 2));
     }
     // Serialize mutations per session so two tabs cannot race the existence check.
     if (

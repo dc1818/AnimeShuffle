@@ -1,3 +1,4 @@
+import { nuancedTraits } from "./nuanced-taste.js";
 import { genreLabel } from "./genres.js";
 import { reviewTraits } from "./taste-traits.js";
 import {
@@ -63,6 +64,18 @@ export function storyConnection(anime, taste) {
 // only once. These families are editorial deduplication, not scoring weights.
 const family = (key) =>
   ({
+    "animation-execution": "animation-craft",
+    "character-writing": "character-depth",
+    "memorable-music": "soundtrack-craft",
+    "rich-world": "worldbuilding",
+    "political-intrigue": "intrigue",
+    "moral-dilemmas": "moral",
+    "fluid-combat": "combat-choreography",
+    "deadpan-comedy": "dry-humor",
+    "absurdist-comedy": "absurd-comedy",
+    "outcast-ascent": "underdog",
+    "established-couple": "established-romance",
+    "soundtrack-atmosphere": "atmospheric-music",
     "strategic-action": "tactics",
     "episodic-style": "episodic",
     "gradual-romance": "slow-romance",
@@ -131,6 +144,59 @@ export function explainPick(
     mentioned = new Set(),
     groups = new Map(),
     parts = [];
+  const nuances = nuancedTraits(anime);
+  const nuanceKeys = [
+    ...new Set([
+      ...contributing("nuance"),
+      ...contributing("nuanceblend").flatMap((k) => k.split(":")),
+      ...(analysis.neighbors || [])
+        .filter((n) => n.contribution > 0)
+        .flatMap((n) => n.keys),
+    ]),
+  ];
+  const nuanceMatches = positive
+    .map((record) => ({
+      record,
+      keys: nuanceKeys.filter(
+        (k) => nuances.has(k) && nuancedTraits(record.anime).has(k),
+      ),
+    }))
+    .filter((m) => m.keys.length)
+    .sort(
+      (a, b) =>
+        b.keys.length - a.keys.length || b.record.weight - a.record.weight,
+    );
+  if (nuanceMatches.length) {
+    const { record, keys } = nuanceMatches[0];
+    const chosen = keys.slice(0, 2),
+      descriptions = chosen.map((k) => nuances.get(k).description);
+    const reviewBased = chosen.some((k) => nuances.get(k).source === "reviews");
+    parts.push(personalConnection(record));
+    parts.push(
+      `${reviewBased ? "Reviewers point to" : "The connection here is"} ${join(descriptions)}${reviewBased ? ", a combination also described in that show" : "—qualities also present in that show"}.`,
+    );
+    for (const k of chosen) used.add(family(k));
+    mentioned.add(record.anime.id);
+    const contrast = chosen.find((k) =>
+      ["mecha-incidental", "romance-subplot", "chibi-gags"].includes(k),
+    );
+    const opposing = {
+      "mecha-incidental": "mecha-central",
+      "romance-subplot": "romance-central",
+      "chibi-gags": "chibi-dominant",
+    }[contrast];
+    if (
+      opposing &&
+      [...taste.records.values()].filter(
+        (r) =>
+          (r.enjoyment < -0.4 || r.interest < -0.4) &&
+          nuancedTraits(r.anime).has(opposing),
+      ).length >= 2
+    )
+      parts.push(
+        "Your choices have leaned away from shows where that element takes over; here it plays a smaller part.",
+      );
+  }
   let storyCount = 0;
   function addStory(key, aspect, related) {
     if (!aspect || !related.length || used.has(family(key)) || storyCount >= 3)
@@ -139,7 +205,11 @@ export function explainPick(
     const candidates = enjoyed.length ? enjoyed : related;
     const anchor =
       candidates.find((r) => groups.has(r.anime.id)) || candidates[0];
-    if (!groups.has(anchor.anime.id) && groups.size >= 2) return;
+    if (
+      !groups.has(anchor.anime.id) &&
+      groups.size >= (nuanceMatches.length ? 1 : 2)
+    )
+      return;
     const group = groups.get(anchor.anime.id) || { anchor, descriptions: [] };
     if (group.descriptions.length >= 2) return;
     group.descriptions.push(naturalDescription(key, aspect.description));

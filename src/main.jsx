@@ -36,6 +36,7 @@ window.animeShuffleDebug.enrichment = async () => {
   const result = await store.inspectEnrichment();
   console.log("[Anime Shuffle enrichment]", result.server, {
     historyWithReviewTraits: result.historyWithReviewTraits,
+    historyWithNuancedTraits: result.historyWithNuancedTraits,
   });
   console.table(result.items);
   console.log(result.note);

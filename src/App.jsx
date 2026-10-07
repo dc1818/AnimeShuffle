@@ -1,3 +1,4 @@
+import { ReactionFeedback } from "./components/ReactionFeedback.jsx";
 import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -32,6 +33,8 @@ export function App({ store }) {
     setDetails(false);
   }, [state.current?.id, state.discoveryLoading, view]);
   const [dialog, setDialog] = useState(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  useEffect(() => setFeedbackOpen(false), [state.lastReactionId]);
   const unlocked = recommendationsUnlocked(state.reactions);
   const [unlockNotice, setUnlockNotice] = useState(false);
   useEffect(() => {
@@ -106,10 +109,10 @@ export function App({ store }) {
     window.history.replaceState({}, "", location.pathname);
   }, [state.ready, state.session.connected, store]);
   useEffect(() => {
-    if (!state.message) return;
+    if (!state.message || feedbackOpen) return;
     const timer = setTimeout(store.dismissMessage, 6000);
     return () => clearTimeout(timer);
-  }, [state.message, store]);
+  }, [state.message, feedbackOpen, store]);
   useEffect(() => {
     function keydown(event) {
       if (
@@ -512,6 +515,20 @@ export function App({ store }) {
       {state.message && (
         <div id="toast" role="status" aria-live="polite">
           {state.message}
+          {!dialog && (
+            <ReactionFeedback
+              reaction={state.reactions[state.lastReactionId]}
+              onOpen={() => setFeedbackOpen(true)}
+              onReason={(id, reason) => {
+                setFeedbackOpen(false);
+                store.setReactionReason(id, reason);
+              }}
+              onDismiss={() => {
+                setFeedbackOpen(false);
+                store.dismissReactionReason();
+              }}
+            />
+          )}
         </div>
       )}
       <Dialogs

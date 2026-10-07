@@ -101,7 +101,12 @@ test("Cloudflare accounts and sessions survive restart; devices share preference
     (
       await a.request("/api/account/state", {
         revision: 0,
-        changes: [{ id: 42, reaction: { anime, action: "watch", at: 123 } }],
+        changes: [
+          {
+            id: 42,
+            reaction: { anime, action: "watch", at: 123, reason: "characters" },
+          },
+        ],
       })
     ).response.status,
     200,
@@ -115,6 +120,7 @@ test("Cloudflare accounts and sessions survive restart; devices share preference
   });
   const shared = (await b.request("/api/account/state")).body;
   assert.equal(shared.reactions[42].action, "watch");
+  assert.equal(shared.reactions[42].reason, "characters");
   assert.deepEqual(shared.preferences.favoriteGenres, ["Action"]);
   assert.equal(
     (await b.request("/api/account/state", { revision: 0, changes: [] }))

@@ -76,7 +76,12 @@
         Requests contain public anime IDs, not your login, user identifier,
         personal scores, or reaction labels. Review text and author names are
         processed transiently; only aggregate descriptive attributes are cached.
-        Review excerpts are not displayed.
+        Review excerpts are not displayed. If model-assisted enrichment is
+        enabled, Cloudflare Workers AI receives a small sample of public,
+        spoiler-filtered review clauses without author names. Personal lists,
+        ratings, accounts, and reactions are not sent to the model. Optional
+        reasons you add to a reaction are saved with that reaction. Episode
+        enrichment stores aggregate filler and recap flags, not episode titles.
       </p>
       <p>
         On Cloudflare, saved site reactions also contribute to small aggregate

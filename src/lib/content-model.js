@@ -1,3 +1,5 @@
+import { attributedFeatures } from "./reaction-reasons.js";
+import { nuancedFeatures } from "./nuanced-taste.js";
 import { reviewFeatures } from "./taste-traits.js";
 import { narrativeFeatures } from "./story-aspects.js";
 /** Sparse content model trained only from explicit choices and MAL history.
@@ -91,6 +93,7 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
         "genre:" + g,
         (g === "Mecha" ? 0.15 : 0.65) / Math.sqrt(a.genres.length),
       ]);
+    f.push(...nuancedFeatures(a).features);
     const narrative = narrativeFeatures(a);
     f.push(...narrative.features);
     const reviews = reviewFeatures(a);
@@ -137,7 +140,10 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
   }
   const enjoyment = new Map(),
     interest = new Map();
-  const training = examples.map((r) => ({ ...r, features: features(r.anime) }));
+  const training = examples.map((r) => ({
+    ...r,
+    features: attributedFeatures(features(r.anime), r.reason),
+  }));
   for (const genre of favoriteGenres)
     training.push({
       features: [["genre:" + genre, 1]],
@@ -163,6 +169,56 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
           );
       }
   }
+  const nuanceVector = (a) =>
+    new Map(
+      nuancedFeatures(a).features.filter(([k]) => k.startsWith("nuance:")),
+    );
+  const vectors = examples.map((r) => ({
+    ...r,
+    vector: new Map(attributedFeatures([...nuanceVector(r.anime)], r.reason)),
+  }));
+  const neighborhoodCache = new WeakMap();
+  function neighborhood(a) {
+    if (neighborhoodCache.has(a)) return neighborhoodCache.get(a);
+    const v = nuanceVector(a),
+      norm = Math.hypot(...v.values());
+    if (!norm || v.size < 2) return { score: 0, matches: [] };
+    const matches = vectors
+      .filter((r) => r.anime.id !== a.id && r.vector.size >= 2)
+      .map((r) => {
+        const shared = [...v.keys()].filter((k) => r.vector.has(k));
+        const sim =
+          shared.reduce((sum, k) => sum + v.get(k) * r.vector.get(k), 0) /
+          (norm * Math.hypot(...r.vector.values()) || 1);
+        return { ...r, shared, sim };
+      })
+      .filter((r) => r.shared.length >= 2 && r.sim >= 0.35);
+    const strongest = (sign) =>
+      matches
+        .filter((r) => sign * (0.65 * r.enjoyment + 0.35 * r.interest) > 0)
+        .sort((a, b) => b.sim - a.sim || a.anime.id - b.anime.id)
+        .slice(0, 3);
+    const selected = [...strongest(1), ...strongest(-1)];
+    const score =
+      selected.reduce(
+        (n, r) => n + r.sim * (0.65 * r.enjoyment + 0.35 * r.interest),
+        0,
+      ) /
+      Math.max(
+        3,
+        selected.reduce((n, r) => n + r.sim, 0),
+      );
+    const result = {
+      score,
+      matches: selected.map((r) => ({
+        id: r.anime.id,
+        contribution: r.sim * (0.65 * r.enjoyment + 0.35 * r.interest),
+        keys: r.shared.map((k) => k.slice(7)),
+      })),
+    };
+    neighborhoodCache.set(a, result);
+    return result;
+  }
   const combinedScore = (e, i) =>
     0.65 * Math.tanh(e / 2) + 0.35 * Math.tanh(i / 2);
   return {
@@ -184,11 +240,15 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
         return { key, contribution: baseline - combinedScore(e - de, i - di) };
       });
       return {
-        contributions,
+        neighbors: neighborhood(a).matches,
+        contributions: contributions.map((c) => ({
+          ...c,
+          contribution: c.contribution * 0.8,
+        })),
         groups: Object.fromEntries(
           [...groups].map(([key, [de, di]]) => [
             key,
-            baseline - combinedScore(e - de, i - di),
+            0.8 * (baseline - combinedScore(e - de, i - di)),
           ]),
         ),
       };
@@ -200,7 +260,9 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       return {
         enjoyment: enjoymentScore,
         interest: interestScore,
-        score: 0.65 * enjoymentScore + 0.35 * interestScore,
+        score:
+          0.8 * (0.65 * enjoymentScore + 0.35 * interestScore) +
+          0.2 * neighborhood(a).score,
       };
     },
     support(a) {

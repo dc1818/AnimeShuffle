@@ -1,3 +1,5 @@
+import { nuancedTraits } from "./nuanced-taste.js";
+import { normalizeReactionReason } from "./reaction-reasons.js";
 import { readCatalogCache, writeCatalogCache } from "./catalog-cache.js";
 import { recommendationsUnlocked } from "./recommendation-access.js";
 import { createBrowserBackup, browserLocalStorage } from "./browser-storage.js";
@@ -90,6 +92,7 @@ export function createAnimeStore({
     profile: null,
     list: [],
     reactions: {},
+    lastReactionId: null,
     current: null,
     reason: "",
     detailReason: "",
@@ -456,7 +459,8 @@ export function createAnimeStore({
         const enriched = {
           ...a,
           ...(pool.find((item) => item.id === a.id) || {}),
-          reviewTaste: data.profiles?.[a.id],
+          reviewTaste: data.profiles?.[a.id] || a.reviewTaste,
+          episodeTaste: data.episodes?.[a.id] || a.episodeTaste,
           communityTaste: data.community?.[a.id] || [],
         };
         mergePool(enriched);
@@ -934,6 +938,7 @@ export function createAnimeStore({
         void replaceDecidedRecommendations();
       }
     }
+    update({ lastReactionId: anime.id });
     entry.after = state.reactions[anime.id];
     await persist();
     try {
@@ -1153,6 +1158,7 @@ export function createAnimeStore({
       recommendationsLoading: false,
       recommendationError: "",
       reactions: {},
+      lastReactionId: null,
       canUndo: false,
       undoableIds: [],
       preview: !session.configured,
@@ -1608,6 +1614,14 @@ export function createAnimeStore({
         return {
           animeId: a.id,
           reviewTraits: a.reviewTaste?.traits?.length || 0,
+          nuancedTraits: nuancedTraits(a).size,
+          currentNuanceContribution: groups.nuance || 0,
+          currentNuanceContextContribution: groups.nuanceblend || 0,
+          episodeCoverage: a.episodeTaste?.complete
+            ? "complete"
+            : a.episodeTaste
+              ? "partial"
+              : "unknown",
           currentReviewContribution: groups.review || 0,
           currentReviewContextContribution: groups.reviewblend || 0,
           currentCommunityContribution: groups.community || 0,
@@ -1616,6 +1630,9 @@ export function createAnimeStore({
       return {
         server,
         note: "Contributions use your current choices. Loaded shortlists stay fixed until Refresh picks.",
+        historyWithNuancedTraits: [...taste.records.values()].filter(
+          (r) => nuancedTraits(r.anime).size,
+        ).length,
         historyWithReviewTraits: [...taste.records.values()].filter(
           (r) => r.anime.reviewTaste?.traits?.length,
         ).length,
@@ -1760,6 +1777,25 @@ export function createAnimeStore({
       await next();
     },
     react,
+    dismissReactionReason() {
+      update({ lastReactionId: null });
+    },
+    async setReactionReason(id, input) {
+      const reason = normalizeReactionReason(input),
+        before = state.reactions[id];
+      if (!before || !reason) return;
+      const after = { ...before, reason };
+      update({
+        reactions: { ...state.reactions, [id]: after },
+        lastReactionId: null,
+      });
+      // Keep Undo valid after adding feedback to the same decision.
+      for (const entry of history)
+        if (entry.anime.id === id && sameReaction(entry.after, before))
+          entry.after = after;
+      await persist();
+      notify("Thanks—your next picks will take that into account.");
+    },
     undo,
     skip,
     notify,
@@ -1947,7 +1983,12 @@ export function createAnimeStore({
       history = [];
       skipped.clear();
       recent = [];
-      update({ reactions: {}, canUndo: false, undoableIds: [] });
+      update({
+        reactions: {},
+        lastReactionId: null,
+        canUndo: false,
+        undoableIds: [],
+      });
       persist();
       return next();
     },

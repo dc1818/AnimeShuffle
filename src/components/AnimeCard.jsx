@@ -414,6 +414,19 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
           hidden={activeTab !== 1}
           tabIndex={0}
         >
+          {anime.episodeTaste?.total > 0 && (
+            <p className="episode-coverage">
+              {anime.episodeTaste.filler} of {anime.episodeTaste.total} checked
+              episodes marked as filler · {anime.episodeTaste.recap} marked as
+              recap.
+              {anime.episodeTaste.complete
+                ? " Full available episode list checked."
+                : " Partial coverage; this is not a full-series estimate."}
+              {
+                " Flags supplied by Tenrai; filler is separate from canon status or pacing."
+              }
+            </p>
+          )}
           <dl className="detail-facts">
             {Object.entries(facts).map(([name, value]) => (
               <div className="fact" key={name}>

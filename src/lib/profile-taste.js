@@ -1,3 +1,4 @@
+import { nuancedTraits } from "./nuanced-taste.js";
 import { buildTaste } from "./recommend.js";
 import { storyAspects } from "./story-aspects.js";
 import { reviewTraits } from "./taste-traits.js";
@@ -42,7 +43,11 @@ export function profileTaste(state) {
   for (const record of records.values()) {
     const anime = record.anime;
     if (!anime?.id) continue;
-    const traits = new Map([...storyAspects(anime), ...reviewTraits(anime)]);
+    const traits = new Map([
+      ...storyAspects(anime),
+      ...reviewTraits(anime),
+      ...nuancedTraits(anime),
+    ]);
     if (traits.has("strategic-action")) traits.delete("tactics");
     const bucket =
       record.enjoyment > 0.4

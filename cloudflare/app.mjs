@@ -1,3 +1,6 @@
+import { normalizeReactionReason } from "../src/lib/reaction-reasons.js";
+import { createEpisodeEnrichment } from "../lib/episode-enrichment.mjs";
+import { createModelAnalyzer } from "../lib/model-taste.mjs";
 import { createTrailerService } from "../lib/trailers.mjs";
 import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
@@ -70,7 +73,23 @@ export function createCloudApp(
   sql.exec(
     "CREATE TABLE IF NOT EXISTS public_mal_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, value TEXT NOT NULL)",
   );
+  const scheduleEnrichment = (at) => {
+    const scheduled = (async () => {
+      if (!storage.setAlarm) return;
+      const current = await storage.getAlarm();
+      if (current === null || current > at) await storage.setAlarm(at);
+    })();
+    waitUntil(scheduled);
+    return scheduled;
+  };
+  const episodes = createEpisodeEnrichment({
+    sql,
+    fetcher,
+    schedule: scheduleEnrichment,
+  });
   const reviews = createReviewEnrichment({
+    modelAnalyzer:
+      env.AI_TASTE_ENRICHMENT === "true" ? createModelAnalyzer(env.AI) : null,
     store: reviewStore(sql),
     fetcher,
     enabled: (env.REVIEW_ENRICHMENT ?? env.JIKAN_REVIEWS) !== "false",
@@ -88,6 +107,8 @@ export function createCloudApp(
         console.log(JSON.stringify(event));
     },
   });
+  const attachTaste = (anime, priority = 0) =>
+    episodes.attach(reviews.attach(anime, priority), priority);
   const publicStore = {
     get(path) {
       const row = one(
@@ -230,8 +251,13 @@ export function createCloudApp(
       return json(await trailers.get(Number(path.split("/").pop()), country));
     if (/^\/api\/pictures\/\d+$/.test(path))
       return json(await trailers.pictures(Number(path.split("/").pop())));
-    if (path === "/api/catalog" && u.searchParams.get("provider") === "tenrai")
-      return json(await candidates.page(u));
+    if (
+      path === "/api/catalog" &&
+      u.searchParams.get("provider") === "tenrai"
+    ) {
+      const page = await candidates.page(u);
+      return json({ ...page, data: page.data.map((a) => attachTaste(a)) });
+    }
     if (path === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 1000000),
         source = u.searchParams.get("source") || "popular";
@@ -252,12 +278,12 @@ export function createCloudApp(
         publicCache: true,
       });
       response = json({
-        data: (d.data || []).map((x) => reviews.attach(normalize(x.node))),
+        data: (d.data || []).map((x) => attachTaste(normalize(x.node))),
         nextOffset: d.paging?.next ? offset + 50 : null,
       });
     } else if (/^\/api\/anime\/\d+$/.test(path)) {
       response = json(
-        reviews.attach(
+        attachTaste(
           normalize(
             await mal.request(
               `/anime/${number(path.split("/").pop())}?fields=${encodeURIComponent(fields)}`,
@@ -271,7 +297,10 @@ export function createCloudApp(
     return response;
   }
   return {
-    alarm: () => reviews.run(),
+    alarm: async () => {
+      await reviews.run();
+      await episodes.run();
+    },
     async fetch(req) {
       const measured = requestTiming(
         malClient,
@@ -511,6 +540,9 @@ export function createCloudApp(
                   anime: entry.anime,
                   at: entry.addedAt,
                   action: r.action,
+                  ...(normalizeReactionReason(r.reason)
+                    ? { reason: normalizeReactionReason(r.reason) }
+                    : {}),
                 },
               };
             });
@@ -738,7 +770,13 @@ export function createCloudApp(
             ? communitySnapshot(session.accountId)
             : {};
           response = json({
-            enrichment: reviews.diagnostics(),
+            enrichment: {
+              ...reviews.diagnostics(),
+              episodes: episodes.diagnostics(),
+            },
+            episodes: Object.fromEntries(
+              ids.map((id) => [id, episodes.cached(id)]).filter(([, p]) => p),
+            ),
             profiles: Object.fromEntries(
               ids.map((id) => [id, reviews.cached(id)]).filter(([, p]) => p),
             ),
