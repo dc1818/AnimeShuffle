@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cachedMedia, loadMedia } from "../lib/media-cache.js";
+import { trailerThumbnail } from "../lib/media-data.js";
 import { InlineTrailer } from "./InlineTrailer.jsx";
 
 /** Tabs fetch metadata only when visited. Selecting a trailer starts YouTube. */
@@ -58,7 +59,16 @@ export function AnimeMedia({ anime, kind, active }) {
                 aria-pressed={selected?.videoId === t.videoId}
                 onClick={() => setSelected(t)}
               >
-                <span aria-hidden="true">▶</span> {t.title}
+                <span className="media-trailer-frame">
+                  <MediaImage
+                    url={trailerThumbnail(t.videoId)}
+                    alt={`${t.title} preview`}
+                  />
+                  <span className="media-play" aria-hidden="true">
+                    ▶
+                  </span>
+                </span>
+                <span className="media-trailer-title">{t.title}</span>
               </button>
             ))}
           </div>
@@ -106,7 +116,12 @@ export function AnimeMedia({ anime, kind, active }) {
               setExpanded(p.image);
             }}
           >
-            <MediaImage url={p.image} alt={`${anime.title} artwork ${i + 1}`} />
+            <span className="media-picture-frame">
+              <MediaImage
+                url={p.thumbnail || p.image}
+                alt={`${anime.title} artwork ${i + 1}`}
+              />
+            </span>
           </button>
         ))}
       </div>
@@ -118,15 +133,27 @@ export function AnimeMedia({ anime, kind, active }) {
 }
 function MediaImage({ url, alt }) {
   const [failed, setFailed] = useState(false);
-  return failed ? (
-    <span className="media-image-error">Image unavailable</span>
-  ) : (
-    <img
-      src={`/api/image?url=${encodeURIComponent(url)}`}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <span className="media-image" aria-busy={!failed && !loaded}>
+      {!failed && !loaded && (
+        <span className="media-image-loading">
+          <span className="media-spinner" aria-hidden="true" />
+        </span>
+      )}
+      {failed ? (
+        <span className="media-image-error">Image unavailable</span>
+      ) : (
+        <img
+          src={`/api/image?url=${encodeURIComponent(url)}`}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className={loaded ? "is-loaded" : ""}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
   );
 }

@@ -62,17 +62,22 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
   };
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root"));
-  const render = (id) =>
+  const render = (id, extra = {}) =>
     root.render(
       React.createElement(TrailerPreview, {
         key: id,
-        anime: { id, title: "Anime " + id },
+        anime: { id, title: "Anime " + id, ...extra },
       }),
     );
   try {
     await act(async () => render(1));
     assert.equal(calls, 0);
-    await act(async () => document.querySelector(".watch-preview").focus());
+    assert.equal(document.querySelector(".watch-preview").disabled, true);
+    assert.match(
+      document.querySelector(".watch-preview").textContent,
+      /Preparing/,
+    );
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 130)));
     assert.equal(calls, 1);
     assert.equal(document.querySelector("iframe"), null);
     await act(async () => document.querySelector(".watch-preview").click());
@@ -125,9 +130,13 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     assert.equal(instances.length, 2);
     await act(async () => render(2));
     assert.equal(instances[1].destroyed, true);
-    await act(async () => document.querySelector(".watch-preview").focus());
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 130)));
     await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 2, "Focus and click share a lookup");
+    assert.equal(
+      calls,
+      2,
+      "Pending metadata does not allow repeated playback clicks",
+    );
     await act(async () => render(3));
     await act(async () => release());
     assert.equal(
@@ -138,6 +147,15 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     await act(async () => render(1));
     await act(async () => document.querySelector(".watch-preview").click());
     assert.equal(calls, 2, "Metadata survives tab/card remounts");
+    await act(async () => render(10, { previewVideoId: "12345678901" }));
+    assert.equal(document.querySelector(".watch-preview").disabled, false);
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.match(document.querySelector("iframe").src, /12345678901/);
+    assert.equal(
+      calls,
+      2,
+      "Catalog trailer starts without any metadata request",
+    );
   } finally {
     await act(async () => root.unmount());
     globalThis.fetch = original;

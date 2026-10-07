@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cachedMedia, loadMedia } from "../lib/media-cache.js";
 import { loadYouTubeAPI } from "../lib/youtube.js";
+import { catalogPreview } from "../lib/media-data.js";
 import { InlineTrailer } from "./InlineTrailer.jsx";
 
 /** Keyed by anime ID: changing cards disposes its player. Closing only pauses it. */
 export function TrailerPreview({ anime }) {
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState(() => cachedMedia(anime.id));
+  const [result, setResult] = useState(
+    () => cachedMedia(anime.id) || catalogPreview(anime),
+  );
   const [error, setError] = useState("");
   const [started, setStarted] = useState(false);
   const mounted = useRef(false),
@@ -15,18 +18,27 @@ export function TrailerPreview({ anime }) {
     wasOpened = useRef(false);
   const load = useCallback(
     () =>
-      loadMedia(anime.id).then((data) => {
-        if (mounted.current) setResult(data);
+      (catalogPreview(anime)
+        ? Promise.resolve(cachedMedia(anime.id) || catalogPreview(anime))
+        : loadMedia(anime.id)
+      ).then((data) => {
+        if (mounted.current) {
+          setResult(data);
+          setError("");
+        }
         return data;
       }),
-    [anime.id],
+    [anime.id, anime.previewVideoId],
   );
   const warm = useCallback(() => {
-    load().catch(() => {});
+    setError("");
+    load().catch((err) => {
+      if (mounted.current) setError(err.message);
+    });
   }, [load]);
   useEffect(() => {
     mounted.current = true;
-    const timer = setTimeout(warm, 800);
+    const timer = setTimeout(warm, 100);
     return () => {
       mounted.current = false;
       clearTimeout(timer);
@@ -56,12 +68,26 @@ export function TrailerPreview({ anime }) {
         ref={trigger}
         className="watch-preview"
         onClick={play}
-        onPointerEnter={warm}
-        onFocus={warm}
+        title={error || undefined}
+        disabled={(!result && !error) || (result?.videoId === null && !error)}
+        aria-busy={!result && !error}
         aria-expanded={open}
         hidden={open}
       >
-        <span aria-hidden="true">▶</span> Watch preview
+        {!result && !error ? (
+          <>
+            <span className="media-spinner" aria-hidden="true" /> Preparing
+            preview…
+          </>
+        ) : error ? (
+          "Retry preview"
+        ) : result.videoId ? (
+          <>
+            <span aria-hidden="true">▶</span> Watch preview
+          </>
+        ) : (
+          "No preview available"
+        )}
       </button>
       {started && (
         <div

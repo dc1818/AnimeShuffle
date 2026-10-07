@@ -1,8 +1,8 @@
+import { validProxyImage } from "../lib/media-images.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
 import { DurableObject } from "cloudflare:workers";
 import { createCloudApp } from "./app.mjs";
 import { secure } from "./security.mjs";
-import { validImage } from "../lib/mal.mjs";
 
 /** One coordinator is appropriate for this small app and serializes MAL writes/refreshes.
  * SQLite belongs to this stable object name; never rename it when deploying updates.
@@ -57,7 +57,7 @@ export default {
       );
     if (url.pathname === "/api/image") {
       const target = url.searchParams.get("url");
-      if (request.method !== "GET" || !validImage(target))
+      if (request.method !== "GET" || !validProxyImage(target))
         return secure(new Response("Invalid cover URL", { status: 400 }));
       try {
         const image = await fetch(target, {

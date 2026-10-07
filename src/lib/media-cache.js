@@ -1,3 +1,4 @@
+import { normalizeTrailerResponse } from "./media-data.js";
 // Shared public metadata only. A card and its details panel join one lookup.
 // Successful lookups survive tab changes; transient failures are always retryable.
 const cache = new Map(),
@@ -14,22 +15,37 @@ export function loadMedia(id, kind = "trailer") {
     cached = cachedMedia(id, kind);
   if (cached) return Promise.resolve(cached);
   if (pending.has(key)) return pending.get(key);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
   const job = (async () => {
-    const response = await fetch(`/api/${kind}/${id}`, {
-      signal: controller.signal,
-    });
-    if (!response.ok) throw Error("Media couldn’t load. Please try again.");
-    const data = await response.json();
-    if (
-      kind === "trailer" &&
-      (!Array.isArray(data.trailers) ||
-        data.trailers.some((t) => !/^[A-Za-z0-9_-]{11}$/.test(t.videoId || "")))
-    )
-      throw Error("Trailer information is unavailable.");
-    if (kind === "pictures" && !Array.isArray(data.pictures))
-      throw Error("Images are unavailable.");
+    let data;
+    // Retry a transient HTTP/schema failure once before presenting an error.
+    // A timeout already used the full budget, so it is left for an explicit retry.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await fetch(`/api/${kind}/${id}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          const error = Error("Media couldn’t load. Please try again.");
+          error.retryable =
+            response.status >= 500 || [408, 429].includes(response.status);
+          throw error;
+        }
+        const raw = await response.json();
+        data = kind === "trailer" ? normalizeTrailerResponse(raw) : raw;
+        if (kind === "pictures" && !Array.isArray(data?.pictures))
+          throw Error("Images couldn’t load. Please try again.");
+        break;
+      } catch (error) {
+        if (attempt || error.name === "AbortError" || error.retryable === false)
+          throw error;
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
     cache.set(key, {
       data,
       expires:
@@ -47,7 +63,6 @@ export function loadMedia(id, kind = "trailer") {
       );
     })
     .finally(() => {
-      clearTimeout(timeout);
       pending.delete(key);
     });
   pending.set(key, job);

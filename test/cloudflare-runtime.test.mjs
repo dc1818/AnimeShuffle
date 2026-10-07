@@ -130,6 +130,13 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
             })),
           });
         }
+        if (url.hostname === "i.ytimg.com") {
+          assert.equal(url.pathname, "/vi/abcdefghijk/mqdefault.jpg");
+          assert.equal(request.headers.get("Authorization"), null);
+          return new WorkerResponse("fixture-thumbnail", {
+            headers: { "Content-Type": "image/jpeg" },
+          });
+        }
         if (url.hostname === "cdn.myanimelist.net") {
           return new WorkerResponse("fixture-image", {
             headers: { "Content-Type": "image/png" },
@@ -193,6 +200,13 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       requests.filter((s) => s.startsWith("api.tenrai.org")).length,
       1,
     );
+    const thumbnail = await call(
+      "/api/image?url=" +
+        encodeURIComponent("https://i.ytimg.com/vi/abcdefghijk/mqdefault.jpg"),
+    );
+    assert.equal(thumbnail.status, 200);
+    assert.equal(await thumbnail.text(), "fixture-thumbnail");
+    assert.match(thumbnail.headers.get("Cache-Control"), /public, max-age=/);
     const videos = await call("/api/trailer/42");
     assert.equal(videos.status, 200);
     assert.equal((await videos.json()).trailers[0].videoId, "abcdefghijk");

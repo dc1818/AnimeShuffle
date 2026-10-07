@@ -1,3 +1,4 @@
+import { validProxyImage } from "./lib/media-images.mjs";
 import { createTrailerService } from "./lib/trailers.mjs";
 import { createCandidateCatalog } from "./lib/candidate-catalog.mjs";
 import {
@@ -27,7 +28,6 @@ import {
   AppError,
   createMalClient,
   normalize,
-  validImage,
   fields,
   catalogFields,
 } from "./lib/mal.mjs";
@@ -537,7 +537,7 @@ const server = http.createServer(async (req, res) => {
     // Fixed cover-host allowlist prevents this image proxy from becoming an arbitrary fetcher.
     if (u.pathname === "/api/image") {
       const raw = u.searchParams.get("url");
-      if (!validImage(raw)) throw new AppError("Invalid cover URL.");
+      if (!validProxyImage(raw)) throw new AppError("Invalid cover URL.");
       let r;
       try {
         r = await fetch(raw, {

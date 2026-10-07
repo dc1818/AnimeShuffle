@@ -100,7 +100,7 @@ test("media excludes blocked promos, duplicates and untrusted image hosts", () =
         },
       ],
     }),
-    { pictures: [{ image }] },
+    { pictures: [{ image, thumbnail: image }] },
   );
   assert.equal(
     isPublicMetadataRequest(new Request("https://example.com/api/pictures/42")),

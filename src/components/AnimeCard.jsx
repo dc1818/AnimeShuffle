@@ -1,3 +1,4 @@
+import { loadMedia } from "../lib/media-cache.js";
 import { AnimeMedia } from "./AnimeMedia.jsx";
 import { TrailerPreview } from "./TrailerPreview.jsx";
 import { genreLabel } from "../lib/genres.js";
@@ -260,6 +261,16 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
     ...(mediaEnabled ? ["Trailers", "Images"] : []),
   ];
   const [activeTab, setActiveTab] = useState(0);
+  useEffect(() => {
+    if (!mediaEnabled) return;
+    // Warm small metadata responses while the synopsis is being read. Actual
+    // pictures and video players still load only in their respective media views.
+    const timer = setTimeout(() => {
+      loadMedia(anime.id, "trailer").catch(() => {});
+      loadMedia(anime.id, "pictures").catch(() => {});
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [anime.id, mediaEnabled]);
   // Each anime starts at its synopsis, including when a parent reuses this panel.
   useEffect(() => {
     setActiveTab(0);

@@ -184,3 +184,25 @@ test("Discover reports actual checks within a batch and rejects unseen prerequis
   assert.ok(progress.includes(67));
   assert.ok(progress.includes(100));
 });
+
+test("catalog keeps a validated trailer ID for immediate preview without another lookup", () => {
+  assert.equal(
+    normalizeCandidate({ ...raw, trailer: { youtube_id: "abcdefghijk" } })
+      .previewVideoId,
+    "abcdefghijk",
+  );
+  assert.equal(
+    normalizeCandidate({
+      ...raw,
+      trailer: { youtube_id: "https://evil.example" },
+    }).previewVideoId,
+    undefined,
+  );
+  assert.equal(
+    normalizeCandidate({
+      ...raw,
+      trailer: { youtube_id: "abcdefghijk", embeddable: false },
+    }).previewVideoId,
+    undefined,
+  );
+});

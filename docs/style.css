@@ -2572,3 +2572,22 @@ main.wide-main {
   .details-tabs.with-media [role="tab"] { grid-column: span 2; }
   .details-tabs.with-media [role="tab"]:nth-child(n+4) { grid-column: span 3; }
 }
+
+/* Reserve each media tile's geometry before its image arrives. Grid previews
+   crop to fit; selecting gallery artwork still shows the complete original. */
+.watch-preview:disabled { cursor: default; opacity: .9; }
+.media-gallery { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); align-items: start; }
+.media-gallery button { display: block; width: 100%; padding: 0; border-radius: 9px; }
+.media-picture-frame { display: block; width: 100%; aspect-ratio: 2 / 3; overflow: hidden; }
+.media-trailers { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); align-items: stretch; }
+.media-trailers button { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.media-trailer-frame { display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
+.media-image { display: grid; place-items: center; position: relative; width: 100%; height: 100%; background: #10212d; overflow: hidden; }
+.media-image img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+.media-image img.is-loaded { opacity: 1; }
+.media-image-loading { position: absolute; inset: 0; display: grid; place-items: center; }
+.media-image-error { font-size: 11px; padding: 10px; text-align: center; }
+.media-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 34px; height: 34px; background: #07121be0; border: 1px solid #b1e6ee; border-radius: 50%; font-size: 14px; }
+.media-trailer-title { display: block; padding: 9px 10px; font-size: 13px; line-height: 1.4; }
+.media-expanded .media-image { height: auto; min-height: 140px; background: transparent; }
+.media-expanded img { width: auto; height: auto; max-width: 100%; max-height: 65vh; object-fit: contain; }
