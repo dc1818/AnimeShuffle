@@ -176,7 +176,6 @@ Account actions require a reason, account-ID confirmation and a matching version
 
 Algorithm diagnostics show current reaction totals, genre response patterns, explicit reasons, title-level disagreement and research coverage. The account candidate inspector runs the same content-model code on a bounded stored-data sample and exposes contributions and neighbor evidence without changing live picks. It is explicitly not an exact replay of private MAL history, client state, eligibility, diversity or community signals. Location never becomes a preference feature, and aggregate response counts are not claims of causal recommendation quality.
 
-
 ### Guest-browser diagnostics
 
 Cloudflare sessions advertise whether analytics is enabled. Each guest browser keeps a random identifier in its localStorage profile and IndexedDB backup. Reporting begins after the local profile is restored and is debounced after changes. The server stores a keyed hash, not the browser identifier. Failed reports never block local saves or recommendations. Signed-in sessions do not send guest snapshots.
@@ -191,9 +190,16 @@ New automatic profiles may contain up to 48 evidence-backed ranking observations
 
 A bounded synopsis/review sample is not exhaustive research. Unsupported facets, detailed adaptation research and new tastes absent from the retained evidence need further sources and another analysis. Existing starter/imported profiles do not gain depth simply because the schema expanded. The model does not browse external websites on its own; separately researched uploads can cite external sources.
 
-
 ### Research questions and spoiler controls
 
 Private model research may use spoiler-tagged reviews to assess relationships, character arcs and long-term payoffs. It still analyzes only the exact adaptation and retains original bounded summaries, source references and confidence rather than raw reviews or reviewer identities. `spoilersAllowed` records the policy and dimensions can carry `containsSpoilers`. All profile free text is hidden by default in admin, including scope, evidence, coverage notes, dimensions, caveats and sources. Each profile has an explicit Reveal private research button; refreshing hides it again. Shared recommendation endpoints contain numeric observations and fixed vocabulary labels only. Owner exports preserve private research and may contain spoilers.
 
 The Research tab can register questions with a stable `dimensionKey`, human-readable label and research area. Questions are persistent, exported alongside catalog batches, passed to future model calls, and included in the analysis-version hash. Saving them queues refreshed model analysis without discarding existing profiles. The coverage audit checks exact stored keys and reports supported, partial, missing, unknown or changed evidence, with paginated JSON exports that omit private plot notes. A question is a research requirement, not evidence about a show and not an automatically enabled ranking feature. New abstract tastes may still need taxonomy/algorithm changes plus additional sources. Missing keys cannot establish semantic absence, and no bounded profile is guaranteed to answer every future question.
+
+### Large research uploads
+
+The admin JSON uploader has no application-level cap on total profiles or catalog size. The current research working batch is 1,000 anime, not a catalog limit. Larger files are checked for duplicate MAL IDs across the entire file, previewed in bounded requests, and imported in chunks of up to 1,000 profiles or 15 MB. Individual Worker requests remain capped at 16 MiB; browser memory and Cloudflare storage/CPU quotas still apply. Each chunk has its own audit record and undo operation. A failed upload can resume within the current page, and receipt keys make retries after a lost response safe. Refreshing the page requires choosing the file again.
+
+Imported unknowns do not suppress valid automated observations. Explicit owner assessments still take priority. Separate reviewer independence keys distinguish authors sharing one review platform and deduplicate mirrored evidence; these keys are opaque identifiers, not public names. Research vocabulary now includes additional character dynamics, romance behavior, power constraints, institutions, thematic concerns, visual presentation and story structure. Registered attributes participate in the existing taste model; private free-form dimensions remain reusable evidence rather than automatic ranking rules.
+
+Why this pick renders separate concrete bullets using supported positive connections to the user's history. It does not manufacture extra connections to meet a bullet minimum. Private research prose never reaches public explanations, and outcome-specific attributes are hidden from both public explanations and the unrevealed admin view.

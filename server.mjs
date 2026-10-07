@@ -292,7 +292,7 @@ const server = http.createServer(async (req, res) => {
           research,
           u,
           req.method,
-          req.method === "POST" ? await body(req, 2 * 1024 * 1024) : null,
+          req.method === "POST" ? await body(req, 16 * 1024 * 1024) : null,
           s.account.id,
           { reviews: reviews.diagnostics(), episodes: episodes.diagnostics() },
         ),

@@ -413,3 +413,120 @@ test("research questions persist in exports and coverage audits identify explici
   assert.equal(audit.titles[0].requirements[0].state, "changed");
   s.db.close();
 });
+
+test("imports above 1000 are accepted and receipt retries cannot duplicate or revive an undone import", () => {
+  const b = bundle();
+  b.profiles = Array.from({ length: 1001 }, (_, i) => ({
+    ...structuredClone(b.profiles[0]),
+    malId: i + 1,
+    metadataFingerprint: null,
+  }));
+  assert.equal(validateResearchBundle(b).profiles.length, 1001);
+  const db = storage(),
+    s = createResearchStore(db),
+    p = s.preview(b);
+  const result = s.commit(b, p.revision, p.digest, "test", "upload:1");
+  const replay = s.commit(b, p.revision, p.digest, "test", "upload:1");
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.revision, result.revision);
+  assert.equal(s.stats().profiles, 1001);
+  const different = structuredClone(b);
+  different.profiles[0].title = "Changed";
+  assert.throws(
+    () => s.commit(different, p.revision, p.digest, "test", "upload:1"),
+    /different profiles/,
+  );
+  s.rollback(result.revision, "test");
+  assert.throws(
+    () => s.commit(b, p.revision, p.digest, "test", "upload:1"),
+    /changed or undone/,
+  );
+  assert.equal(s.stats().profiles, 0);
+  db.db.close();
+});
+test("unknown manual observations leave room for saved model evidence", () => {
+  const db = storage(),
+    s = createResearchStore(db),
+    b = bundle(),
+    o = b.profiles[0].observations[0];
+  o.score = null;
+  b.profiles[0].metadataFingerprint = null;
+  const p = s.preview(b);
+  s.commit(b, p.revision, p.digest, "test");
+  db.sql.exec(
+    "INSERT INTO model_catalog_profiles VALUES (?,?,?,?,?,?,?)",
+    b.profiles[0].malId,
+    "f",
+    "v",
+    JSON.stringify({ observations: [{ ...o, score: 0.8 }] }),
+    Date.now(),
+    "e",
+    "r",
+  );
+  assert.equal(
+    s.projection(b.profiles[0].malId).observations.find((x) => x.key === o.key)
+      .score,
+    0.8,
+  );
+  db.db.close();
+});
+test("independent reviewers on one service count separately, while mirrored evidence does not", () => {
+  const b = bundle(),
+    p = b.profiles[0];
+  p.sources = [1, 2].map((i) => ({
+    id: "r" + i,
+    title: "Independent public review",
+    type: "review",
+    url: "https://myanimelist.net/reviews.php?id=" + i,
+    accessedAt: p.analyzedAt,
+    independenceKey: "author" + i,
+  }));
+  p.observations = [
+    {
+      ...p.observations[0],
+      key: "animation-execution",
+      basis: "critical",
+      confidence: 0.9,
+      sources: ["r1", "r2"],
+    },
+  ];
+  assert.equal(
+    validateResearchBundle(b).profiles[0].observations[0].confidence,
+    0.9,
+  );
+  p.sources[1].independenceKey = "author1";
+  assert.equal(
+    validateResearchBundle(b).profiles[0].observations[0].confidence,
+    0.55,
+  );
+});
+
+test("new research traits produce distinct personalized bullets while private outcomes stay hidden", async () => {
+  const { detailedExplanationReasons } =
+    await import("../src/lib/recommend.js");
+  const observations = [
+    "proactive-lead",
+    "mutual-support",
+    "ambiguous-resolution",
+  ].map((key) => ({ key, score: 1, confidence: 1, prominence: "central" }));
+  const known = {
+    id: 90001,
+    title: "Known example",
+    genres: [],
+    synopsis: "",
+    researchTaste: { version: 1, observations },
+  };
+  const candidate = { ...known, id: 90002, title: "Candidate" };
+  const taste = buildTaste(
+    { [known.id]: { anime: known, action: "good", at: 1 } },
+    [],
+  );
+  const reasons = detailedExplanationReasons(candidate, taste);
+  assert.ok(reasons.length >= 2);
+  assert.ok(
+    reasons.some((r) => r.includes("Known example") && r.includes("Good")),
+  );
+  assert.ok(reasons.some((r) => r.includes("initiates")));
+  assert.ok(reasons.some((r) => r.includes("support")));
+  assert.doesNotMatch(reasons.join(" "), /ambiguous|resolution|ending/i);
+});

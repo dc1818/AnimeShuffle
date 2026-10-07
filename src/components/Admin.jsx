@@ -1,3 +1,7 @@
+import {
+  splitResearchUpload,
+  previewResearchUpload,
+} from "../lib/research-upload.js";
 import { AdminOperations } from "./AdminOperations.jsx";
 import { useEffect, useState } from "react";
 
@@ -24,6 +28,7 @@ export function Admin() {
     [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false),
     [bundle, setBundle] = useState(null),
+    [importProgress, setImportProgress] = useState(null),
     [report, setReport] = useState(null);
   const [kind, setKind] = useState("pending"),
     [cursor, setCursor] = useState(0),
@@ -111,22 +116,32 @@ export function Admin() {
     event.target.value = "";
     setBundle(null);
     setReport(null);
+    setImportProgress(null);
     if (!file) return;
     void work(async () => {
       if (
         !/\.json$/i.test(file.name) ||
-        file.size > 1900000 ||
         (file.type && !["application/json", "text/plain"].includes(file.type))
       )
-        throw Error("Choose a JSON research file under 1.9 MB.");
+        throw Error(
+          "Choose a JSON research file. Large files are sent in smaller requests.",
+        );
       let data;
       try {
         data = JSON.parse(await file.text());
       } catch {
         throw Error("The file is not valid JSON.");
       }
-      const preview = await api("/api/admin/validate", { bundle: data });
-      setBundle(data);
+      const chunks = splitResearchUpload(data);
+      const preview = await previewResearchUpload(chunks, api, (done, total) =>
+        setNotice(`Validating ${done} of ${total} chunks…`),
+      );
+      setBundle({
+        chunks,
+        key: crypto.randomUUID(),
+        completed: 0,
+        revision: preview.revision,
+      });
       setReport(preview);
       setNotice("File validated. Review the titles before importing.");
     });
@@ -532,26 +547,68 @@ export function Admin() {
                         </li>
                       ))}
                     </ul>
+                    {report.count > report.titles.length && (
+                      <p>
+                        Showing the first {report.titles.length} of{" "}
+                        {report.count} validated titles.
+                      </p>
+                    )}
+                    {importProgress && (
+                      <p role="status">
+                        {importProgress.completed} of{" "}
+                        {importProgress.chunks.length} chunks saved. Successful
+                        chunks will not be repeated.
+                      </p>
+                    )}
                     <button
                       className="soft-button"
                       disabled={busy || report.staleInputs.length > 0}
                       onClick={() =>
                         work(async () => {
-                          const result = await api("/api/admin/import", {
-                            bundle,
-                            digest: report.digest,
-                            revision: report.revision,
-                          });
+                          let progress = { ...bundle };
+                          for (
+                            let index = progress.completed;
+                            index < progress.chunks.length;
+                            index++
+                          ) {
+                            const chunk = progress.chunks[index];
+                            const preview = await api("/api/admin/validate", {
+                              bundle: chunk,
+                            });
+                            // Retry the same key after a lost response; the server returns
+                            // its saved receipt without writing or adding another revision.
+                            const result = await api("/api/admin/import", {
+                              bundle: chunk,
+                              digest: preview.digest,
+                              revision:
+                                index === progress.completed
+                                  ? progress.revision
+                                  : preview.revision,
+                              importKey: `${progress.key}:${index}`,
+                            });
+                            progress = {
+                              ...progress,
+                              completed: index + 1,
+                              revision: result.revision,
+                            };
+                            setBundle(progress);
+                            setImportProgress(progress);
+                            setNotice(
+                              `Imported ${progress.completed} of ${progress.chunks.length} chunks.`,
+                            );
+                          }
                           setBundle(null);
                           setReport(null);
                           await reload();
                           setNotice(
-                            `Imported ${result.imported} profiles. Revision ${result.revision} saved.`,
+                            `Imported ${report.count} profiles across ${progress.chunks.length} chunks. Each chunk has its own import history and undo.`,
                           );
                         })
                       }
                     >
-                      Import {report.count} profiles
+                      {importProgress
+                        ? "Resume import"
+                        : `Import ${report.count} profiles`}
                     </button>
                   </>
                 )}
@@ -655,7 +712,14 @@ export function Admin() {
                                   <td>
                                     {status.vocabulary.find(
                                       (n) => n.key === o.key,
-                                    )?.label || o.key}
+                                    )?.explanationSafe === false &&
+                                    !revealedProfiles.has(
+                                      `${profileSource}:${p.malId}`,
+                                    )
+                                      ? "Private outcome trait"
+                                      : status.vocabulary.find(
+                                          (n) => n.key === o.key,
+                                        )?.label || o.key}
                                   </td>
                                   <td>
                                     {o.score === null

@@ -3,6 +3,7 @@ import { isNonCanonMovie } from "./movie-continuity.js";
 import { primaryTitle, englishTitle } from "./titles.js";
 import {
   explainPick,
+  explainPickReasons,
   storyConnection,
   continuationConnection,
   continuationReason,
@@ -163,6 +164,7 @@ function explanation(anime, taste) {
     : "Something a little different to try.";
 }
 export const detailedExplanation = explainPick;
+export const detailedExplanationReasons = explainPickReasons;
 function similarity(a, b) {
   const one = new Set(a.genres || []),
     two = new Set(b.genres || []);
@@ -384,6 +386,9 @@ export function chooseNextBatch(
       get detailReason() {
         return detailedExplanation(anime, taste, { cold, explore });
       },
+      get whyReasons() {
+        return detailedExplanationReasons(anime, taste, { cold, explore });
+      },
     }));
 }
 
@@ -440,6 +445,11 @@ export function rankRecommendations(
     selected.push({
       ...pick,
       reason: explanation(pick.anime, taste),
+      whyReasons: detailedExplanationReasons(pick.anime, taste, {
+        mode: "recommendations",
+        tier: selected.length + 1,
+        varietyAdjusted,
+      }),
       detailReason: detailedExplanation(pick.anime, taste, {
         mode: "recommendations",
         tier: selected.length + 1,

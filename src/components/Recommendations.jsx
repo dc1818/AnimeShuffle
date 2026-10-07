@@ -305,6 +305,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                             <AnimeDetails
                               anime={pick.anime}
                               reason={pick.detailReason || pick.reason}
+                              reasons={pick.whyReasons}
                               onClose={() => setAbout(null)}
                             />
                           </div>

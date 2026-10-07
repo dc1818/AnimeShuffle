@@ -507,7 +507,7 @@ export function createCloudApp(
             );
           rateLimit("admin:" + account.id, 60, 60000);
           const adminBody =
-            req.method === "POST" ? await input(req, 2 * 1024 * 1024) : null;
+            req.method === "POST" ? await input(req, 16 * 1024 * 1024) : null;
           const result = operations.route(u, req.method, adminBody, account.id);
           if (result?.changed) communityCache = null;
           response = json(

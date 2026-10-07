@@ -98,6 +98,7 @@ export function createAnimeStore({
     current: null,
     reason: "",
     detailReason: "",
+    whyReasons: [],
     busy: true,
     ready: false,
     accountDataReady: false,
@@ -737,6 +738,7 @@ export function createAnimeStore({
           current: pick.anime,
           reason: pick.reason,
           detailReason: pick.detailReason,
+          whyReasons: pick.whyReasons,
           busy: false,
           discoveryLoading: false,
           discoveryProgress: null,
@@ -862,6 +864,7 @@ export function createAnimeStore({
         update({
           current: anime,
           detailReason: pick.detailReason,
+          whyReasons: pick.whyReasons,
           reason: state.preview
             ? pick.reason.replace("of 8", "of 7")
             : pick.reason,
@@ -987,6 +990,7 @@ export function createAnimeStore({
       before: state.reactions[anime.id],
       reason: state.reason,
       detailReason: state.detailReason,
+      whyReasons: state.whyReasons,
       receipt: null,
       fromRecommendations: !!target,
     };
@@ -1161,6 +1165,7 @@ export function createAnimeStore({
             current: entry.anime,
             reason: entry.reason,
             detailReason: entry.detailReason,
+            whyReasons: entry.whyReasons || [],
           }
         : {}),
       error: "",
@@ -1177,6 +1182,7 @@ export function createAnimeStore({
       anime: state.current,
       reason: state.reason,
       detailReason: state.detailReason,
+      whyReasons: state.whyReasons,
       skip: true,
     });
     skipped.add(state.current.id);

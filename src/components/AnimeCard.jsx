@@ -250,7 +250,13 @@ export function AnimeCard({
   );
 }
 
-export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
+export function AnimeDetails({
+  anime,
+  reason,
+  reasons,
+  onClose,
+  responsive = false,
+}) {
   const panel = useRef(null);
   const tabId = useId();
   const mediaEnabled = document.documentElement.dataset.hosting !== "pages";
@@ -471,7 +477,14 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
             <Icon name="shuffle" />
             <div>
               <h3>Why this pick?</h3>
-              <p>{reason || "Something new for your next watch."}</p>
+              <ul className="why-reasons">
+                {(reasons?.length
+                  ? reasons
+                  : [reason || "Something new for your next watch."]
+                ).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

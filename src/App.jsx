@@ -421,6 +421,7 @@ export function App({ store }) {
                       responsive
                       anime={state.current}
                       reason={state.detailReason || state.reason}
+                      reasons={state.whyReasons}
                       onClose={() => setDetails(false)}
                     />
                   )}

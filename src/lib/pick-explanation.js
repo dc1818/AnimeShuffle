@@ -1,3 +1,4 @@
+import { RESEARCH_TRAITS } from "./research-taxonomy.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { genreLabel } from "./genres.js";
 import { reviewTraits } from "./taste-traits.js";
@@ -132,7 +133,13 @@ const join = (values) =>
 
 /** Compose a small set of distinct, positively contributing reasons. Raw review
  * prose never reaches this function; all review descriptions are allowlisted. */
-export function explainPick(
+export function explainPick(anime, taste, options = {}) {
+  return explainPickReasons(anime, taste, options).join(" ");
+}
+const privateExplanationKeys = new Set(
+  RESEARCH_TRAITS.filter((t) => t.explanationSafe === false).map((t) => t.key),
+);
+export function explainPickReasons(
   anime,
   taste,
   {
@@ -145,13 +152,14 @@ export function explainPick(
 ) {
   const continuation = continuationConnection(anime, taste);
   if (cold)
-    return continuation
-      ? continuationReason(continuation) +
-          " Your reaction and watchlist save apply to this entry separately."
-      : "A starting point while we get to know your taste.";
+    return [
+      continuation
+        ? continuationReason(continuation)
+        : "A starting point while we get to know your taste.",
+    ];
   const analysis = taste.model?.explain(anime);
   if (!analysis)
-    return "More choices in Discover will help us find a personal match.";
+    return ["More choices in Discover will help us find a personal match."];
   const contributing = (prefix) =>
     analysis.contributions
       .filter((c) => c.key.startsWith(prefix + ":") && c.contribution > 0.00001)
@@ -183,7 +191,10 @@ export function explainPick(
     .map((record) => ({
       record,
       keys: nuanceKeys.filter(
-        (k) => nuances.has(k) && nuancedTraits(record.anime).has(k),
+        (k) =>
+          !privateExplanationKeys.has(k) &&
+          nuances.has(k) &&
+          nuancedTraits(record.anime).has(k),
       ),
     }))
     .filter((m) => m.keys.length)
@@ -193,13 +204,17 @@ export function explainPick(
     );
   if (nuanceMatches.length) {
     const { record, keys } = nuanceMatches[0];
-    const chosen = keys.slice(0, 2),
-      descriptions = chosen.map((k) => nuances.get(k).description);
-    const reviewBased = chosen.some((k) => nuances.get(k).source === "reviews");
-    parts.push(personalConnection(record));
-    parts.push(
-      `${reviewBased ? "Reviewers point to" : "The connection here is"} ${join(descriptions)}${reviewBased ? ", a combination also described in that show" : "—qualities also present in that show"}.`,
-    );
+    const chosen = keys
+      .filter(
+        (k, i) => keys.findIndex((other) => family(other) === family(k)) === i,
+      )
+      .slice(0, 4);
+    for (const key of chosen) {
+      const cue = nuances.get(key);
+      parts.push(
+        `${cue.source === "reviews" ? "Review evidence connects" : "Shares"} ${cue.description} with ${title(record.anime)}, ${connectionClause(record)}.`,
+      );
+    }
     for (const k of chosen) used.add(family(k));
     mentioned.add(record.anime.id);
     const contrast = chosen.find((k) =>
@@ -390,9 +405,11 @@ export function explainPick(
       `Choices from other Anime Shuffle accounts also connect this title with ${title(neighbor.anime)}.`,
     );
   if (!parts.length)
-    return explore
-      ? "A change of pace from your usual picks—something to try outside your familiar favorites."
-      : "This is a tentative pick. A few more choices in Discover will help find closer matches.";
+    return [
+      explore
+        ? "A change of pace from your usual picks—something to try outside your familiar favorites."
+        : "This is a tentative pick. A few more choices in Discover will help find closer matches.",
+    ];
   if (
     mode === "recommendations" &&
     tier === 1 &&
@@ -403,5 +420,19 @@ export function explainPick(
     parts.push("It also brings a different mix to your shortlist.");
   if (explore)
     parts.unshift("A change of pace, with a few familiar connections.");
-  return parts.join(" ");
+  const bullets = [];
+  for (let index = 0; index < parts.length; index++) {
+    const item = parts[index];
+    // Combine an anchor-only sentence with its evidence rather than counting
+    // the same connection as two independent reasons.
+    if (
+      index + 1 < parts.length &&
+      /^(You liked|You rated|You’re currently|You’ve planned|You’ve finished)/.test(
+        item,
+      )
+    )
+      bullets.push(item + " " + parts[++index]);
+    else bullets.push(item);
+  }
+  return [...new Set(bullets)];
 }
