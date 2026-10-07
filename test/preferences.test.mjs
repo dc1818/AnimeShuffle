@@ -101,6 +101,7 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
       finishedOnly: false,
       includeUnknown: false,
       childrenTitles: "hide",
+      includeNsfw: false,
       includeNonCanonMovies: false,
       scoreMin: null,
       scoreMax: null,
@@ -224,5 +225,30 @@ test("MAL score ranges use community scores, include endpoints, and exclude unsc
   assert.deepEqual(
     rankRecommendations(pool, { preferences: p }).map((pick) => pick.anime.id),
     [2],
+  );
+});
+
+test("NSFW defaults off and opt-in applies to both feeds without bypassing exclusions", () => {
+  assert.equal(normalizePreferences({}).includeNsfw, false);
+  assert.equal(
+    normalizePreferences({ includeNsfw: "true" }).includeNsfw,
+    false,
+  );
+  const pool = [anime(1, { nsfw: "gray" }), anime(2, { nsfw: "black" })];
+  assert.equal(chooseNext(pool, {}), null);
+  assert.deepEqual(rankRecommendations(pool, {}), []);
+  const preferences = { includeNsfw: true };
+  assert.ok(chooseNext(pool, { preferences }));
+  assert.equal(rankRecommendations(pool, { preferences }).length, 2);
+  assert.equal(
+    chooseNext([anime(3, { nsfw: "unknown" })], { preferences }),
+    null,
+  );
+  assert.equal(
+    chooseNext([pool[0]], {
+      preferences,
+      reactions: { 1: { action: "watch", anime: pool[0] } },
+    }),
+    null,
   );
 });

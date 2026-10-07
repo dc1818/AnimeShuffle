@@ -152,6 +152,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
       p.finishedOnly ||
       p.includeNonCanonMovies ||
       !p.includeUnknown ||
+      p.includeNsfw === true ||
       (p.childrenTitles && p.childrenTitles !== "hide") ||
       state.settings.autoAdd,
     );
@@ -368,6 +369,29 @@ export function ViewingPreferences({ state, store, onComplete }) {
           </p>
         )}
       </fieldset>
+      <div className="setting-row">
+        <div>
+          <strong>Include NSFW anime</strong>
+          <p>
+            Allow titles flagged by MyAnimeList as suggestive or explicit in
+            Discover and Recommendations. Off by default. Saved watchlist
+            entries are always kept.
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          role="switch"
+          aria-label="Include NSFW anime"
+          checked={value.includeNsfw === true}
+          disabled={initialSetup && (pending || state.busy)}
+          onChange={(event) =>
+            setValue((current) => ({
+              ...current,
+              includeNsfw: event.target.checked,
+            }))
+          }
+        />
+      </div>
       <div className="setting-row">
         <div>
           <strong>Include children’s and all-ages anime</strong>

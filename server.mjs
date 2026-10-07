@@ -404,7 +404,7 @@ const server = http.createServer(async (req, res) => {
         fields: catalogFields,
         limit: "50",
         offset: String(offset),
-        nsfw: "false",
+        nsfw: u.searchParams.get("nsfw") === "true" ? "true" : "false",
       });
       let endpoint;
       if (source === "season") {

@@ -381,3 +381,27 @@ test("personal MAL list imports all 207 plans across pages without the catalog c
     db.db.close();
   }
 });
+
+test("catalog requests include NSFW only with an explicit opt-in query", async () => {
+  const db = storage();
+  const received = [];
+  try {
+    const app = createCloudApp(db, env, {
+      interval: 0,
+      fetcher: async (raw) => {
+        received.push(new URL(raw).searchParams.get("nsfw"));
+        return Response.json({ data: [], paging: {} });
+      },
+    });
+    const client = browser(() => app);
+    for (const query of ["", "&nsfw=true", "&nsfw=false"])
+      assert.equal(
+        (await client.request("/api/catalog?source=popular" + query)).response
+          .status,
+        200,
+      );
+    assert.deepEqual(received, ["false", "true"]); // The final safe request reuses only the safe cache.
+  } finally {
+    db.db.close();
+  }
+});

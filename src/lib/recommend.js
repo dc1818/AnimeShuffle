@@ -260,7 +260,10 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
       reactions[a.id] ||
       favorites.has(a.id) ||
       skipped.has(a.id) ||
-      (a.nsfw !== "white" && !a.demo)
+      (!a.demo &&
+        !(initial.includeNsfw
+          ? ["white", "gray", "black"].includes(a.nsfw)
+          : a.nsfw === "white"))
     )
       return false;
     if (!allowChildren && isAudienceFilteredTitle(a)) return false;

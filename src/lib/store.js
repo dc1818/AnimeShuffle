@@ -73,6 +73,7 @@ export function createAnimeStore({
   let sessionGeneration = 0;
   let refillPending = null;
   let startupCatalog = null;
+  let catalogNsfw = false;
   let watchlistSyncPending = null;
   const detailRequests = new Map();
   let replacementSlots = [];
@@ -525,6 +526,13 @@ export function createAnimeStore({
   async function refillPage() {
     const generation = sessionGeneration;
     if (state.preview) return false;
+    const includeNsfw = state.preferences.includeNsfw === true;
+    // MAL pagination changes with this filter; restart cursors when switching modes.
+    if (catalogNsfw !== includeNsfw) {
+      offsets = { popular: 0, top: 0, season: 0 };
+      sourceIndex = 0;
+      catalogNsfw = includeNsfw;
+    }
     const sources = ["popular", "top", "season"];
     for (let n = 0; n < sources.length; n++) {
       const source = sources[sourceIndex % sources.length];
@@ -534,12 +542,18 @@ export function createAnimeStore({
       }
       const offset = offsets[source];
       // Consume the public startup request once; a failed speculative read retries normally.
-      const warm = source === "popular" && offset === 0 ? startupCatalog : null;
+      const warm =
+        !includeNsfw && source === "popular" && offset === 0
+          ? startupCatalog
+          : null;
       if (warm) startupCatalog = null;
       const page =
         (warm && (await warm)) ||
-        (await api(`/api/catalog?source=${source}&offset=${offsets[source]}`));
+        (await api(
+          `/api/catalog?source=${source}&offset=${offsets[source]}${includeNsfw ? "&nsfw=true" : ""}`,
+        ));
       if (generation !== sessionGeneration) return false;
+      if (includeNsfw !== (state.preferences.includeNsfw === true)) return true;
       // Follow MAL pagination beyond the old 5,000-title cutoff. Reject a stuck
       // cursor instead of repeatedly downloading the same page.
       if (

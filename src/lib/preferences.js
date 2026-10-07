@@ -75,6 +75,7 @@ export const defaultPreferences = () => ({
   includeUnknown: true,
   childrenTitles: "hide",
   includeNonCanonMovies: false,
+  includeNsfw: false,
   scoreMin: null,
   scoreMax: null,
 });
@@ -146,6 +147,7 @@ export function normalizePreferences(value = {}) {
     scoreMin,
     scoreMax,
     includeNonCanonMovies: value?.includeNonCanonMovies === true,
+    includeNsfw: value?.includeNsfw === true,
     favoriteGenres,
     favoriteAnime,
     formats: clean(value?.formats, FORMAT_OPTIONS),
