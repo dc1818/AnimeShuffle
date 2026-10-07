@@ -6,7 +6,7 @@ import path from "node:path";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
-test("preview is lazy, closes cleanly, and switching anime cancels a pending preview", async () => {
+test("preview warms metadata, reuses it across tabs, and cancels stale requests", async () => {
   const folder = await mkdtemp(path.resolve(".react-test-"));
   const outfile = path.join(folder, "Trailer.mjs");
   await build({
@@ -48,6 +48,10 @@ test("preview is lazy, closes cleanly, and switching anime cancels a pending pre
     await act(async () => render(1));
     assert.equal(calls, 0);
     assert.equal(document.querySelector("iframe"), null);
+    // Keyboard focus warms only metadata, not a YouTube player.
+    await act(async () => document.querySelector(".watch-preview").focus());
+    assert.equal(calls, 1);
+    assert.equal(document.querySelector("iframe"), null);
     await act(async () => document.querySelector(".watch-preview").click());
     assert.equal(calls, 1);
     assert.match(
@@ -63,11 +67,27 @@ test("preview is lazy, closes cleanly, and switching anime cancels a pending pre
     );
     assert.equal(document.querySelector("iframe"), null);
     await act(async () => render(2));
+    await act(async () => document.querySelector(".watch-preview").focus());
+    assert.equal(calls, 2);
+    // Clicking during warming joins the pending fetch instead of duplicating it.
     await act(async () => document.querySelector(".watch-preview").click());
+    assert.equal(calls, 2);
     await act(async () => render(3));
     assert.equal(signal.aborted, true);
     await act(async () => release());
     assert.equal(document.querySelector("iframe"), null);
+    await act(async () => render(1));
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.equal(calls, 2);
+    assert.ok(document.querySelector("iframe"));
+    await act(async () => render(4));
+    await act(async () => new Promise((r) => setTimeout(r, 850)));
+    assert.equal(calls, 3);
+    assert.equal(document.querySelector("iframe"), null);
+    await act(async () => release());
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.equal(calls, 3);
+    assert.ok(document.querySelector("iframe"));
   } finally {
     await act(async () => root.unmount());
     globalThis.fetch = original;
