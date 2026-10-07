@@ -59,7 +59,7 @@ export function secure(response) {
   r.headers.set("Strict-Transport-Security", "max-age=31536000");
   r.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; connect-src 'self'; frame-src https://www.youtube-nocookie.com; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   );
   return r;
 }

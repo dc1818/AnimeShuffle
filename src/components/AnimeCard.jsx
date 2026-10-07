@@ -1,3 +1,4 @@
+import { TrailerPreview } from "./TrailerPreview.jsx";
 import { genreLabel } from "../lib/genres.js";
 import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
@@ -63,6 +64,8 @@ export function AnimeCard({
   selectedGenres = [],
   onPreferences,
 }) {
+  const previewsEnabled =
+    !compact && document.documentElement.dataset.hosting !== "pages";
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [sampled, setSampled] = useState(null);
@@ -99,7 +102,7 @@ export function AnimeCard({
           Tier {tier}
         </div>
       )}
-      <div className="poster-stage">
+      <div className={`poster-stage${previewsEnabled ? " has-preview" : ""}`}>
         <div
           className="poster-glow"
           style={{
@@ -128,6 +131,7 @@ export function AnimeCard({
           {(anime.format || "anime").replaceAll("_", " ").toUpperCase()}
         </span>
         <div className="poster-fade" />
+        {previewsEnabled && <TrailerPreview key={anime.id} anime={anime} />}
       </div>
       <div className="card-content">
         {compact ? (

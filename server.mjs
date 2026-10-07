@@ -1,3 +1,4 @@
+import { createTrailerService } from "./lib/trailers.mjs";
 import { createCandidateCatalog } from "./lib/candidate-catalog.mjs";
 import {
   createReviewEnrichment,
@@ -39,6 +40,7 @@ const clientId = process.env.MAL_CLIENT_ID || "",
   clientSecret = process.env.MAL_CLIENT_SECRET || "";
 const malClient = createMalClient({ clientId, clientSecret });
 const candidates = createCandidateCatalog();
+const trailers = createTrailerService();
 const reviewDirectory =
   process.env.ANIME_SHUFFLE_DATA_DIR || path.join(root, ".data");
 mkdirSync(reviewDirectory, { recursive: true });
@@ -175,7 +177,7 @@ function headers(res) {
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; connect-src 'self'; frame-src https://www.youtube-nocookie.com; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   );
 }
 const server = http.createServer(async (req, res) => {
@@ -427,6 +429,12 @@ const server = http.createServer(async (req, res) => {
         nextOffset: data.paging?.next ? offset + 50 : null,
       });
     }
+    if (req.method === "GET" && /^\/api\/trailer\/\d+$/.test(u.pathname))
+      return json(
+        res,
+        200,
+        await trailers.get(Number(u.pathname.split("/").pop())),
+      );
     if (/^\/api\/anime\/\d+$/.test(u.pathname)) {
       const id = number(u.pathname.split("/").pop());
       const a = await mal.request(

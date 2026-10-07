@@ -1,3 +1,4 @@
+import { createTrailerService } from "../lib/trailers.mjs";
 import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
 import { communitySimilarities } from "../lib/community-taste.mjs";
@@ -115,6 +116,7 @@ export function createCloudApp(
       );
     },
   };
+  const trailers = createTrailerService({ fetcher, publicStore });
   const candidates = createCandidateCatalog({ fetcher, publicStore, interval });
   const malClient = createMalClient({
     clientId: env.MAL_CLIENT_ID,
@@ -224,6 +226,8 @@ export function createCloudApp(
   async function publicMetadata(u, mal) {
     const path = u.pathname;
     let response;
+    if (/^\/api\/trailer\/\d+$/.test(path))
+      return json(await trailers.get(Number(path.split("/").pop())));
     if (path === "/api/catalog" && u.searchParams.get("provider") === "tenrai")
       return json(await candidates.page(u));
     if (path === "/api/catalog") {

@@ -2522,3 +2522,17 @@ main.wide-main {
 .preference-score-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .preference-score-range label { display: grid; gap: 7px; color: #b6cbd7; font-size: 13px; }
 .preference-score-range select { width: 100%; min-width: 0; }
+
+/* Reserve the same player space before/after play, including short mobile viewports.
+   YouTube requires a 200px player height; controls live outside its viewport. */
+.poster-stage.has-preview { min-height: 260px; }
+.watch-preview { position: absolute; z-index: 3; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; white-space: nowrap; padding: 10px 17px; min-height: 44px; border: 1px solid #7795a5; border-radius: 24px; background: #10202aee; color: #e6f5ff; font-size: 14px; }
+.watch-preview[hidden] { display: none; }
+.watch-preview:hover { background: #214654; }
+.trailer-panel { position: absolute; inset: 0; z-index: 4; display: grid; grid-template-rows: 36px minmax(200px, 1fr) 24px; background: #05090e; }
+.trailer-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-size: 12px; }
+.trailer-toolbar button { background: #19313d; color: #e6f5ff; border: 1px solid #456171; border-radius: 5px; padding: 5px 9px; font-size: 12px; }
+.trailer-panel iframe { display: block; border: 0; width: 100%; height: 100%; min-width: 0; min-height: 200px; }
+.trailer-status { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; gap: 10px; text-align: center; color: #d7e6ef; font-size: 14px; }
+.trailer-footer { display: grid; place-items: center; min-width: 0; padding: 0 5px; font-size: 10px; color: #aebfcb; }
+.trailer-footer a { color: #a6dbe8; text-align: center; }
