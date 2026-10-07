@@ -72,6 +72,8 @@ export function createAnimeStore({
   let prefetchRunning = false;
   let sessionGeneration = 0;
   let refillPending = null;
+  let startupCatalog = null;
+  const detailRequests = new Map();
   let replacementSlots = [];
   let replacementRunning = false;
   let preferenceWrites = Promise.resolve();
@@ -360,7 +362,15 @@ export function createAnimeStore({
     await checkMalFreshness();
   }
   // Share verified public details across both feeds, with a bounded freshness window.
-  async function animeDetails(id) {
+  function animeDetails(id) {
+    if (detailRequests.has(id)) return detailRequests.get(id);
+    const pending = fetchAnimeDetails(id).finally(() => {
+      if (detailRequests.get(id) === pending) detailRequests.delete(id);
+    });
+    detailRequests.set(id, pending);
+    return pending;
+  }
+  async function fetchAnimeDetails(id) {
     const generation = sessionGeneration;
     const cached = details.get(id);
     if (cached?.expires > Date.now()) return cached.anime;
@@ -519,9 +529,12 @@ export function createAnimeStore({
         continue;
       }
       const offset = offsets[source];
-      const page = await api(
-        `/api/catalog?source=${source}&offset=${offsets[source]}`,
-      );
+      // Consume the public startup request once; a failed speculative read retries normally.
+      const warm = source === "popular" && offset === 0 ? startupCatalog : null;
+      if (warm) startupCatalog = null;
+      const page =
+        (warm && (await warm)) ||
+        (await api(`/api/catalog?source=${source}&offset=${offsets[source]}`));
       if (generation !== sessionGeneration) return false;
       // Follow MAL pagination beyond the old 5,000-title cutoff. Reject a stuck
       // cursor instead of repeatedly downloading the same page.
@@ -1026,6 +1039,7 @@ export function createAnimeStore({
     history = [];
     expandedSeeds.clear();
     details.clear();
+    detailRequests.clear();
     tasteCheckedAt = 0;
     recent = [];
     skipped = new Set();
@@ -1064,6 +1078,7 @@ export function createAnimeStore({
         : session.account?.provider === "mal"
           ? session.account.id.slice(4)
           : "guest";
+    let listWarmup = null;
     if (session.connected) {
       update({
         discoveryStage: "Connecting to MyAnimeList…",
@@ -1080,7 +1095,12 @@ export function createAnimeStore({
             : await api("/api/profile");
         if (!session.account) profileKey = String(profile.id);
         update({ profile });
-        await readList();
+        // Account state and the MAL list are independent reads. Keep both off
+        // each other’s critical path, but complete both before choosing a card.
+        listWarmup = readList().catch((error) => {
+          update({ session: { ...session, connected: false }, list: [] });
+          notify(error.message);
+        });
       } catch (error) {
         update({ session: { ...session, connected: false }, list: [] });
         notify(error.message);
@@ -1128,6 +1148,7 @@ export function createAnimeStore({
         update({ syncError: "Account sync is unavailable. " + error.message });
       }
     }
+    if (listWarmup) await listWarmup;
     if (catalogWarmup) {
       update({
         discoveryStage: "Loading the anime catalog…",
@@ -1145,6 +1166,12 @@ export function createAnimeStore({
   /** Idempotent initialization also handles React StrictMode's repeated effects. */
   function initialize() {
     if (initialization) return initialization;
+    // This is public metadata only. Overlap a cold catalog read with session
+    // lookup; never use it until account exclusions and preferences are loaded.
+    if (!staticMode && !readCatalogCache(storage).length)
+      startupCatalog = api("/api/catalog?source=popular&offset=0").catch(
+        () => null,
+      );
     initialization = (async () => {
       try {
         await adoptSession(

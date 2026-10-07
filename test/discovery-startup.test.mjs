@@ -97,3 +97,66 @@ test("uncertain network work reports its stage instead of a fabricated 50 percen
   await loading;
   assert.equal(store.getSnapshot().current.id, 1);
 });
+
+test("cold startup overlaps catalog, session and account/list reads without showing an excluded title", async () => {
+  const calls = [];
+  let releaseSession, releaseList;
+  const sessionGate = new Promise((resolve) => {
+    releaseSession = resolve;
+  });
+  const listGate = new Promise((resolve) => {
+    releaseList = resolve;
+  });
+  const candidate = { ...anime, id: 2, title: "Unseen title" };
+  const store = createAnimeStore({
+    storage: memory(),
+    browserBackup: null,
+    request: async (url) => {
+      calls.push(url);
+      if (url === "/api/session") {
+        await sessionGate;
+        return Response.json({
+          configured: true,
+          connected: true,
+          cloudSync: true,
+          account: { id: "mal:42", provider: "mal", name: "Viewer" },
+          onboardingComplete: true,
+        });
+      }
+      if (url.startsWith("/api/catalog"))
+        return Response.json({ data: [anime, candidate], nextOffset: null });
+      if (url.startsWith("/api/list")) {
+        await listGate;
+        return Response.json({
+          data: [{ ...anime, listStatus: { status: "plan_to_watch" } }],
+          nextOffset: null,
+        });
+      }
+      if (url === "/api/account/state")
+        return Response.json({
+          revision: 1,
+          reactions: {},
+          settings: {},
+          preferences: {},
+          onboardingComplete: true,
+        });
+      if (url === "/api/anime/2") return Response.json(candidate);
+      return Response.json({ profiles: {} });
+    },
+  });
+  const loading = store.initialize();
+  assert.ok(calls.some((url) => url.startsWith("/api/catalog")));
+  assert.equal(store.getSnapshot().current, null);
+  releaseSession();
+  for (let i = 0; !calls.includes("/api/account/state") && i < 100; i++)
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  assert.ok(
+    calls.includes("/api/account/state"),
+    "account sync starts while MAL list is pending",
+  );
+  assert.equal(store.getSnapshot().current, null, "must wait for exclusions");
+  releaseList();
+  await loading;
+  assert.equal(store.getSnapshot().current.id, 2);
+  assert.equal(calls.filter((url) => url.startsWith("/api/catalog")).length, 1);
+});
