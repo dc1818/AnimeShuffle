@@ -1,3 +1,4 @@
+import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icon } from "./components/Icon.jsx";
@@ -271,20 +272,18 @@ export function App({ store }) {
                 !state.settings.recommendationsVisited && (
                   <span className="nav-new-badge">New</span>
                 )}
-              {name === "watchlist" && state.accountDataReady && savedCount > 0 && (
-                <span className="count">{savedCount}</span>
-              )}
+              {name === "watchlist" &&
+                state.accountDataReady &&
+                savedCount > 0 && <span className="count">{savedCount}</span>}
             </button>
           ))}
         </nav>
         <div className="account-actions">
           <button
             className="account"
-            aria-label={state.session.account ? "Account settings" : "Sign in"}
+            aria-label={state.session.account ? "Open your profile" : "Sign in"}
             onClick={() =>
-              state.session.account
-                ? setDialog("settings")
-                : setDialog("welcome")
+              state.session.account ? setView("profile") : setDialog("welcome")
             }
           >
             <Icon name="link" />
@@ -314,8 +313,16 @@ export function App({ store }) {
           </button>
         </div>
       )}
-      <main className={view === "recommendations" ? "wide-main" : undefined}>
-        {view === "recommendations" ? (
+      <main
+        className={
+          ["recommendations", "profile"].includes(view)
+            ? "wide-main"
+            : undefined
+        }
+      >
+        {view === "profile" ? (
+          <Profile state={state} onDiscover={() => setView("discover")} />
+        ) : view === "recommendations" ? (
           <Recommendations
             state={state}
             store={store}

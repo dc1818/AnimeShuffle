@@ -2608,3 +2608,40 @@ main.wide-main {
 .image-view-switch { display: inline-flex; gap: 3px; padding: 3px; margin-bottom: 12px; border: 1px solid #355261; border-radius: 10px; background: #0c1a24; }
 .image-view-switch button { min-height: 36px; padding: 6px 12px; border: 0; background: transparent; color: #b7c9d7; font-size: 13px; }
 .image-view-switch button[aria-pressed="true"] { color: #a9f1f5; background: #204453; }
+
+/* Profile insights use existing evidence and stay visually separate from picks. */
+.profile-page { max-width:1120px; margin:auto; padding:12px 0 30px; }
+.profile-header { display:flex; align-items:center; gap:24px; padding:30px; border:1px solid #335366; border-radius:20px; background:linear-gradient(120deg,#183345,#152030 70%); }
+.profile-avatar { display:grid; place-items:center; width:90px; height:90px; flex-shrink:0; border:2px solid #79d9e5; border-radius:50%; color:#a5ebf2; background:#1c354a; font-size:30px; }
+.profile-header h1 { margin:4px 0 10px; overflow-wrap:anywhere; }
+.profile-eyebrow { font-size:11px; letter-spacing:.16em; color:#a4b8c9; margin:0; }
+.profile-meta { display:flex; flex-wrap:wrap; gap:10px 20px; color:#b3c7d4; font-size:13px; }
+.profile-meta a { color:#9ee8ef; }
+.profile-section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:28px 0 18px; }
+.profile-section-heading h2 { margin:0 0 8px; }
+.profile-section-heading p,.profile-caption { color:#b3c7d4; font-size:13px; line-height:1.5; }
+.profile-taste-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin:16px 0 30px; }
+.profile-taste-card,.profile-contrast { padding:20px; border:1px solid #34596a; border-radius:16px; background:linear-gradient(135deg,#172f3c,#111f2d); min-width:0; }
+.profile-taste-card:nth-child(3n+2) { border-color:#555379; background:linear-gradient(135deg,#242a43,#111f2d); }
+.profile-taste-card.curious { border-color:#66583b; }
+.profile-card-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; padding:0; border:0; text-align:left; background:none; color:#e8f7fc; }
+.profile-card-heading h3 { margin:0; font-size:19px; text-transform:capitalize; }
+.profile-card-heading > span { color:#93e3ee; font-size:24px; }
+.profile-covers { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.profile-covers a { min-width:0; text-decoration:none; color:#e3edf5; font-size:12px; }
+.profile-covers img { display:block; width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:8px; background:#0c1823; margin-bottom:8px; }
+.profile-covers a > span { display:block; line-height:1.35; overflow-wrap:anywhere; }
+.profile-covers small { display:block; color:#a8c0ce; margin-top:5px; font-size:10px; }
+.profile-covers .english-title { font-size:10px; }
+.profile-empty { padding:35px; text-align:center; background:#132532; border:1px solid #34596a; border-radius:16px; }
+.profile-contrast { margin:16px 0; }
+.profile-contrast > div { display:grid; grid-template-columns:1fr 1fr; gap:25px; }
+.taste-explorer { display:grid; grid-template-columns:1.2fr 1fr; gap:20px; border:1px solid #34596a; border-radius:18px; background:#112331; margin-bottom:30px; padding:20px; }
+.taste-map { position:relative; min-height:460px; }
+.taste-map svg { position:absolute; inset:0; width:100%; height:100%; }
+.taste-map line { stroke:#548194; stroke-width:.35; }
+.taste-node { position:absolute; transform:translate(-50%,-50%); width:110px; min-height:92px; padding:10px; border-radius:50%; border:1px solid #6378a5; background:#24344d; color:#dcebf8; font-size:12px; overflow-wrap:anywhere; }
+.taste-node[aria-pressed="true"] { border-color:#96f2f3; background:#245161; box-shadow:0 0 18px #68d7e233; }
+.taste-evidence { min-width:0; align-self:center; }
+@media(max-width:760px) { .profile-taste-grid,.taste-explorer { grid-template-columns:1fr; } .profile-header { padding:20px; gap:15px; } .profile-avatar { width:64px; height:64px; font-size:23px; } .profile-section-heading { align-items:flex-start; flex-direction:column; } .taste-map { min-height:420px; } .profile-contrast > div { grid-template-columns:1fr; } }
+@media(max-width:400px) { .taste-explorer { padding:10px; } .taste-node { width:83px; min-height:80px; font-size:10px; } .taste-map { min-height:360px; } .profile-taste-card { padding:14px; } .profile-covers { gap:8px; } }
