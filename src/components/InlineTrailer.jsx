@@ -14,10 +14,17 @@ const playbackError = (code) => {
 
 /** Keep the player mounted while the cover is shown. Pause immediately, including
  * when a slow onReady/PLAYING event arrives after the user has already closed it. */
-export function InlineTrailer({ videoId, title, active = true }) {
+export function InlineTrailer({
+  videoId,
+  title,
+  active = true,
+  onUnavailable,
+}) {
   const host = useRef(null),
     player = useRef(null),
     ready = useRef(false);
+  const unavailable = useRef(onUnavailable);
+  unavailable.current = onUnavailable;
   const visible = useRef(active);
   visible.current = active;
   const [attempt, setAttempt] = useState(0);
@@ -80,6 +87,13 @@ export function InlineTrailer({ videoId, title, active = true }) {
             },
             onError: (event) => {
               if (!disposed) {
+                if (
+                  [100, 101, 150].includes(event.data) &&
+                  unavailable.current
+                ) {
+                  unavailable.current(videoId);
+                  return;
+                }
                 setError(playbackError(event.data));
                 setStatus("error");
               }

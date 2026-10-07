@@ -1,3 +1,7 @@
+import {
+  blockTrailer,
+  useBlockedTrailers,
+} from "../lib/playback-availability.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cachedMedia, loadMedia } from "../lib/media-cache.js";
 import { loadYouTubeAPI } from "../lib/youtube.js";
@@ -6,6 +10,7 @@ import { InlineTrailer } from "./InlineTrailer.jsx";
 
 /** Keyed by anime ID: changing cards disposes its player. Closing only pauses it. */
 export function TrailerPreview({ anime }) {
+  const blocked = useBlockedTrailers();
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState(
     () => cachedMedia(anime.id) || catalogPreview(anime),
@@ -18,7 +23,7 @@ export function TrailerPreview({ anime }) {
     wasOpened = useRef(false);
   const load = useCallback(
     () =>
-      (catalogPreview(anime)
+      (catalogPreview(anime) && !blocked.has(anime.previewVideoId)
         ? Promise.resolve(cachedMedia(anime.id) || catalogPreview(anime))
         : loadMedia(anime.id)
       ).then((data) => {
@@ -28,7 +33,7 @@ export function TrailerPreview({ anime }) {
         }
         return data;
       }),
-    [anime.id, anime.previewVideoId],
+    [anime.id, anime.previewVideoId, anime.previewRegionChecked, blocked],
   );
   const warm = useCallback(() => {
     setError("");
@@ -61,7 +66,18 @@ export function TrailerPreview({ anime }) {
       if (mounted.current) setError(err.message);
     }
   }
-  const video = result?.videoId;
+  const video = result?.trailers.find((t) => !blocked.has(t.videoId))?.videoId;
+  function unavailable(id) {
+    blockTrailer(id);
+    setResult(null);
+    loadMedia(anime.id)
+      .then((data) => {
+        if (mounted.current) setResult(data);
+      })
+      .catch((err) => {
+        if (mounted.current) setError(err.message);
+      });
+  }
   return (
     <>
       <button
@@ -69,7 +85,7 @@ export function TrailerPreview({ anime }) {
         className="watch-preview"
         onClick={play}
         title={error || undefined}
-        disabled={(!result && !error) || (result?.videoId === null && !error)}
+        disabled={(!result && !error) || (result && !video && !error)}
         aria-busy={!result && !error}
         aria-expanded={open}
         hidden={open}
@@ -81,7 +97,7 @@ export function TrailerPreview({ anime }) {
           </>
         ) : error ? (
           "Retry preview"
-        ) : result.videoId ? (
+        ) : video ? (
           <>
             <span aria-hidden="true">▶</span> Watch preview
           </>
@@ -108,6 +124,7 @@ export function TrailerPreview({ anime }) {
               videoId={video}
               title={`${anime.title} promotional trailer`}
               active={open}
+              onUnavailable={unavailable}
             />
           ) : (
             <div className="trailer-status" role="status">
@@ -116,7 +133,7 @@ export function TrailerPreview({ anime }) {
               )}
               {error ||
                 (result
-                  ? "No preview is available for this anime yet."
+                  ? "No playable preview is available for this anime here."
                   : "Finding preview…")}
               {error && <button onClick={play}>Try again</button>}
             </div>

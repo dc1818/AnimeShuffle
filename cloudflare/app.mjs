@@ -223,11 +223,11 @@ export function createCloudApp(
     return n;
   }
   // These endpoints never read or write a session, account, receipt or OAuth token.
-  async function publicMetadata(u, mal) {
+  async function publicMetadata(u, mal, country) {
     const path = u.pathname;
     let response;
     if (/^\/api\/trailer\/\d+$/.test(path))
-      return json(await trailers.get(Number(path.split("/").pop())));
+      return json(await trailers.get(Number(path.split("/").pop()), country));
     if (/^\/api\/pictures\/\d+$/.test(path))
       return json(await trailers.pictures(Number(path.split("/").pop())));
     if (path === "/api/catalog" && u.searchParams.get("provider") === "tenrai")
@@ -290,7 +290,11 @@ export function createCloudApp(
         if (!["GET", "POST"].includes(req.method))
           throw new AppError("Method not allowed.", 405);
         if (isPublicMetadataRequest(req)) {
-          const response = await publicMetadata(u, mal);
+          const response = await publicMetadata(
+            u,
+            mal,
+            req.headers.get("X-AnimeShuffle-Country"),
+          );
           if (measured.header())
             response.headers.set("Server-Timing", measured.header());
           return secure(response);

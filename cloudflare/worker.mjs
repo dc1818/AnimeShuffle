@@ -1,3 +1,4 @@
+import { countryCode } from "../lib/media-region.mjs";
 import { validProxyImage } from "../lib/media-images.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
 import { DurableObject } from "cloudflare:workers";
@@ -97,10 +98,17 @@ export default {
         return secure(new Response("Cover unavailable", { status: 502 }));
       }
     }
-    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/"))
-      return env.BACKEND.get(env.BACKEND.idFromName("anime-shuffle-v1")).fetch(
-        request,
+    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) {
+      const forwarded = new Request(request);
+      // Overwrite any client-supplied value before entering the private object.
+      forwarded.headers.set(
+        "X-AnimeShuffle-Country",
+        countryCode(request.cf?.country) || "",
       );
+      return env.BACKEND.get(env.BACKEND.idFromName("anime-shuffle-v1")).fetch(
+        forwarded,
+      );
+    }
     return secure(await env.ASSETS.fetch(request));
   },
 };

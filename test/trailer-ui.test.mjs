@@ -119,8 +119,8 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
       "Late playing events are paused behind cover",
     );
     await act(async () => document.querySelector(".watch-preview").click());
-    await act(async () => instance.events.onError({ data: 150 }));
-    assert.match(document.body.textContent, /publisher doesn’t allow/);
+    await act(async () => instance.events.onError({ data: 5 }));
+    assert.match(document.body.textContent, /couldn’t play/);
     await act(async () =>
       [...document.querySelectorAll("button")]
         .find((b) => b.textContent === "Retry player")
@@ -147,7 +147,9 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     await act(async () => render(1));
     await act(async () => document.querySelector(".watch-preview").click());
     assert.equal(calls, 2, "Metadata survives tab/card remounts");
-    await act(async () => render(10, { previewVideoId: "12345678901" }));
+    await act(async () =>
+      render(10, { previewVideoId: "12345678901", previewRegionChecked: true }),
+    );
     assert.equal(document.querySelector(".watch-preview").disabled, false);
     await act(async () => document.querySelector(".watch-preview").click());
     assert.match(document.querySelector("iframe").src, /12345678901/);
@@ -156,6 +158,10 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
       2,
       "Catalog trailer starts without any metadata request",
     );
+    await act(async () => instances.at(-1).events.onError({ data: 150 }));
+    assert.match(document.querySelector("iframe").src, /abcdefghijk/, "Main preview switches away from rejected catalog video");
+    assert.equal(calls, 3);
+
   } finally {
     await act(async () => root.unmount());
     globalThis.fetch = original;

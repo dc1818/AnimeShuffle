@@ -18,7 +18,9 @@ test("trailers accept safe promo IDs only and reuse cached metadata", async () =
         data: {
           promo: [
             { trailer: { youtube_id: "https://evil.example" } },
-            { trailer: { youtube_id: "abcdefghijk" } },
+            {
+              trailer: { region_restriction: null, youtube_id: "abcdefghijk" },
+            },
           ],
           episodes: [{ youtube_id: "xxxxxxxxxxx" }],
         },
@@ -47,7 +49,11 @@ test("missing promos return unavailable and failures remain retryable", async ()
       Response.json({
         data: {
           promo: [],
-          episodes: [{ trailer: { youtube_id: "abcdefghijk" } }],
+          episodes: [
+            {
+              trailer: { region_restriction: null, youtube_id: "abcdefghijk" },
+            },
+          ],
         },
       }),
   });
@@ -76,8 +82,14 @@ test("media excludes blocked promos, duplicates and untrusted image hosts", () =
           title: "Private",
           trailer: { youtube_id: "bbbbbbbbbbb", privacy_status: "private" },
         },
-        { title: "PV", trailer: { youtube_id: "ccccccccccc" } },
-        { title: "Same PV", trailer: { youtube_id: "ccccccccccc" } },
+        {
+          title: "PV",
+          trailer: { region_restriction: null, youtube_id: "ccccccccccc" },
+        },
+        {
+          title: "Same PV",
+          trailer: { region_restriction: null, youtube_id: "ccccccccccc" },
+        },
       ],
     },
   };

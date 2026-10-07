@@ -35,6 +35,8 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
       return Response.json({
         pictures: [
           { image: "https://cdn.myanimelist.net/images/anime/1/2.jpg" },
+          { image: "https://cdn.myanimelist.net/images/anime/1/3.jpg" },
+          { image: "https://cdn.myanimelist.net/images/anime/1/4.jpg" },
         ],
       });
     return Response.json({
@@ -93,14 +95,63 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
     assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     assert.equal(player.pauses, 1);
     assert.equal(document.querySelector("iframe"), frame);
-    const image = document.querySelector(".media-gallery button");
-    await act(async () => image.click());
-    assert.ok(document.querySelector(".media-expanded img"));
-    assert.equal(document.querySelector(".media-gallery").hidden, true);
-    await act(async () =>
-      document.querySelector(".media-expanded button").click(),
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /1 \/ 3/,
     );
-    assert.equal(document.querySelector(".media-expanded"), null);
+    const next = document.querySelector('[aria-label="Next image"]');
+    const previous = document.querySelector('[aria-label="Previous image"]');
+    await act(async () => previous.click());
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /3 \/ 3/,
+    );
+    await act(async () => next.click());
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /1 \/ 3/,
+    );
+    await act(async () =>
+      document.querySelector('[aria-label="Show image 2 of 3"]').click(),
+    );
+    assert.match(
+      document.querySelector(".image-carousel-stage img").alt,
+      /image 2 of 3/,
+    );
+    assert.equal(
+      document
+        .querySelector('[aria-label="Show image 2 of 3"]')
+        .getAttribute("aria-current"),
+      "true",
+    );
+    const stage = document.querySelector(".image-carousel-stage");
+    function pointer(type, x, y) {
+      const e = new window.Event(type, { bubbles: true });
+      Object.assign(e, {
+        clientX: x,
+        clientY: y,
+        pointerId: 1,
+        pointerType: "touch",
+      });
+      stage.dispatchEvent(e);
+    }
+    await act(async () => {
+      pointer("pointerdown", 150, 50);
+      pointer("pointerup", 50, 55);
+    });
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /3 \/ 3/,
+    );
+    await act(async () => {
+      pointer("pointerdown", 150, 50);
+      pointer("pointerup", 140, 150);
+    });
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /3 \/ 3/,
+      "Vertical scrolling must not change images",
+    );
     await act(async () => tab("Trailers").click());
     assert.equal(document.querySelector("iframe"), frame);
     assert.equal(calls.length, 2);
@@ -109,6 +160,14 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
     );
     assert.equal(player.destroyed, true);
     assert.match(document.querySelector("iframe").src, /12345678901/);
+    await act(async () => players[1].events.onError({ data: 150 }));
+    assert.equal(
+      document.querySelectorAll(".media-trailers button").length,
+      1,
+      "Rejected trailer is removed from the list",
+    );
+    assert.equal(document.querySelector("iframe"), null);
+
     await act(async () => render(2));
     assert.equal(players[1].destroyed, true);
     assert.equal(tab("Synopsis").getAttribute("aria-selected"), "true");

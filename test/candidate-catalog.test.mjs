@@ -187,8 +187,10 @@ test("Discover reports actual checks within a batch and rejects unseen prerequis
 
 test("catalog keeps a validated trailer ID for immediate preview without another lookup", () => {
   assert.equal(
-    normalizeCandidate({ ...raw, trailer: { youtube_id: "abcdefghijk" } })
-      .previewVideoId,
+    normalizeCandidate({
+      ...raw,
+      trailer: { region_restriction: null, youtube_id: "abcdefghijk" },
+    }).previewVideoId,
     "abcdefghijk",
   );
   assert.equal(
@@ -201,7 +203,11 @@ test("catalog keeps a validated trailer ID for immediate preview without another
   assert.equal(
     normalizeCandidate({
       ...raw,
-      trailer: { youtube_id: "abcdefghijk", embeddable: false },
+      trailer: {
+        region_restriction: null,
+        youtube_id: "abcdefghijk",
+        embeddable: false,
+      },
     }).previewVideoId,
     undefined,
   );

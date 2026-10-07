@@ -32,7 +32,8 @@ export function normalizeTrailerResponse(data) {
   return { videoId: trailers[0]?.videoId || null, trailers };
 }
 export function catalogPreview(anime) {
-  return validVideoId(anime.previewVideoId)
+  return anime.previewRegionChecked === true &&
+    validVideoId(anime.previewVideoId)
     ? {
         videoId: anime.previewVideoId,
         trailers: [{ videoId: anime.previewVideoId, title: "Preview" }],

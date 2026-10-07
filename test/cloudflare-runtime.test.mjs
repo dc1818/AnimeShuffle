@@ -104,7 +104,20 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
             return WorkerResponse.json({
               data: {
                 promo: [
-                  { title: "PV", trailer: { youtube_id: "abcdefghijk" } },
+                  {
+                    title: "PV",
+                    trailer: {
+                      region_restriction: null,
+                      youtube_id: "abcdefghijk",
+                    },
+                  },
+                  {
+                    title: "Japan only",
+                    trailer: {
+                      region_restriction: { allowed: ["JP"] },
+                      youtube_id: "12345678901",
+                    },
+                  },
                 ],
               },
             });
@@ -210,6 +223,23 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     const videos = await call("/api/trailer/42");
     assert.equal(videos.status, 200);
     assert.equal((await videos.json()).trailers[0].videoId, "abcdefghijk");
+    const fromUS = await mf.dispatchFetch(
+      "https://shuffle.example/api/trailer/42",
+      { cf: { country: "US" }, headers: { "X-AnimeShuffle-Country": "JP" } },
+    );
+    assert.deepEqual(
+      (await fromUS.json()).trailers.map((t) => t.title),
+      ["PV"],
+      "Client country header cannot override Cloudflare",
+    );
+    const fromJP = await mf.dispatchFetch(
+      "https://shuffle.example/api/trailer/42",
+      { cf: { country: "JP" } },
+    );
+    assert.deepEqual(
+      (await fromJP.json()).trailers.map((t) => t.title),
+      ["PV", "Japan only"],
+    );
     const pictures = await call("/api/pictures/42");
     assert.equal(pictures.status, 200);
     assert.equal((await pictures.json()).pictures.length, 1);
