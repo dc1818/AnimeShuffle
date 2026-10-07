@@ -313,3 +313,71 @@ test("catalog includes audience ratings and continues beyond the old 5000 offset
     db.db.close();
   }
 });
+
+test("personal MAL list imports all 207 plans across pages without the catalog content filter", async () => {
+  const db = storage();
+  try {
+    const app = createCloudApp(db, env, {
+      interval: 0,
+      fetcher: async (raw) => {
+        const url = new URL(raw);
+        if (url.pathname.endsWith("/token"))
+          return Response.json({
+            access_token: "PRIVATE",
+            refresh_token: "PRIVATE",
+            expires_in: 3600,
+          });
+        if (url.pathname === "/v2/users/@me")
+          return Response.json({ id: 42, name: "Viewer" });
+        assert.equal(url.pathname, "/v2/users/@me/animelist");
+        assert.equal(
+          url.searchParams.get("nsfw"),
+          "true",
+          "personal lists must include every saved entry",
+        );
+        const offset = Number(url.searchParams.get("offset"));
+        const data = Array.from(
+          { length: Math.min(100, 207 - offset) },
+          (_, i) => ({
+            node: {
+              id: offset + i + 1,
+              title: `Saved ${offset + i + 1}`,
+              nsfw: offset + i < 189 ? "white" : "gray",
+            },
+            list_status: { status: "plan_to_watch" },
+          }),
+        );
+        return Response.json({
+          data,
+          paging:
+            offset < 200
+              ? {
+                  next: `https://api.myanimelist.net/v2/users/@me/animelist?offset=${offset + 100}`,
+                }
+              : {},
+        });
+      },
+    });
+    const client = browser(() => app);
+    const start = await client.request("/auth/start");
+    const state = new URL(
+      start.response.headers.get("location"),
+    ).searchParams.get("state");
+    await client.request(`/auth/callback?state=${state}&code=FIXTURE`);
+    const entries = [];
+    let offset = 0;
+    do {
+      const result = await client.request(`/api/list?offset=${offset}`);
+      assert.equal(result.response.status, 200);
+      entries.push(...result.body.data);
+      offset = result.body.nextOffset;
+    } while (offset !== null);
+    assert.equal(entries.length, 207);
+    assert.equal(new Set(entries.map((a) => a.id)).size, 207);
+    assert.equal(entries.filter((a) => a.nsfw === "gray").length, 18);
+    const { combinedWatchlist } = await import("../src/lib/watchlist.js");
+    assert.equal(combinedWatchlist({}, entries).length, 207);
+  } finally {
+    db.db.close();
+  }
+});

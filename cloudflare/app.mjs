@@ -668,7 +668,8 @@ export function createCloudApp(
               "alternative_titles,list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration,synopsis,studios",
             limit: "100",
             offset: String(offset),
-            nsfw: "false",
+            // Import the complete personal list; discovery filters must not hide saved entries.
+            nsfw: "true",
           });
           const d = await mal.request("/users/@me/animelist?" + q, {
             session: tokenSession,

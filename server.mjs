@@ -338,7 +338,8 @@ const server = http.createServer(async (req, res) => {
           "alternative_titles,list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration,synopsis,studios",
         limit: "100",
         offset: String(offset),
-        nsfw: "false",
+        // Import the complete personal list; discovery filters must not hide saved entries.
+        nsfw: "true",
       });
       const data = await mal.request("/users/@me/animelist?" + q, {
         session: s,
