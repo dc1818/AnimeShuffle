@@ -74,6 +74,9 @@ export function createAnimeStore({
   let refillPending = null;
   let startupCatalog = null;
   let catalogNsfw = false;
+  let candidateProvider = "tenrai";
+  let candidateFilterKey = "";
+  let startupFilterKey = "";
   let watchlistSyncPending = null;
   const detailRequests = new Map();
   let replacementSlots = [];
@@ -515,6 +518,19 @@ export function createAnimeStore({
       }
     }
   }
+  // Send public filters only, never account history or the selected favorite titles.
+  function catalogPreferences() {
+    const p = state.preferences;
+    return {
+      favoriteGenres: p.favoriteGenres,
+      formats: p.formats,
+      finishedOnly: p.finishedOnly,
+      scoreMin: p.scoreMin,
+      scoreMax: p.scoreMax,
+      includeNsfw: p.includeNsfw,
+      childrenTitles: p.childrenTitles,
+    };
+  }
   function refill() {
     if (refillPending) return refillPending;
     const pending = refillPage().finally(() => {
@@ -526,14 +542,19 @@ export function createAnimeStore({
   async function refillPage() {
     const generation = sessionGeneration;
     if (state.preview) return false;
+    const filters = JSON.stringify(catalogPreferences());
     const includeNsfw = state.preferences.includeNsfw === true;
     // MAL pagination changes with this filter; restart cursors when switching modes.
-    if (catalogNsfw !== includeNsfw) {
+    if (catalogNsfw !== includeNsfw || candidateFilterKey !== filters) {
       offsets = { popular: 0, top: 0, season: 0 };
       sourceIndex = 0;
       catalogNsfw = includeNsfw;
+      candidateFilterKey = filters;
     }
-    const sources = ["popular", "top", "season"];
+    const sources =
+      candidateProvider === "tenrai"
+        ? ["popular", "top"]
+        : ["popular", "top", "season"];
     for (let n = 0; n < sources.length; n++) {
       const source = sources[sourceIndex % sources.length];
       if (offsets[source] === null) {
@@ -543,17 +564,36 @@ export function createAnimeStore({
       const offset = offsets[source];
       // Consume the public startup request once; a failed speculative read retries normally.
       const warm =
-        !includeNsfw && source === "popular" && offset === 0
+        candidateProvider === "tenrai" &&
+        startupFilterKey === filters &&
+        source === "popular" &&
+        offset === 0
           ? startupCatalog
           : null;
       if (warm) startupCatalog = null;
-      const page =
-        (warm && (await warm)) ||
-        (await api(
-          `/api/catalog?source=${source}&offset=${offsets[source]}${includeNsfw ? "&nsfw=true" : ""}`,
-        ));
+      let page;
+      try {
+        page =
+          (warm && (await warm)) ||
+          (await api(
+            `/api/catalog?source=${source}&offset=${offset}${candidateProvider === "tenrai" ? "&provider=tenrai&preferences=" + encodeURIComponent(filters) : includeNsfw ? "&nsfw=true" : ""}`,
+          ));
+      } catch (error) {
+        if (generation !== sessionGeneration) return false;
+        if (candidateProvider !== "tenrai") throw error;
+        // Keep provider cursors separate: a Tenrai page is not a MAL offset.
+        candidateProvider = "mal";
+        offsets = { popular: 0, top: 0, season: 0 };
+        sourceIndex = 0;
+        startupCatalog = null;
+        diagnostics.record?.({
+          operation: "catalog_fallback",
+          provider: "mal",
+        });
+        return refillPage();
+      }
       if (generation !== sessionGeneration) return false;
-      if (includeNsfw !== (state.preferences.includeNsfw === true)) return true;
+      if (filters !== JSON.stringify(catalogPreferences())) return true;
       // Follow MAL pagination beyond the old 5,000-title cutoff. Reject a stuck
       // cursor instead of repeatedly downloading the same page.
       if (
@@ -566,6 +606,7 @@ export function createAnimeStore({
           "The anime catalog returned an invalid next page. Please try again later.",
         );
       offsets[source] = page.nextOffset ?? null;
+      if (candidateProvider === "tenrai") offsets.season = null;
       sourceIndex++;
       const before = pool.length;
       const ids = new Set(pool.map((anime) => anime.id));
@@ -577,6 +618,8 @@ export function createAnimeStore({
       diagnostics.record?.({
         operation: "catalog_page",
         source,
+        provider: page.provider || candidateProvider,
+        cacheHit: page.cacheHit === true,
         offset,
         returned: page.data.length,
         added: pool.length - before,
@@ -649,6 +692,9 @@ export function createAnimeStore({
       // Page reads and detail checks have separate budgets. Filtered/duplicate
       // pages do not spend candidate checks. Keep a time bound for slow upstreams.
       const searchStarted = performance.now();
+      let batch = [],
+        batchTotal = 0,
+        batchDone = 0;
       for (
         let attempt = 0;
         search.detailChecks < 100 && performance.now() - searchStarted < 30000;
@@ -665,18 +711,29 @@ export function createAnimeStore({
             )
             .map((a) => a.id),
         );
-        const pick = chooseNext(pool, {
-          reactions: state.reactions,
-          list: state.list,
-          skipped,
-          recent,
-          preferences: state.preferences,
-          readyIds,
-        });
+        if (!batch.length) {
+          const batchSkipped = new Set(skipped);
+          batch = [];
+          for (let n = 0; n < 6; n++) {
+            const candidate = chooseNext(pool, {
+              ...state,
+              skipped: batchSkipped,
+              recent,
+              readyIds,
+            });
+            if (!candidate) break;
+            batch.push(candidate);
+            batchSkipped.add(candidate.anime.id);
+          }
+          batchTotal = batch.length;
+          batchDone = 0;
+        }
+        const pick = batch.shift();
         finishRank();
         if (!pick) {
           update({
-            discoveryStage: "Searching the anime catalog…",
+            discoveryStage: "Finding matching anime…",
+            discoveryProgress: null,
             discoveryWork: `${search.pagesLoaded} ${search.pagesLoaded === 1 ? "page" : "pages"} searched · ${search.detailChecks} ${search.detailChecks === 1 ? "candidate" : "candidates"} checked`,
           });
           if (search.pagesLoaded < 30 && (await refill())) {
@@ -690,19 +747,24 @@ export function createAnimeStore({
               : "search_paused";
           break;
         }
-        // The number of rejected candidates and network latency are unknown; no invented percentage.
-        update({
-          discoveryStage: "Checking this anime’s details…",
-          discoveryWork: `${search.pagesLoaded} ${search.pagesLoaded === 1 ? "page" : "pages"} searched · ${search.detailChecks} ${search.detailChecks === 1 ? "candidate" : "candidates"} checked`,
-          discoveryProgress: null,
-        });
+        const reportBatch = () =>
+          update({
+            discoveryStage: "Checking matches…",
+            discoveryWork: `${batchDone} of ${batchTotal} candidates checked · current batch`,
+            discoveryProgress: Math.round((100 * batchDone) / batchTotal),
+          });
+        reportBatch();
         let anime = pick.anime;
         if (!state.preview) {
           search.detailChecks++;
           try {
             anime = await animeDetails(anime.id);
+            batchDone++;
+            reportBatch();
           } catch (error) {
             if (error.status !== 404) throw error;
+            batchDone++;
+            reportBatch();
             skipped.add(anime.id); // Deleted MAL entries cannot be displayed.
             search.rejectedAfterDetails++;
             continue;
@@ -720,7 +782,6 @@ export function createAnimeStore({
             // Updated pool metadata makes this ineligible until the user's
             // preferences/history change. This is not a permanent user skip.
             search.rejectedAfterDetails++;
-            update({ discoveryProgress: null });
             continue;
           }
         }
@@ -1052,6 +1113,8 @@ export function createAnimeStore({
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
     sessionGeneration++;
+    candidateProvider = "tenrai";
+    candidateFilterKey = "";
     clearTimeout(prefetchTimer);
     prefetchTimer = null;
     refillPending = null;
@@ -1204,10 +1267,13 @@ export function createAnimeStore({
     if (initialization) return initialization;
     // This is public metadata only. Overlap a cold catalog read with session
     // lookup; never use it until account exclusions and preferences are loaded.
-    if (!staticMode && !readCatalogCache(storage).length)
-      startupCatalog = api("/api/catalog?source=popular&offset=0").catch(
-        () => null,
-      );
+    if (!staticMode && !readCatalogCache(storage).length) {
+      startupFilterKey = JSON.stringify(catalogPreferences());
+      startupCatalog = api(
+        "/api/catalog?source=popular&offset=0&provider=tenrai&preferences=" +
+          encodeURIComponent(startupFilterKey),
+      ).catch(() => null);
+    }
     initialization = (async () => {
       try {
         await adoptSession(

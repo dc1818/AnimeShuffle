@@ -67,7 +67,7 @@ test("metadata cache expires and strips account-derived fields", () => {
   assert.equal(entry.anime.communityTaste, undefined);
   assert.deepEqual(readCatalogCache(storage, now + 1001), []);
 });
-test("uncertain network work reports its stage instead of a fabricated 50 percent", async () => {
+test("candidate checking reports measured batch progress instead of a fabricated 50 percent", async () => {
   let release,
     started = false;
   const store = createAnimeStore({
@@ -90,9 +90,9 @@ test("uncertain network work reports its stage instead of a fabricated 50 percen
   for (let i = 0; !started && i < 100; i++)
     await new Promise((r) => setTimeout(r, 2));
   assert.ok(started);
-  assert.equal(store.getSnapshot().discoveryProgress, null);
-  assert.match(store.getSnapshot().discoveryStage, /Checking this anime/);
-  assert.match(store.getSnapshot().discoveryWork, /1 page searched/);
+  assert.equal(store.getSnapshot().discoveryProgress, 0);
+  assert.match(store.getSnapshot().discoveryStage, /Checking matches/);
+  assert.match(store.getSnapshot().discoveryWork, /0 of 1 candidates checked/);
   release();
   await loading;
   assert.equal(store.getSnapshot().current.id, 1);

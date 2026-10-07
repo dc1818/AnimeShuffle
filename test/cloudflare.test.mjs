@@ -405,3 +405,44 @@ test("catalog requests include NSFW only with an explicit opt-in query", async (
     db.db.close();
   }
 });
+
+test("filtered candidate route caches Tenrai pages across Worker restarts", async () => {
+  const db = storage();
+  let calls = 0;
+  const options = {
+    interval: 0,
+    fetcher: async (raw) => {
+      calls++;
+      const url = new URL(raw);
+      assert.equal(url.hostname, "api.tenrai.org");
+      assert.equal(url.searchParams.get("min_score"), "8");
+      return Response.json({
+        data: [
+          {
+            mal_id: 7,
+            title: "Candidate",
+            rating: "PG-13 - Teens 13 or older",
+            type: "TV",
+            score: 8.2,
+          },
+        ],
+        pagination: { has_next_page: false },
+      });
+    },
+  };
+  try {
+    const path =
+      "/api/catalog?provider=tenrai&preferences=" +
+      encodeURIComponent(JSON.stringify({ scoreMin: 8 }));
+    let app = createCloudApp(db, env, options);
+    let result = await browser(() => app).request(path);
+    assert.equal(result.response.status, 200);
+    assert.equal(result.body.data[0].id, 7);
+    app = createCloudApp(db, env, options);
+    result = await browser(() => app).request(path);
+    assert.equal(result.body.cacheHit, true);
+    assert.equal(calls, 1);
+  } finally {
+    db.db.close();
+  }
+});

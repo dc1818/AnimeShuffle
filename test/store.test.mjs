@@ -326,7 +326,11 @@ test("recommendations reuse discovery details and avoid unnecessary catalog page
   const first = { ...counts };
   assert.equal(store.getSnapshot().recommendationPicks.length, 25);
   assert.ok(first.details <= 26);
-  assert.equal(first.catalog, 1);
+  assert.equal(
+    first.catalog,
+    2,
+    "startup warmup plus the newly selected genre query",
+  );
   seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });
   assert.deepEqual(
@@ -344,6 +348,8 @@ test("duplicate autocomplete reads share one pending request and failed reads ca
     storage: memory(),
     request: async (url, options) => {
       if (url === "/api/session") return Response.json({ configured: true });
+      if (url.startsWith("/api/catalog"))
+        return Response.json({ data: [], nextOffset: null });
       assert.ok(options.signal, "GET has a timeout signal");
       calls++;
       await new Promise((resolve) => {
@@ -1183,7 +1189,7 @@ test("Discover stops at exhausted sources and does not loop on a stuck upstream 
     });
     await store.initialize();
     await store.savePreferences({});
-    assert.equal(calls, nextOffset === null ? 3 : 1);
+    assert.equal(calls, nextOffset === null ? 2 : 1);
     if (nextOffset === null) {
       assert.equal(store.inspectDiscovery().hasMorePages, false);
       assert.equal(store.getSnapshot().discoveryStatus, "exhausted");

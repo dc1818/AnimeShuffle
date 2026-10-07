@@ -1,3 +1,4 @@
+import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
 import { communitySimilarities } from "../lib/community-taste.mjs";
 import {
@@ -86,39 +87,41 @@ export function createCloudApp(
         console.log(JSON.stringify(event));
     },
   });
+  const publicStore = {
+    get(path) {
+      const row = one(
+        "SELECT expires, value FROM public_mal_cache WHERE path=? AND expires>?",
+        path,
+        Date.now(),
+      );
+      if (!row) return undefined;
+      try {
+        return { expires: row.expires, data: JSON.parse(row.value) };
+      } catch {
+        return undefined;
+      }
+    },
+    set(path, entry) {
+      sql.exec("DELETE FROM public_mal_cache WHERE expires<=?", Date.now());
+      sql.exec(
+        "INSERT OR REPLACE INTO public_mal_cache VALUES (?, ?, ?)",
+        path,
+        entry.expires,
+        JSON.stringify(entry.data),
+      );
+      // Bound storage even when many users browse unrelated titles.
+      sql.exec(
+        "DELETE FROM public_mal_cache WHERE path IN (SELECT path FROM public_mal_cache ORDER BY expires DESC LIMIT -1 OFFSET 500)",
+      );
+    },
+  };
+  const candidates = createCandidateCatalog({ fetcher, publicStore, interval });
   const malClient = createMalClient({
     clientId: env.MAL_CLIENT_ID,
     clientSecret: env.MAL_CLIENT_SECRET,
     fetcher,
     interval,
-    publicStore: {
-      get(path) {
-        const row = one(
-          "SELECT expires, value FROM public_mal_cache WHERE path=? AND expires>?",
-          path,
-          Date.now(),
-        );
-        if (!row) return undefined;
-        try {
-          return { expires: row.expires, data: JSON.parse(row.value) };
-        } catch {
-          return undefined;
-        }
-      },
-      set(path, entry) {
-        sql.exec("DELETE FROM public_mal_cache WHERE expires<=?", Date.now());
-        sql.exec(
-          "INSERT OR REPLACE INTO public_mal_cache VALUES (?, ?, ?)",
-          path,
-          entry.expires,
-          JSON.stringify(entry.data),
-        );
-        // Bound storage even when many users browse unrelated titles.
-        sql.exec(
-          "DELETE FROM public_mal_cache WHERE path IN (SELECT path FROM public_mal_cache ORDER BY expires DESC LIMIT -1 OFFSET 500)",
-        );
-      },
-    },
+    publicStore,
   });
   // Cache aggregates, never per-user data. Reactions are bounded before pair work.
   let communityCache = null,
@@ -221,6 +224,8 @@ export function createCloudApp(
   async function publicMetadata(u, mal) {
     const path = u.pathname;
     let response;
+    if (path === "/api/catalog" && u.searchParams.get("provider") === "tenrai")
+      return json(await candidates.page(u));
     if (path === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 1000000),
         source = u.searchParams.get("source") || "popular";

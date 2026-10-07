@@ -19,7 +19,23 @@ export function LoadingIndicator({ progress, label, detail, compact = false }) {
       >
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle className="loading-track" cx="60" cy="60" r="50" />
-          <circle className="loading-arc" cx="60" cy="60" r="50" />
+          <circle
+            className="loading-arc"
+            cx="60"
+            cy="60"
+            r="50"
+            style={
+              measured
+                ? {
+                    animation: "none",
+                    strokeDasharray: 314.159,
+                    strokeDashoffset:
+                      314.159 *
+                      (1 - Math.max(0, Math.min(100, progress)) / 100),
+                  }
+                : undefined
+            }
+          />
         </svg>
         {measured && <strong>{progress}%</strong>}
       </div>

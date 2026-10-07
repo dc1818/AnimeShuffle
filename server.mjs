@@ -1,3 +1,4 @@
+import { createCandidateCatalog } from "./lib/candidate-catalog.mjs";
 import {
   createReviewEnrichment,
   reviewStore,
@@ -37,6 +38,7 @@ const { port: PORT, origin } = config;
 const clientId = process.env.MAL_CLIENT_ID || "",
   clientSecret = process.env.MAL_CLIENT_SECRET || "";
 const malClient = createMalClient({ clientId, clientSecret });
+const candidates = createCandidateCatalog();
 const reviewDirectory =
   process.env.ANIME_SHUFFLE_DATA_DIR || path.join(root, ".data");
 mkdirSync(reviewDirectory, { recursive: true });
@@ -395,6 +397,11 @@ const server = http.createServer(async (req, res) => {
         community: {},
       });
     }
+    if (
+      u.pathname === "/api/catalog" &&
+      u.searchParams.get("provider") === "tenrai"
+    )
+      return json(res, 200, await candidates.page(u));
     if (u.pathname === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 1000000);
       const source = u.searchParams.get("source") || "popular";
