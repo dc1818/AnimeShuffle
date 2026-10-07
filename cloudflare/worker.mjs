@@ -110,7 +110,9 @@ export default {
       );
     }
     if (["/admin", "/admin/"].includes(url.pathname)) {
-      const entry = new URL("/index.html", url);
+      // Fetch the canonical asset URL internally; /index.html redirects to /
+      // in Cloudflare Assets and would otherwise lose the /admin route.
+      const entry = new URL("/", url);
       return secure(await env.ASSETS.fetch(new Request(entry, request)));
     }
     return secure(await env.ASSETS.fetch(request));

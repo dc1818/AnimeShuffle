@@ -286,3 +286,57 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     await mf.dispose();
   }
 });
+
+test("admin deep link serves canonical HTML without an asset redirect to home", async () => {
+  const compiled = await build({
+    entryPoints: ["cloudflare/worker.mjs"],
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "node",
+    external: ["cloudflare:workers"],
+    target: "es2022",
+  });
+  const seen = [];
+  const mf = new Miniflare(
+    convertV4MiniflareOptions({
+      host: "127.0.0.1",
+      inspectorHost: "127.0.0.1",
+      modules: true,
+      script: compiled.outputFiles[0].text,
+      compatibilityDate: "2026-09-01",
+      compatibilityFlags: ["nodejs_compat"],
+      durableObjects: {
+        BACKEND: { className: "AnimeBackend", useSQLite: true },
+      },
+      serviceBindings: {
+        ASSETS: async (request) => {
+          const path = new URL(request.url).pathname;
+          seen.push(path);
+          if (path === "/index.html")
+            return new WorkerResponse(null, {
+              status: 308,
+              headers: { Location: "/" },
+            });
+          return new WorkerResponse("<html>admin app shell</html>", {
+            headers: { "Content-Type": "text/html" },
+          });
+        },
+      },
+    }),
+  );
+  try {
+    for (const path of ["/admin", "/admin/"]) {
+      const response = await mf.dispatchFetch(
+        "https://shuffle.example" + path,
+        { redirect: "manual" },
+      );
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("location"), null);
+      assert.match(await response.text(), /admin app shell/);
+    }
+    assert.deepEqual(seen, ["/", "/"]);
+  } finally {
+    await mf.dispose();
+  }
+});
