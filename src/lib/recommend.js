@@ -1,7 +1,12 @@
 import { normalizeReactionReason } from "./reaction-reasons.js";
 import { isNonCanonMovie } from "./movie-continuity.js";
 import { primaryTitle, englishTitle } from "./titles.js";
-import { explainPick, storyConnection } from "./pick-explanation.js";
+import {
+  explainPick,
+  storyConnection,
+  continuationConnection,
+  continuationReason,
+} from "./pick-explanation.js";
 import { trainContentModel, terms } from "./content-model.js";
 import { normalizePreferences, matchesPreferences } from "./preferences.js";
 /**
@@ -134,6 +139,8 @@ export function scoreAnime(anime, taste) {
   return taste.model.score(anime).score;
 }
 function explanation(anime, taste) {
+  const continuation = continuationConnection(anime, taste);
+  if (continuation) return continuationReason(continuation);
   const analysis = taste.model?.explain(anime);
   const match = storyConnection(anime, taste);
   // Use the same positive features as the full rationale, never mere tag overlap.
@@ -332,13 +339,14 @@ export function chooseNextBatch(
   const explore = !cold && random() < 0.2;
   const ranked = available
     .map((a, index) => {
-      let score = scoreAnime(a, taste);
+      const match = taste.model.score(a);
+      let score = match.score;
       if (isAudienceFilteredTitle(a)) score -= 0.15;
       if (cold) {
         const overlap = (a.genres || []).filter((g) =>
           recent.slice(-4).some((x) => x.genres?.includes(g)),
         ).length;
-        score = 2 - overlap * 0.9 + random() * 0.3;
+        score = 2 - overlap * 0.9 + random() * 0.3 + match.continuation;
         if (count === 0 && a.id === 1) score += 5;
       } else if (explore) {
         // Evidence-aware exploration, not a claim of calibrated bandit uncertainty.
@@ -367,6 +375,8 @@ export function chooseNextBatch(
     .map(({ a: anime }) => ({
       anime,
       get reason() {
+        const continuation = continuationConnection(anime, taste);
+        if (continuation) return continuationReason(continuation);
         if (cold) return "Let’s find something you’ll enjoy.";
         if (explore) return "How about something a little different?";
         return explanation(anime, taste);

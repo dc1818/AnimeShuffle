@@ -551,7 +551,15 @@ export function createAnimeStore({
         const full = await animeDetails(seed.id);
         mergePool(full); // Enrich the training example as well as retrieving neighbors.
         expandedSeeds.set(seed.id, Date.now());
-        for (const id of full.recommendations || []) {
+        // MAL entry IDs preserve seasons/parts. Follow-ups come before general
+        // neighbors, and final eligibility still checks the candidate's prequels.
+        const relatedIds = [
+          ...new Set([
+            ...(full.sequels || []),
+            ...(full.recommendations || []),
+          ]),
+        ];
+        for (const id of relatedIds) {
           if (added >= candidateLimit) break;
           if (
             !Number.isSafeInteger(id) ||
@@ -918,7 +926,11 @@ export function createAnimeStore({
           !state.recommendationsLoading
         ) {
           await refreshTasteMetadata();
-          if (Object.keys(state.reactions).length >= 3)
+          if (
+            Object.keys(state.reactions).length > 0 ||
+            state.preferences.favoriteAnime.length ||
+            state.list.length
+          )
             await expandFromTaste(1, 2);
         }
       } catch {

@@ -373,6 +373,12 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
         <h2 id="details-heading">
           <AnimeTitle anime={anime} />
         </h2>
+        {!!anime.prequels?.length && (
+          <p className="runtime-estimate">
+            This is a separate entry in a series. Your reaction and watchlist
+            save apply to this entry.
+          </p>
+        )}
         <div
           className={`details-tabs${mediaEnabled ? " with-media" : ""}`}
           role="tablist"

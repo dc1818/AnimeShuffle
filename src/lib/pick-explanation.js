@@ -40,6 +40,22 @@ function personalConnection(record) {
   return `${name} is another show that caught your interest.`;
 }
 
+export function continuationConnection(anime, taste) {
+  const best = (taste.model?.continuations?.(anime) || [])
+    .filter((match) => match.contribution > 0)
+    .sort((a, b) => b.contribution - a.contribution)[0];
+  return best ? taste.records.get(best.id) : null;
+}
+
+export function continuationReason(record) {
+  const name = title(record.anime);
+  if (record.action === "good" || record.source === "favorite")
+    return `A follow-up to ${name}, which you liked.`;
+  if (record.source === "list" && record.anime.listStatus?.score >= 7)
+    return `A follow-up to ${name}, which you rated highly.`;
+  return `A follow-up to ${name}, another entry in your viewing history.`;
+}
+
 export function storyConnection(anime, taste) {
   const own = evidence(anime);
   return positiveRecords(taste)
@@ -127,7 +143,12 @@ export function explainPick(
     varietyAdjusted = false,
   } = {},
 ) {
-  if (cold) return "A starting point while we get to know your taste.";
+  const continuation = continuationConnection(anime, taste);
+  if (cold)
+    return continuation
+      ? continuationReason(continuation) +
+          " Your reaction and watchlist save apply to this entry separately."
+      : "A starting point while we get to know your taste.";
   const analysis = taste.model?.explain(anime);
   if (!analysis)
     return "More choices in Discover will help us find a personal match.";
@@ -144,6 +165,10 @@ export function explainPick(
     mentioned = new Set(),
     groups = new Map(),
     parts = [];
+  if (continuation) {
+    parts.push(continuationReason(continuation));
+    mentioned.add(continuation.anime.id);
+  }
   const nuances = nuancedTraits(anime);
   const nuanceKeys = [
     ...new Set([

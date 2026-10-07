@@ -219,10 +219,43 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
     neighborhoodCache.set(a, result);
     return result;
   }
+  // Direct MAL relationships are a small additional signal. Never merge votes
+  // across a franchise or infer connections from overlapping title words.
+  const predecessorRecords = new Map();
+  for (const record of records.values())
+    for (const id of record.anime.sequels || []) {
+      if (!Number.isSafeInteger(id) || id === record.anime.id) continue;
+      const predecessors = predecessorRecords.get(id) || new Set();
+      predecessors.add(record.anime.id);
+      predecessorRecords.set(id, predecessors);
+    }
+  const continuationCache = new WeakMap();
+  function continuation(a) {
+    if (continuationCache.has(a)) return continuationCache.get(a);
+    const ids = new Set([
+      ...(a.prequels || []),
+      ...(predecessorRecords.get(a.id) || []),
+    ]);
+    ids.delete(a.id);
+    const related = [...ids].map((id) => records.get(id)).filter(Boolean);
+    const matches = related.map((record) => ({
+      id: record.anime.id,
+      contribution:
+        (0.1 * (0.8 * record.enjoyment + 0.2 * record.interest)) /
+        Math.max(1, related.length),
+    }));
+    const result = {
+      score: matches.reduce((sum, match) => sum + match.contribution, 0),
+      matches,
+    };
+    continuationCache.set(a, result);
+    return result;
+  }
   const combinedScore = (e, i) =>
     0.65 * Math.tanh(e / 2) + 0.35 * Math.tanh(i / 2);
   return {
     trainedIds: new Set(examples.map((r) => r.anime.id)),
+    continuations: (a) => continuation(a).matches,
     // Leave-one-feature-out score differences use the very same trained heads
     // as ranking. These are contributions to a match, not confidence percentages.
     explain(a) {
@@ -241,6 +274,7 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       });
       return {
         neighbors: neighborhood(a).matches,
+        continuations: continuation(a).matches,
         contributions: contributions.map((c) => ({
           ...c,
           contribution: c.contribution * 0.8,
@@ -260,9 +294,11 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       return {
         enjoyment: enjoymentScore,
         interest: interestScore,
+        continuation: continuation(a).score,
         score:
           0.8 * (0.65 * enjoymentScore + 0.35 * interestScore) +
-          0.2 * neighborhood(a).score,
+          0.2 * neighborhood(a).score +
+          continuation(a).score,
       };
     },
     support(a) {

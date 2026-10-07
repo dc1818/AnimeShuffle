@@ -387,6 +387,7 @@ test("recommendations retrieve off-chart MAL neighbors while enforcing known-sho
   };
   const neighbor = { ...anime, id: 900, synopsis: seed.synopsis };
   const sequel = { ...anime, id: 901, prequels: [777] };
+  const followup = { ...anime, id: 903, title: "Next season", prequels: [90] };
   const seen = {
     ...anime,
     id: 902,
@@ -406,9 +407,13 @@ test("recommendations retrieve off-chart MAL neighbors while enforcing known-sho
         return Response.json({ data: [anime], nextOffset: null });
       const id = Number(url.split("/").pop());
       if (id === 90)
-        return Response.json({ ...seed, recommendations: [900, 901, 902] });
+        return Response.json({
+          ...seed,
+          sequels: [903],
+          recommendations: [900, 901, 902],
+        });
       return Response.json(
-        { 1: anime, 900: neighbor, 901: sequel, 902: seen }[id],
+        { 1: anime, 900: neighbor, 901: sequel, 902: seen, 903: followup }[id],
       );
     },
   });
@@ -418,6 +423,15 @@ test("recommendations retrieve off-chart MAL neighbors while enforcing known-sho
   await store.loadRecommendations();
   const ids = store.getSnapshot().recommendationPicks.map((p) => p.anime.id);
   assert.ok(ids.includes(900), "finds a title never present on catalog pages");
+  assert.ok(
+    ids.includes(903),
+    "retrieves a direct sequel absent from general recommendations and catalog pages",
+  );
+  assert.match(
+    store.getSnapshot().recommendationPicks.find((p) => p.anime.id === 903)
+      .reason,
+    /follow-up/i,
+  );
   assert.ok(!ids.includes(901), "unseen prequel remains excluded");
   assert.ok(!ids.includes(902), "known anime never becomes a candidate");
   assert.equal(

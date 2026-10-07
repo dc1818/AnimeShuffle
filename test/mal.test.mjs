@@ -19,13 +19,18 @@ test("normalization preserves zero scores and extracts prerequisite IDs", () => 
     title: "Original",
     alternative_titles: { en: "English" },
     average_episode_duration: 1440,
-    related_anime: [{ relation_type: "prequel", node: { id: 2 } }],
+    related_anime: [
+      { relation_type: "prequel", node: { id: 2 } },
+      { relation_type: "sequel", node: { id: 3 } },
+      { relation_type: "alternative_version", node: { id: 4 } },
+    ],
     my_list_status: { score: 0 },
   });
   assert.equal(a.title, "Original");
   assert.equal(a.englishTitle, "English");
   assert.equal(a.duration, 24);
   assert.deepEqual(a.prequels, [2]);
+  assert.deepEqual(a.sequels, [3]);
   assert.equal(a.listStatus.score, 0);
 });
 test("public data caches, personal data never uses public cache", async () => {
