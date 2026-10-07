@@ -51,6 +51,84 @@ const anime = {
   genres: ["Action"],
   format: "tv",
 };
+test("batch origins survive restart, group chunks, support catalog-wide lookup, and restore on rollback", () => {
+  const db = storage();
+  let s = createResearchStore(db);
+  const b = bundle();
+  b.profiles[0].metadataFingerprint = null;
+  let p = s.preview(b);
+  s.commit(b, p.revision, p.digest, "test", "first:0", "batch-one.json");
+  const next = bundle();
+  next.profiles[0].malId = 99999;
+  next.profiles[0].title = "Beyond first page";
+  next.profiles[0].metadataFingerprint = null;
+  next.profiles[0].observations.forEach((o) => (o.score = null));
+  p = s.preview(next);
+  s.commit(next, p.revision, p.digest, "test", "first:1", "batch-one.json");
+  s = createResearchStore(db);
+  assert.equal(s.stats().batches[0].count, 2);
+  assert.equal(s.stats().batches[0].assessed, 1);
+  const page = s.exportBatch({ kind: "profiles", limit: 1 });
+  assert.notEqual(page.nextCursor, null);
+  const found = s.exportBatch({
+    kind: "profiles",
+    query: "99999",
+    batch: "first",
+  });
+  assert.equal(found.profiles[0].title, "Beyond first page");
+  assert.equal(found.origins[99999].label, "batch-one.json");
+  assert.equal(
+    s.exportBatch({ kind: "profiles", query: "' OR 1=1 --" }).profiles.length,
+    0,
+  );
+  p = s.preview(b);
+  const updated = s.commit(
+    b,
+    p.revision,
+    p.digest,
+    "test",
+    "second:0",
+    "batch-two.json",
+  );
+  assert.equal(
+    s.exportBatch({ kind: "profiles", batch: "second" }).profiles.length,
+    1,
+  );
+  s.rollback(updated.revision, "test");
+  assert.equal(
+    s.exportBatch({ kind: "profiles", batch: "second" }).profiles.length,
+    0,
+  );
+  assert.equal(s.stats().batches[0].count, 2);
+  db.db.close();
+});
+test("existing imports gain visible provenance without reimport, with correct rollback lineage", () => {
+  const db = storage();
+  let s = createResearchStore(db);
+  const b = bundle();
+  b.profiles[0].metadataFingerprint = null;
+  for (let i = 0; i < 2; i++) {
+    b.profiles[0].title = "Version " + i;
+    const p = s.preview(b);
+    s.commit(b, p.revision, p.digest, "test");
+  }
+  db.sql.exec("DELETE FROM research_meta WHERE key='origin-migration-v1'");
+  db.sql.exec("DELETE FROM research_profile_origin");
+  for (const a of db.sql.exec("SELECT revision,previous FROM research_audit")) {
+    const previous = JSON.parse(a.previous).map(({ origin, ...p }) => p);
+    db.sql.exec(
+      "UPDATE research_audit SET previous=? WHERE revision=?",
+      JSON.stringify(previous),
+      a.revision,
+    );
+  }
+  s = createResearchStore(db);
+  assert.equal(s.stats().batches[0].label, "Import revision 2");
+  s.rollback(2, "test");
+  assert.equal(s.stats().batches[0].label, "Import revision 1");
+  assert.equal(s.get(b.profiles[0].malId).title, "Version 0");
+  db.db.close();
+});
 test("research imports reject malformed files and unsupported qualities; unknown remains unknown", () => {
   for (const b of [
     {},

@@ -39,6 +39,16 @@ test("admin UI denies guest access and previews JSON before import without start
     stale: 0,
     revision: 1,
     history: [],
+    batches: [
+      {
+        batch: "prior",
+        label: "batch-one.json",
+        at: Date.now(),
+        count: 25,
+        preliminary: 20,
+        assessed: 5,
+      },
+    ],
     instructions: [],
     vocabulary: [],
     enrichment: { reviews: {}, episodes: {} },
@@ -74,7 +84,18 @@ test("admin UI denies guest access and previews JSON before import without start
       });
     if (url === "/api/admin/status") return Response.json(status);
     if (url.startsWith("/api/admin/export"))
-      return Response.json({ ...displayed, nextCursor: null });
+      return Response.json({
+        ...displayed,
+        origins: {
+          16498: {
+            batch: "prior",
+            label: "batch-one.json",
+            at: Date.now(),
+            revision: 1,
+          },
+        },
+        nextCursor: null,
+      });
     if (url === "/api/admin/validate")
       return Response.json({
         count: 25,
@@ -95,6 +116,7 @@ test("admin UI denies guest access and previews JSON before import without start
       const body = JSON.parse(options.body);
       assert.equal(body.digest, "digest");
       assert.equal(body.revision, 1);
+      assert.equal(body.importLabel, "research.json");
       imports++;
       return Response.json({ imported: 25, revision: 2 });
     }
@@ -112,6 +134,8 @@ test("admin UI denies guest access and previews JSON before import without start
     root = createRoot(document.getElementById("root"));
     await act(async () => root.render(React.createElement(Admin)));
     assert.match(document.body.textContent, /Awaiting analysis/);
+    assert.match(document.body.textContent, /Imported batch: batch-one.json/);
+    assert.match(document.body.textContent, /With assessed traits/);
     assert.ok(!document.body.textContent.includes("SPOILER_SENTINEL"));
     const reveal = [...document.querySelectorAll("button")].find(
       (b) => b.textContent === "Reveal private research — may contain spoilers",

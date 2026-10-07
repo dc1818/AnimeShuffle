@@ -34,6 +34,26 @@ export function Admin() {
     [cursor, setCursor] = useState(0),
     [page, setPage] = useState(null);
   const [profileSource, setProfileSource] = useState("profiles");
+  const [profileOrigins, setProfileOrigins] = useState({});
+  const [profileImpacts, setProfileImpacts] = useState({});
+  const impactLabel = {
+    "no-active-traits": "No usable matching traits — research needed",
+    "needs-metadata": "Saved traits; contribution needs site metadata",
+    "adds-traits": "Adds matching traits",
+    "removes-traits": "Corrects existing matching traits",
+    "reweights-existing":
+      "Changes existing trait weights; no new trait coverage",
+    "no-feature-change": "No matching feature change — research needed",
+  };
+  const [batchFilter, setBatchFilter] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+  const profileUrl = (
+    source = profileSource,
+    after = 0,
+    batch = batchFilter,
+    query = appliedQuery,
+  ) =>
+    `/api/admin/export?kind=${source}&limit=100&after=${after}&batch=${encodeURIComponent(batch)}&query=${encodeURIComponent(query)}`;
   const [revealedProfiles, setRevealedProfiles] = useState(new Set());
   const [questionLabel, setQuestionLabel] = useState("");
   const [questionArea, setQuestionArea] = useState("characters");
@@ -67,10 +87,12 @@ export function Admin() {
     setRevealedProfiles(new Set());
     const [s, p] = await Promise.all([
       api("/api/admin/status", null, active),
-      api(`/api/admin/export?kind=${profileSource}&limit=100`, null, active),
+      api(profileUrl(), null, active),
     ]);
     setStatus(s);
     setProfiles(p.profiles);
+    setProfileOrigins(p.origins || {});
+    setProfileImpacts(p.impacts || {});
     setProfileCursor(p.nextCursor);
   }
   useEffect(() => {
@@ -138,6 +160,7 @@ export function Admin() {
       );
       setBundle({
         chunks,
+        label: file.name.slice(0, 200),
         key: crypto.randomUUID(),
         completed: 0,
         revision: preview.revision,
@@ -585,6 +608,7 @@ export function Admin() {
                                   ? progress.revision
                                   : preview.revision,
                               importKey: `${progress.key}:${index}`,
+                              importLabel: progress.label,
                             });
                             progress = {
                               ...progress,
@@ -616,6 +640,38 @@ export function Admin() {
             </div>
             <section className="admin-panel">
               <h2>Research library</h2>
+              <p>
+                Imported means the profile is saved. Preliminary profiles may
+                have limited or no assessed traits; they are not complete
+                analyses.
+              </p>
+              {!!status.batches?.length && (
+                <div className="admin-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Imported batch</th>
+                        <th>Current profiles</th>
+                        <th>Preliminary</th>
+                        <th>With assessed traits</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {status.batches.map((b) => (
+                        <tr key={b.batch}>
+                          <td>
+                            {b.label}
+                            <small>{when(b.at)}</small>
+                          </td>
+                          <td>{b.count}</td>
+                          <td>{b.preliminary}</td>
+                          <td>{b.assessed}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <label>
                 Profile source
                 <select
@@ -624,10 +680,13 @@ export function Admin() {
                   onChange={(e) => {
                     const source = e.target.value;
                     void work(async () => {
-                      const page = await api(
-                        `/api/admin/export?kind=${source}&limit=100`,
-                      );
+                      const page = await api(profileUrl(source, 0, "", ""));
                       setProfileSource(source);
+                      setBatchFilter("");
+                      setFilter("");
+                      setAppliedQuery("");
+                      setProfileOrigins(page.origins || {});
+                      setProfileImpacts(page.impacts || {});
                       setProfiles(page.profiles);
                       setProfileCursor(page.nextCursor);
                     });
@@ -639,8 +698,39 @@ export function Admin() {
                   <option value="automatic">Automatic model profiles</option>
                 </select>
               </label>
+              {profileSource === "profiles" && (
+                <label>
+                  Imported batch
+                  <select
+                    value={batchFilter}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const batch = e.target.value;
+                      void work(async () => {
+                        const page = await api(
+                          profileUrl("profiles", 0, batch),
+                        );
+                        setBatchFilter(batch);
+                        setProfiles(page.profiles);
+                        setProfileOrigins(page.origins || {});
+                        setProfileImpacts(page.impacts || {});
+                        setProfileCursor(page.nextCursor);
+                      });
+                    }}
+                  >
+                    <option value="">All owner and starter profiles</option>
+                    {(status.batches || []).map((b) => (
+                      <option key={b.batch} value={b.batch}>
+                        {b.label} · {b.count} profiles
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
-                Search loaded profiles
+                {profileSource === "profiles"
+                  ? "Search all stored owner profiles"
+                  : "Search loaded automatic profiles"}
                 <input
                   type="search"
                   placeholder="Anime title or MAL ID"
@@ -648,12 +738,97 @@ export function Admin() {
                   onChange={(e) => setFilter(e.target.value)}
                 />
               </label>
+              {profileSource === "profiles" && (
+                <button
+                  className="soft-button"
+                  disabled={busy}
+                  onClick={() =>
+                    work(async () => {
+                      const page = await api(
+                        profileUrl("profiles", 0, batchFilter, filter),
+                      );
+                      setAppliedQuery(filter);
+                      setProfiles(page.profiles);
+                      setProfileOrigins(page.origins || {});
+                      setProfileImpacts(page.impacts || {});
+                      setProfileCursor(page.nextCursor);
+                    })
+                  }
+                >
+                  Search stored profiles
+                </button>
+              )}
+              {profileSource === "profiles" && (
+                <>
+                  <p>
+                    Contribution compares imported traits with stored site
+                    metadata and automatic profiles. A weight change alone does
+                    not establish richer understanding or better
+                    recommendations.
+                  </p>
+                  <button
+                    className="soft-button"
+                    disabled={busy}
+                    onClick={() =>
+                      work(async () => {
+                        const rows = [];
+                        let after = 0,
+                          revision = null;
+                        do {
+                          const page = await api(
+                            profileUrl("profiles", after, batchFilter, ""),
+                          );
+                          if (revision !== null && revision !== page.revision)
+                            throw Error(
+                              "Research changed during the audit. Run it again.",
+                            );
+                          revision = page.revision;
+                          rows.push(
+                            ...page.profiles.map((p) => ({
+                              malId: p.malId,
+                              title: p.title,
+                              profileStatus: p.status,
+                              batch: page.origins?.[p.malId] || null,
+                              ...page.impacts?.[p.malId],
+                            })),
+                          );
+                          after = page.nextCursor;
+                          setNotice(`Audited ${rows.length} stored profiles…`);
+                        } while (after !== null);
+                        const counts = {};
+                        for (const row of rows)
+                          counts[row.status] = (counts[row.status] || 0) + 1;
+                        download(
+                          {
+                            format: "anime-shuffle-enrichment-audit",
+                            generatedAt: new Date().toISOString(),
+                            revision,
+                            counts,
+                            limitations:
+                              "Compares stored ranking features, not measured user satisfaction. Missing site metadata prevents comparison. Private research text and spoiler traits are omitted.",
+                            profiles: rows,
+                          },
+                          "anime-enrichment-audit.json",
+                        );
+                        setNotice(
+                          `Audit exported for ${rows.length} profiles. ${rows.filter((r) => r.needsResearch).length} need more research or metadata verification.`,
+                        );
+                      })
+                    }
+                  >
+                    Export contribution audit for{" "}
+                    {batchFilter ? "selected batch" : "all owner profiles"}
+                  </button>
+                </>
+              )}
               <div className="admin-profiles">
                 {profiles
-                  .filter((p) =>
-                    `${p.title} ${p.malId}`
-                      .toLowerCase()
-                      .includes(filter.toLowerCase()),
+                  .filter(
+                    (p) =>
+                      profileSource === "profiles" ||
+                      `${p.title} ${p.malId}`
+                        .toLowerCase()
+                        .includes(filter.toLowerCase()),
                   )
                   .map((p) => (
                     <details key={p.malId}>
@@ -666,9 +841,34 @@ export function Admin() {
                               .length
                           }{" "}
                           assessed traits
+                          {profileImpacts[p.malId] &&
+                            ` · ${impactLabel[profileImpacts[p.malId].status]}`}
+                          {profileOrigins[p.malId]
+                            ? ` · Imported batch: ${profileOrigins[p.malId].label}`
+                            : profileSource === "automatic"
+                              ? " · Cloudflare model"
+                              : " · Starter / provenance not recorded"}
                         </span>
                       </summary>
                       <div className="admin-profile-body">
+                        {profileImpacts[p.malId] && (
+                          <p>
+                            {impactLabel[profileImpacts[p.malId].status]}.
+                            Active traits: {profileImpacts[p.malId].active};
+                            added:{" "}
+                            {profileImpacts[p.malId].added ?? "not verified"};
+                            reweighted:{" "}
+                            {profileImpacts[p.malId].reweighted ??
+                              "not verified"}
+                            .
+                          </p>
+                        )}
+                        {profileOrigins[p.malId] && (
+                          <p>
+                            Imported {when(profileOrigins[p.malId].at)} ·
+                            revision {profileOrigins[p.malId].revision}
+                          </p>
+                        )}
                         <p>
                           {when(p.analyzedAt)} · Private research hidden by
                           default.
@@ -868,9 +1068,11 @@ export function Admin() {
                   onClick={() =>
                     work(async () => {
                       const next = await api(
-                        `/api/admin/export?kind=${profileSource}&limit=100&after=${profileCursor}`,
+                        profileUrl(profileSource, profileCursor),
                       );
                       setProfiles((p) => [...p, ...next.profiles]);
+                      setProfileOrigins((p) => ({ ...p, ...next.origins }));
+                      setProfileImpacts((p) => ({ ...p, ...next.impacts }));
                       setProfileCursor(next.nextCursor);
                     })
                   }

@@ -531,23 +531,8 @@ export function nuancedTraits(anime) {
       out.delete(a);
       out.delete(b);
     }
-  const ep = anime.episodeTaste;
-  if (
-    ep?.complete &&
-    ep.total >= 1 &&
-    ep.filler >= 0 &&
-    ep.filler <= ep.total
-  ) {
-    const fraction = ep.filler / ep.total;
-    out.set(fraction >= 0.15 ? "filler-frequent" : "filler-sparse", {
-      description:
-        fraction >= 0.15
-          ? "frequent episodes marked as filler"
-          : "few episodes marked as filler",
-      strength: 0.8,
-      source: "episodes",
-    });
-  }
+  // Episode filler coverage is factual information, not a content affinity.
+  // An overall like/dislike does not establish a preference about filler.
   memo.set(anime, out);
   return out;
 }

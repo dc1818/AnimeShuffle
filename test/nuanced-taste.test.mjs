@@ -21,6 +21,38 @@ const sample = (text) =>
     is_spoiler: false,
     is_preliminary: false,
   }));
+test("liking an anime with no filler does not create filler affinity or a filler comparison", () => {
+  const liked = anime(9253, "A science fiction mystery", ["Sci-Fi"]);
+  const candidate = anime(99991, "A sports competition", ["Sports"]);
+  const coverage = { complete: true, total: 24, filler: 0, recap: 0 };
+  const without = buildTaste(
+    { [liked.id]: { anime: liked, action: "good", at: 1 } },
+    [],
+  );
+  const withCoverage = buildTaste(
+    {
+      [liked.id]: {
+        anime: { ...liked, episodeTaste: coverage },
+        action: "good",
+        at: 1,
+      },
+    },
+    [],
+  );
+  assert.deepEqual(
+    withCoverage.model.score({ ...candidate, episodeTaste: coverage }),
+    without.model.score(candidate),
+  );
+  assert.doesNotMatch(
+    detailedExplanation({ ...candidate, episodeTaste: coverage }, withCoverage),
+    /filler|recap/i,
+  );
+  assert.ok(
+    ![...nuancedTraits({ ...candidate, episodeTaste: coverage }).keys()].some(
+      (k) => k.startsWith("filler-"),
+    ),
+  );
+});
 const anime = (id, synopsis = "", genres = [], reviews = []) => ({
   id,
   title: "Example " + id,
@@ -337,8 +369,9 @@ test("episode aggregation is paged, restartable, bounded and spoiler-free", asyn
   assert.equal(p.recap, 1);
   assert.equal(p.complete, true);
   assert.doesNotMatch(JSON.stringify(p), /SECRET/);
-  assert.ok(
+  assert.equal(
     nuancedTraits({ ...anime(2), episodeTaste: p }).has("filler-frequent"),
+    false,
   );
   restarted.attach(anime(1));
   await restarted.run();

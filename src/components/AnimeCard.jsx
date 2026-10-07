@@ -428,15 +428,14 @@ export function AnimeDetails({
         >
           {anime.episodeTaste?.total > 0 && (
             <p className="episode-coverage">
-              {anime.episodeTaste.filler} of {anime.episodeTaste.total} checked
-              episodes marked as filler · {anime.episodeTaste.recap} marked as
-              recap.
+              {anime.episodeTaste.complete && anime.episodeTaste.filler === 0
+                ? "No episodes are marked as filler."
+                : `${anime.episodeTaste.filler} of ${anime.episodeTaste.total} checked episodes are marked as filler.`}
+              {anime.episodeTaste.recap > 0 &&
+                ` ${anime.episodeTaste.recap} episodes are marked as recap.`}
               {anime.episodeTaste.complete
                 ? " Full available episode list checked."
                 : " Partial coverage; this is not a full-series estimate."}
-              {
-                " Flags supplied by Tenrai; filler is separate from canon status or pacing."
-              }
             </p>
           )}
           <dl className="detail-facts">
