@@ -94,6 +94,28 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
     await act(async () => tab("Images").click());
     assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     assert.equal(player.pauses, 1);
+    assert.equal(document.querySelectorAll(".media-gallery button").length, 3);
+    await act(async () =>
+      document.querySelector('[aria-label="View image 2 of 3"]').click(),
+    );
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /2 \/ 3/,
+    );
+    await act(async () =>
+      [...document.querySelectorAll(".image-view-switch button")]
+        .find((b) => b.textContent === "Gallery")
+        .click(),
+    );
+    assert.equal(document.querySelectorAll(".media-gallery button").length, 3);
+    await act(async () =>
+      [...document.querySelectorAll(".image-view-switch button")]
+        .find((b) => b.textContent === "Slideshow")
+        .click(),
+    );
+    await act(async () =>
+      document.querySelector('[aria-label="Show image 1 of 3"]').click(),
+    );
     assert.equal(document.querySelector("iframe"), frame);
     assert.match(
       document.querySelector(".image-carousel-controls").textContent,

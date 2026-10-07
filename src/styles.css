@@ -2604,3 +2604,7 @@ main.wide-main {
 .image-carousel-dots button[aria-current="true"] span { width: 9px; height: 9px; background: #89e8f1; }
 @media (max-width: 560px) { .image-carousel-stage { height: clamp(200px, 42svh, 420px); } }
 .image-carousel-dots button { width: 26px; min-width: 26px; }
+
+.image-view-switch { display: inline-flex; gap: 3px; padding: 3px; margin-bottom: 12px; border: 1px solid #355261; border-radius: 10px; background: #0c1a24; }
+.image-view-switch button { min-height: 36px; padding: 6px 12px; border: 0; background: transparent; color: #b7c9d7; font-size: 13px; }
+.image-view-switch button[aria-pressed="true"] { color: #a9f1f5; background: #204453; }

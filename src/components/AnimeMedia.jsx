@@ -97,15 +97,18 @@ export function AnimeMedia({ anime, kind, active }) {
   );
 }
 
-/** One full image at a time; adjacent images warm only after opening this tab. */
+/** Gallery on desktop, swipeable slideshow on phones; both views remain available. */
 function ImageGallery({ anime, pictures, active }) {
   const [index, setIndex] = useState(0);
+  const [view, setView] = useState(() =>
+    window.matchMedia?.("(max-width: 560px)").matches ? "slideshow" : "gallery",
+  );
   const touch = useRef(null),
     currentDot = useRef(null);
   const count = pictures.length;
   const move = (delta) => setIndex((i) => (i + delta + count) % count);
   useEffect(() => {
-    if (!active || count < 2) return;
+    if (!active || view !== "slideshow" || count < 2) return;
     // Decode only neighbors, not the whole gallery. Browser cache serves a swipe.
     const images = [
       ...new Set([(index + 1) % count, (index - 1 + count) % count]),
@@ -121,16 +124,17 @@ function ImageGallery({ anime, pictures, active }) {
     return () => {
       for (const image of images) image.removeAttribute("src");
     };
-  }, [active, index, count, pictures]);
+  }, [active, view, index, count, pictures]);
   if (!count)
     return <p>No additional images are available for this anime yet.</p>;
   return (
     <div
       className="anime-media image-carousel"
       role="region"
-      aria-roledescription="carousel"
+      aria-roledescription={view === "slideshow" ? "carousel" : undefined}
       aria-label={`${anime.title} images`}
       onKeyDown={(event) => {
+        if (view !== "slideshow") return;
         if (event.key === "ArrowRight") {
           event.preventDefault();
           move(1);
@@ -141,80 +145,120 @@ function ImageGallery({ anime, pictures, active }) {
         }
       }}
     >
+      <div className="image-view-switch" role="group" aria-label="Image view">
+        <button
+          aria-pressed={view === "gallery"}
+          onClick={() => setView("gallery")}
+        >
+          Gallery
+        </button>
+        <button
+          aria-pressed={view === "slideshow"}
+          onClick={() => setView("slideshow")}
+        >
+          Slideshow
+        </button>
+      </div>
       <p className="media-note">
-        Artwork from MyAnimeList. Use the arrows or swipe to browse.
+        {view === "gallery"
+          ? "Artwork from MyAnimeList. Select an image to view it."
+          : "Artwork from MyAnimeList. Use the arrows or swipe to browse."}
       </p>
-      <div
-        className="image-carousel-stage"
-        tabIndex={0}
-        onPointerDown={(event) => {
-          if (event.isPrimary === false) {
-            touch.current = null;
-            return;
-          }
-          if (event.pointerType === "mouse" && event.button !== 0) return;
-          touch.current = {
-            x: event.clientX,
-            y: event.clientY,
-            id: event.pointerId,
-          };
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }}
-        onPointerCancel={() => {
-          touch.current = null;
-        }}
-        onPointerUp={(event) => {
-          const start = touch.current;
-          touch.current = null;
-          if (!start || start.id !== event.pointerId) return;
-          const dx = event.clientX - start.x,
-            dy = event.clientY - start.y;
-          if (
-            count > 1 &&
-            Math.abs(dx) > 40 &&
-            Math.abs(dx) > Math.abs(dy) * 1.25
-          )
-            move(dx < 0 ? 1 : -1);
-        }}
-      >
-        <MediaImage
-          key={pictures[index].image}
-          url={pictures[index].image}
-          alt={`${anime.title} image ${index + 1} of ${count}`}
-        />
-      </div>
-      <div className="image-carousel-controls">
-        <button
-          aria-label="Previous image"
-          disabled={count < 2}
-          onClick={() => move(-1)}
-        >
-          ‹
-        </button>
-        <span role="status" aria-live="polite">
-          {index + 1} / {count}
-        </span>
-        <button
-          aria-label="Next image"
-          disabled={count < 2}
-          onClick={() => move(1)}
-        >
-          ›
-        </button>
-      </div>
-      <div className="image-carousel-dots" aria-label="Choose an image">
-        {pictures.map((p, i) => (
-          <button
-            key={p.image}
-            ref={i === index ? currentDot : undefined}
-            aria-label={`Show image ${i + 1} of ${count}`}
-            aria-current={i === index ? "true" : undefined}
-            onClick={() => setIndex(i)}
+      {view === "gallery" ? (
+        <div className="media-gallery">
+          {pictures.map((p, i) => (
+            <button
+              key={p.image}
+              aria-label={`View image ${i + 1} of ${count}`}
+              onClick={() => {
+                setIndex(i);
+                setView("slideshow");
+              }}
+            >
+              <span className="media-picture-frame">
+                <MediaImage
+                  url={p.thumbnail || p.image}
+                  alt={`${anime.title} artwork ${i + 1}`}
+                />
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div
+            className="image-carousel-stage"
+            tabIndex={0}
+            onPointerDown={(event) => {
+              if (event.isPrimary === false) {
+                touch.current = null;
+                return;
+              }
+              if (event.pointerType === "mouse" && event.button !== 0) return;
+              touch.current = {
+                x: event.clientX,
+                y: event.clientY,
+                id: event.pointerId,
+              };
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerCancel={() => {
+              touch.current = null;
+            }}
+            onPointerUp={(event) => {
+              const start = touch.current;
+              touch.current = null;
+              if (!start || start.id !== event.pointerId) return;
+              const dx = event.clientX - start.x,
+                dy = event.clientY - start.y;
+              if (
+                count > 1 &&
+                Math.abs(dx) > 40 &&
+                Math.abs(dx) > Math.abs(dy) * 1.25
+              )
+                move(dx < 0 ? 1 : -1);
+            }}
           >
-            <span />
-          </button>
-        ))}
-      </div>
+            <MediaImage
+              key={pictures[index].image}
+              url={pictures[index].image}
+              alt={`${anime.title} image ${index + 1} of ${count}`}
+            />
+          </div>
+          <div className="image-carousel-controls">
+            <button
+              aria-label="Previous image"
+              disabled={count < 2}
+              onClick={() => move(-1)}
+            >
+              ‹
+            </button>
+            <span role="status" aria-live="polite">
+              {index + 1} / {count}
+            </span>
+            <button
+              aria-label="Next image"
+              disabled={count < 2}
+              onClick={() => move(1)}
+            >
+              ›
+            </button>
+          </div>
+          <div className="image-carousel-dots" aria-label="Choose an image">
+            {pictures.map((p, i) => (
+              <button
+                key={p.image}
+                ref={i === index ? currentDot : undefined}
+                aria-label={`Show image ${i + 1} of ${count}`}
+                aria-current={i === index ? "true" : undefined}
+                onClick={() => setIndex(i)}
+              >
+                <span />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
