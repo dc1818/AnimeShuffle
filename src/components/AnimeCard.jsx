@@ -33,7 +33,7 @@ function coverPalette(image) {
   const pixels = context.getImageData(0, 0, 24, 24).data;
   const colors = [];
   for (let index = 0; index < pixels.length; index += 4) {
-    const rgb = [...pixels.slice(index, index + 3)];
+    const rgb = [...pixels.slice(index, index + 2)];
     const max = Math.max(...rgb),
       min = Math.min(...rgb);
     if (max - min > 35 && max > 65 && max < 240) colors.push(rgb);
@@ -257,8 +257,8 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
   const tabs = [
     "Synopsis",
     "Details",
-    "Why this pick?",
     ...(mediaEnabled ? ["Trailers", "Images"] : []),
+    "Why this pick?",
   ];
   const [activeTab, setActiveTab] = useState(0);
   useEffect(() => {
@@ -423,11 +423,29 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
             ))}
           </dl>
         </div>
+        {mediaEnabled &&
+          ["trailer", "pictures"].map((kind, index) => (
+            <div
+              key={kind}
+              role="tabpanel"
+              id={`${tabId}-panel-${index + 2}`}
+              aria-labelledby={`${tabId}-tab-${index + 2}`}
+              hidden={activeTab !== index + 2}
+              tabIndex={0}
+            >
+              <AnimeMedia
+                key={`${anime.id}-${kind}`}
+                anime={anime}
+                kind={kind}
+                active={activeTab === index + 2}
+              />
+            </div>
+          ))}
         <div
           role="tabpanel"
-          id={`${tabId}-panel-2`}
-          aria-labelledby={`${tabId}-tab-2`}
-          hidden={activeTab !== 2}
+          id={`${tabId}-panel-${tabs.length - 1}`}
+          aria-labelledby={`${tabId}-tab-${tabs.length - 1}`}
+          hidden={activeTab !== tabs.length - 1}
           tabIndex={0}
         >
           <div className="why-card">
@@ -438,24 +456,6 @@ export function AnimeDetails({ anime, reason, onClose, responsive = false }) {
             </div>
           </div>
         </div>
-        {mediaEnabled &&
-          ["trailer", "pictures"].map((kind, index) => (
-            <div
-              key={kind}
-              role="tabpanel"
-              id={`${tabId}-panel-${index + 3}`}
-              aria-labelledby={`${tabId}-tab-${index + 3}`}
-              hidden={activeTab !== index + 3}
-              tabIndex={0}
-            >
-              <AnimeMedia
-                key={`${anime.id}-${kind}`}
-                anime={anime}
-                kind={kind}
-                active={activeTab === index + 3}
-              />
-            </div>
-          ))}
         <a
           className="external-button"
           href={`https://myanimelist.net/anime/${anime.id}`}
