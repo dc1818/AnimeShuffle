@@ -19,6 +19,7 @@
     "check:cloudflare": "npm run build && wrangler deploy --dry-run"
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

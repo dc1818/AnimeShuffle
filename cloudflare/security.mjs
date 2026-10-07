@@ -2,11 +2,11 @@
 import {
   randomBytes,
   createHash,
-  pbkdf2Sync,
   timingSafeEqual,
   createCipheriv,
   createDecipheriv,
 } from "node:crypto";
+export { passwordHash } from "./password-hash.mjs";
 export const random = () => randomBytes(32).toString("base64url");
 export const digest = (value) =>
   createHash("sha256").update(value).digest("hex");
@@ -17,9 +17,6 @@ export function equal(a, b) {
     Buffer.byteLength(a) === Buffer.byteLength(b) &&
     timingSafeEqual(Buffer.from(a), Buffer.from(b))
   );
-}
-export function passwordHash(password, salt) {
-  return pbkdf2Sync(password, salt, 600000, 32, "sha256").toString("hex");
 }
 export function vault(secret) {
   if (!/^[a-f0-9]{64}$/i.test(secret || ""))
