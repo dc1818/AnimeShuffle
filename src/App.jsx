@@ -271,7 +271,7 @@ export function App({ store }) {
                 !state.settings.recommendationsVisited && (
                   <span className="nav-new-badge">New</span>
                 )}
-              {name === "watchlist" && savedCount > 0 && (
+              {name === "watchlist" && state.accountDataReady && savedCount > 0 && (
                 <span className="count">{savedCount}</span>
               )}
             </button>

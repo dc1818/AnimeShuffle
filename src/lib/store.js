@@ -90,6 +90,7 @@ export function createAnimeStore({
     detailReason: "",
     busy: true,
     ready: false,
+    accountDataReady: false,
     discoveryLoading: false,
     discoveryProgress: null,
     discoveryStage: "Connecting to Anime Shuffle…",
@@ -1035,7 +1036,7 @@ export function createAnimeStore({
     lastAccountCheck = -Infinity;
     cloudSync?.dispose();
     cloudSync = null;
-    update({ syncError: "", malSyncError: "", malSyncProgress: null });
+    update({ accountDataReady: false, syncError: "", malSyncError: "", malSyncProgress: null });
     history = [];
     expandedSeeds.clear();
     details.clear();
@@ -1149,6 +1150,8 @@ export function createAnimeStore({
       }
     }
     if (listWarmup) await listWarmup;
+    // Counts become visible only after local, account and MAL data are combined.
+    update({ accountDataReady: true });
     if (catalogWarmup) {
       update({
         discoveryStage: "Loading the anime catalog…",
