@@ -121,6 +121,41 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
       document.querySelector(".image-carousel-controls").textContent,
       /1 \/ 3/,
     );
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          bubbles: true,
+        }),
+      ),
+    );
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /2 \/ 3/,
+    );
+    const input = document.createElement("input");
+    document.body.append(input);
+    await act(async () =>
+      input.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          bubbles: true,
+        }),
+      ),
+    );
+    assert.match(
+      document.querySelector(".image-carousel-controls").textContent,
+      /2 \/ 3/,
+    );
+    input.remove();
+    await act(async () =>
+      window.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowLeft",
+          bubbles: true,
+        }),
+      ),
+    );
     const next = document.querySelector('[aria-label="Next image"]');
     const previous = document.querySelector('[aria-label="Previous image"]');
     await act(async () => previous.click());

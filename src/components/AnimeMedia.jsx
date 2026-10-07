@@ -125,6 +125,35 @@ function ImageGallery({ anime, pictures, active }) {
       for (const image of images) image.removeAttribute("src");
     };
   }, [active, view, index, count, pictures]);
+  useEffect(() => {
+    if (!active || view !== "slideshow" || count < 2) return;
+    // Listen outside the carousel so browsing works without first focusing it.
+    // Leave arrow keys to text fields, menus and open dialogs.
+    const onArrow = (event) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      if (
+        event.target?.closest?.(
+          'input, textarea, select, [contenteditable="true"], [role="menu"], [role="dialog"]',
+        )
+      )
+        return;
+      if (document.querySelector('[role="dialog"], dialog[open]')) return;
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+      event.preventDefault();
+      setIndex(
+        (i) => (i + (event.key === "ArrowRight" ? 1 : -1) + count) % count,
+      );
+    };
+    window.addEventListener("keydown", onArrow);
+    return () => window.removeEventListener("keydown", onArrow);
+  }, [active, view, count]);
   if (!count)
     return <p>No additional images are available for this anime yet.</p>;
   return (
@@ -133,17 +162,6 @@ function ImageGallery({ anime, pictures, active }) {
       role="region"
       aria-roledescription={view === "slideshow" ? "carousel" : undefined}
       aria-label={`${anime.title} images`}
-      onKeyDown={(event) => {
-        if (view !== "slideshow") return;
-        if (event.key === "ArrowRight") {
-          event.preventDefault();
-          move(1);
-        }
-        if (event.key === "ArrowLeft") {
-          event.preventDefault();
-          move(-1);
-        }
-      }}
     >
       <div className="image-view-switch" role="group" aria-label="Image view">
         <button
