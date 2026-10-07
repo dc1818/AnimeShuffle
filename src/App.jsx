@@ -23,6 +23,9 @@ export function App({ store }) {
   );
   const [view, setView] = useState("discover");
   const [freshnessTick, setFreshnessTick] = useState(0);
+  useEffect(() => {
+    if (view === "watchlist") store.visitWatchlist?.();
+  }, [view, state.watchlistNewIds, store]);
   const decidedCurrent = !!state.current && !!state.reactions[state.current.id];
   useEffect(() => {
     if (view === "discover" && decidedCurrent && !state.busy)
@@ -276,6 +279,17 @@ export function App({ store }) {
                   <span className="nav-new-badge">New</span>
                 )}
               {name === "watchlist" &&
+                state.watchlistNewIds?.some(
+                  (id) => state.reactions[id]?.action === "watch",
+                ) && (
+                  <span
+                    className="nav-new-badge"
+                    aria-label="New watchlist additions"
+                  >
+                    New
+                  </span>
+                )}
+              {name === "watchlist" &&
                 state.accountDataReady &&
                 savedCount > 0 && <span className="count">{savedCount}</span>}
             </button>
@@ -369,7 +383,7 @@ export function App({ store }) {
               />
             ) : state.current ? (
               <>
-                {state.busy && (
+                {state.busy && !state.watchlistSaving && (
                   <LoadingIndicator
                     compact
                     label={pendingWorkLabel(state)}

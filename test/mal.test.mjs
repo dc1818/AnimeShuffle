@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validImage, normalize, createMalClient } from "../lib/mal.mjs";
+import { validImage, normalize, createMalClient, fields } from "../lib/mal.mjs";
 const response = (data, status = 200) =>
   new Response(JSON.stringify(data), { status });
 test("image proxy accepts only MAL cover hosts and paths", () => {
@@ -239,4 +239,42 @@ test("missing synopsis boilerplate is not treated as an anime description", () =
     }).synopsis,
     "A detective searches for a missing friend.",
   );
+});
+
+test("catalog hydration reuses only unexpired public details and includes prerequisite exclusions", async () => {
+  const entries = new Map();
+  let calls = 0;
+  const client = createMalClient({
+    clientId: "test",
+    interval: 0,
+    publicStore: {
+      get: (key) => entries.get(key),
+      set: (key, value) => entries.set(key, value),
+    },
+    fetcher: async () => {
+      calls++;
+      return response({
+        id: 7,
+        title: "Sequel",
+        nsfw: "white",
+        related_anime: [{ relation_type: "prequel", node: { id: 3 } }],
+      });
+    },
+  });
+  const candidate = {
+    id: 7,
+    title: "Catalog title",
+    previewVideoId: "abcdefghijk",
+  };
+  assert.equal(client.withCachedDetails(candidate), candidate);
+  const path = `/anime/7?fields=${encodeURIComponent(fields)}`;
+  await client.request(path, { publicCache: true });
+  const hydrated = client.withCachedDetails(candidate);
+  assert.deepEqual(hydrated.prequels, [3]);
+  assert.ok(hydrated.detailsVerifiedUntil > Date.now());
+  assert.equal(hydrated.previewVideoId, candidate.previewVideoId);
+  assert.equal(hydrated.listStatus, undefined);
+  assert.equal(calls, 1);
+  entries.get(path).expires = Date.now() - 1;
+  assert.equal(client.withCachedDetails(candidate), candidate);
 });

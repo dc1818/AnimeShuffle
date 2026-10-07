@@ -206,7 +206,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                 </button>
               </div>
             )}
-          {state.busy && (
+          {state.busy && !state.watchlistSaving && (
             <LoadingIndicator
               compact
               label={pendingWorkLabel(state)}

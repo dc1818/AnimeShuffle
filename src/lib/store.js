@@ -18,6 +18,7 @@ import { demo } from "./demo.js";
 import { isUnreleased } from "./release.js";
 import {
   chooseNext,
+  chooseNextBatch,
   eligibleCandidates,
   detailedExplanation,
   buildTaste,
@@ -123,6 +124,8 @@ export function createAnimeStore({
     malSyncProgress: null,
     malSyncError: "",
     message: "",
+    watchlistSaving: false,
+    watchlistNewIds: [],
     error: "",
   };
   let profileKey = "guest";
@@ -152,7 +155,9 @@ export function createAnimeStore({
     state = {
       ...state,
       ...patch,
-      ...(patch.busy === false ? { busyMessage: "" } : {}),
+      ...(patch.busy === false
+        ? { busyMessage: "", watchlistSaving: false }
+        : {}),
     };
     listeners.forEach((listener) => listener());
   }
@@ -661,11 +666,25 @@ export function createAnimeStore({
       sourceIndex++;
       const before = pool.length;
       const ids = new Set(pool.map((anime) => anime.id));
+      let verifiedAdded = false;
       for (const anime of page.data) {
-        if (ids.has(anime.id)) continue;
-        ids.add(anime.id);
-        pool.push(anime);
+        const expires = Math.min(
+          Number(anime.detailsVerifiedUntil) || 0,
+          Date.now() + 1800000,
+        );
+        if (expires > Date.now()) {
+          if (details.size >= 250 && !details.has(anime.id))
+            details.delete(details.keys().next().value);
+          details.set(anime.id, { anime, expires });
+          mergePool(anime);
+          ids.add(anime.id);
+          verifiedAdded = true;
+        } else if (!ids.has(anime.id)) {
+          ids.add(anime.id);
+          pool.push(anime);
+        }
       }
+      if (verifiedAdded) writeCatalogCache(storage, [...details.values()]);
       diagnostics.record?.({
         operation: "catalog_page",
         source,
@@ -686,6 +705,7 @@ export function createAnimeStore({
     const search = {
       pagesLoaded: 0,
       detailChecks: 0,
+      rankingPasses: 0,
       rejectedAfterDetails: 0,
       outcome: "searching",
     };
@@ -700,7 +720,10 @@ export function createAnimeStore({
           .filter(([, e]) => e.expires > Date.now())
           .map(([id]) => id),
       );
-      const pick = chooseNext(pool, { ...state, skipped, recent, readyIds });
+      const pick =
+        state.preview || readyIds.size
+          ? chooseNext(pool, { ...state, skipped, recent, readyIds })
+          : null;
       if (pick && (state.preview || readyIds.has(pick.anime.id))) {
         update({
           current: pick.anime,
@@ -743,9 +766,8 @@ export function createAnimeStore({
       // Page reads and detail checks have separate budgets. Filtered/duplicate
       // pages do not spend candidate checks. Keep a time bound for slow upstreams.
       const searchStarted = performance.now();
-      let batch = [],
-        batchTotal = 0,
-        batchDone = 0;
+      let batch = [];
+      const checked = new Set(skipped);
       for (
         let attempt = 0;
         search.detailChecks < 100 && performance.now() - searchStarted < 30000;
@@ -763,21 +785,13 @@ export function createAnimeStore({
             .map((a) => a.id),
         );
         if (!batch.length) {
-          const batchSkipped = new Set(skipped);
-          batch = [];
-          for (let n = 0; n < 6; n++) {
-            const candidate = chooseNext(pool, {
-              ...state,
-              skipped: batchSkipped,
-              recent,
-              readyIds,
-            });
-            if (!candidate) break;
-            batch.push(candidate);
-            batchSkipped.add(candidate.anime.id);
-          }
-          batchTotal = batch.length;
-          batchDone = 0;
+          batch = chooseNextBatch(pool, {
+            ...state,
+            skipped: checked,
+            recent,
+            readyIds,
+          });
+          if (batch.length) search.rankingPasses++;
         }
         const pick = batch.shift();
         finishRank();
@@ -798,24 +812,24 @@ export function createAnimeStore({
               : "search_paused";
           break;
         }
-        const reportBatch = () =>
+        const reportChecks = () =>
           update({
             discoveryStage: "Checking matches…",
-            discoveryWork: `${batchDone} of ${batchTotal} candidates checked · current batch`,
-            discoveryProgress: Math.round((100 * batchDone) / batchTotal),
+            discoveryWork: `${search.detailChecks} candidates checked · ${search.rejectedAfterDetails} excluded by your history or filters`,
+            discoveryProgress: null,
           });
-        reportBatch();
+        reportChecks();
+        checked.add(pick.anime.id);
         let anime = pick.anime;
         if (!state.preview) {
-          search.detailChecks++;
           try {
             anime = await animeDetails(anime.id);
-            batchDone++;
-            reportBatch();
+            search.detailChecks++;
+            reportChecks();
           } catch (error) {
             if (error.status !== 404) throw error;
-            batchDone++;
-            reportBatch();
+            search.detailChecks++;
+            reportChecks();
             skipped.add(anime.id); // Deleted MAL entries cannot be displayed.
             search.rejectedAfterDetails++;
             continue;
@@ -952,10 +966,9 @@ export function createAnimeStore({
     }
     update({
       busy: true,
-      busyMessage:
-        action === "watch" && state.settings.autoAdd && state.session.connected
-          ? "Saving to your watchlist and MyAnimeList…"
-          : "Saving your choice…",
+      watchlistSaving: action === "watch",
+      busyMessage: action === "watch" ? "" : "Saving your choice…",
+      ...(action === "watch" ? { message: "" } : {}),
     });
     const entry = {
       anime,
@@ -985,7 +998,14 @@ export function createAnimeStore({
         void replaceDecidedRecommendations();
       }
     }
-    update({ lastReactionId: anime.id });
+    update({
+      lastReactionId: anime.id,
+      ...(action === "watch"
+        ? {
+            watchlistNewIds: [...new Set([...state.watchlistNewIds, anime.id])],
+          }
+        : {}),
+    });
     entry.after = state.reactions[anime.id];
     await persist();
     try {
@@ -997,17 +1017,11 @@ export function createAnimeStore({
       ) {
         const result = await addToMal(anime);
         entry.receipt = result.receipt;
-        notify(
-          result.added
-            ? "Saved here and added to MAL Plan to Watch."
-            : "Saved here. Your existing MAL status was kept.",
-        );
-      } else {
+      } else if (action !== "watch") {
         notify(
           {
             good: "Liked. We’ll learn from that.",
             bad: "Got it. Fewer picks like this.",
-            watch: "Saved to your watchlist.",
             nope: "Passed. We’ll learn from that.",
           }[action],
         );
@@ -1018,7 +1032,6 @@ export function createAnimeStore({
           "Your site watchlist is saved, but MAL sync stopped. " +
           error.message,
       });
-      notify("Saved to your site watchlist. " + error.message);
     }
     recordHistory(entry);
     recent = [...recent, anime].slice(-10);
@@ -1077,10 +1090,6 @@ export function createAnimeStore({
         await addToMal(anime);
         update({ malSyncProgress: { done: ++done, total: entries.length } });
       }
-      if (done)
-        notify(
-          `Synced ${done} saved shows with MAL. Existing MAL statuses were kept.`,
-        );
     } catch (error) {
       if (generation !== sessionGeneration) return;
       update({
@@ -1208,6 +1217,7 @@ export function createAnimeStore({
       recommendationError: "",
       reactions: {},
       lastReactionId: null,
+      watchlistNewIds: [],
       canUndo: false,
       undoableIds: [],
       preview: !session.configured,
@@ -1729,6 +1739,9 @@ export function createAnimeStore({
       });
       void persist();
     },
+    visitWatchlist() {
+      if (state.watchlistNewIds.length) update({ watchlistNewIds: [] });
+    },
     visitRecommendations() {
       if (
         !recommendationsUnlocked(state.reactions) ||
@@ -1984,16 +1997,18 @@ export function createAnimeStore({
     },
     async saveToMal(anime) {
       if (state.busy) return;
-      update({ busy: true });
+      update({
+        busy: true,
+        watchlistSaving: true,
+        message: "",
+        malSyncError: "",
+      });
       try {
-        const result = await addToMal(anime);
-        notify(
-          result.added
-            ? "Added to MAL Plan to Watch."
-            : "Existing MAL status kept.",
-        );
+        await addToMal(anime);
       } catch (error) {
-        notify(error.message);
+        update({
+          malSyncError: "Could not save to MyAnimeList. " + error.message,
+        });
       } finally {
         update({ busy: false });
       }

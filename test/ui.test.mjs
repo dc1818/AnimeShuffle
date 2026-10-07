@@ -124,6 +124,20 @@ for (const staticMode of [false, true])
       // Keyboard numbers are present in button text, so dispatch by class for reactions.
       await act(async () => document.querySelector(".reaction.watch").click());
       assert.equal(store.getSnapshot().reactions[1].action, "watch");
+      assert.equal(document.getElementById("toast"), null);
+      assert.ok(
+        document.querySelector('[aria-label="New watchlist additions"]'),
+      );
+      await act(async () =>
+        [...document.querySelectorAll("nav button")]
+          .find((b) => b.textContent.includes("Watchlist"))
+          .click(),
+      );
+      assert.equal(
+        document.querySelector('[aria-label="New watchlist additions"]'),
+        null,
+      );
+      await click("Discover");
       await click("Recommendations");
       assert.match(
         document.querySelector(".recommendations-page").textContent,

@@ -297,7 +297,10 @@ export function createCloudApp(
       u.searchParams.get("provider") === "tenrai"
     ) {
       const page = await candidates.page(u);
-      return json({ ...page, data: page.data.map((a) => attachTaste(a)) });
+      return json({
+        ...page,
+        data: page.data.map((a) => attachTaste(mal.withCachedDetails(a))),
+      });
     }
     if (path === "/api/catalog") {
       const offset = number(u.searchParams.get("offset") || 0, 1000000),
@@ -319,7 +322,9 @@ export function createCloudApp(
         publicCache: true,
       });
       response = json({
-        data: (d.data || []).map((x) => attachTaste(normalize(x.node))),
+        data: (d.data || []).map((x) =>
+          attachTaste(mal.withCachedDetails(normalize(x.node))),
+        ),
         nextOffset: d.paging?.next ? offset + 50 : null,
       });
     } else if (/^\/api\/anime\/\d+$/.test(path)) {

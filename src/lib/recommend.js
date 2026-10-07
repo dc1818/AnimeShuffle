@@ -292,7 +292,12 @@ export function eligibleCandidates(
   );
 }
 /** Balance learned preferences, recent variety, and a 20% exploration branch. */
-export function chooseNext(
+export function chooseNext(pool, options = {}) {
+  return chooseNextBatch(pool, { ...options, limit: 1 })[0] || null;
+}
+
+/** Train and score once per search batch; explain a pick only when it is displayed. */
+export function chooseNextBatch(
   pool,
   {
     reactions = {},
@@ -301,6 +306,7 @@ export function chooseNext(
     recent = [],
     random = Math.random,
     readyIds = new Set(),
+    limit = 6,
     preferences,
   } = {},
 ) {
@@ -313,7 +319,7 @@ export function chooseNext(
         !isAudienceFilteredTitle(anime) ||
         !recent.slice(-9).some(isAudienceFilteredTitle),
     );
-  if (!available.length) return null;
+  if (!available.length) return [];
   const taste = buildTaste(reactions, list, preferences, pool),
     count = Object.keys(reactions).length;
   // Cold start: emphasize breadth across genres, not a wall of similar top-ranked shows.
@@ -355,16 +361,20 @@ export function chooseNext(
   const nearBest = ranked.filter(
     (p) => p.score >= ranked[0].score - (cold ? 0.3 : 0.025),
   );
-  const anime = (nearBest.find((p) => readyIds.has(p.a.id)) || ranked[0]).a;
-  let reason = "What do you think of this one?";
-  if (cold) reason = "Let’s find something you’ll enjoy.";
-  else if (explore) reason = "How about something a little different?";
-  else reason = explanation(anime, taste);
-  return {
-    anime,
-    reason,
-    detailReason: detailedExplanation(anime, taste, { cold, explore }),
-  };
+  const first = nearBest.find((p) => readyIds.has(p.a.id)) || ranked[0];
+  return [first, ...ranked.filter((p) => p !== first)]
+    .slice(0, Math.max(1, Math.min(6, limit)))
+    .map(({ a: anime }) => ({
+      anime,
+      get reason() {
+        if (cold) return "Let’s find something you’ll enjoy.";
+        if (explore) return "How about something a little different?";
+        return explanation(anime, taste);
+      },
+      get detailReason() {
+        return detailedExplanation(anime, taste, { cold, explore });
+      },
+    }));
 }
 
 /**

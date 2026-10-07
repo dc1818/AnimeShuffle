@@ -148,7 +148,7 @@ test("Discover falls back to MAL when Tenrai fails and verifies before displayin
   );
   assert.ok(calls.includes("/api/anime/1"));
 });
-test("Discover reports actual checks within a batch and rejects unseen prerequisites", async () => {
+test("Discover reports cumulative checks and rejects unseen prerequisites", async () => {
   const a = normalizeCandidate(raw),
     progress = [];
   let checks = 0;
@@ -173,16 +173,21 @@ test("Discover reports actual checks within a batch and rejects unseen prerequis
   });
   store.subscribe(() => {
     const s = store.getSnapshot();
-    if (Number.isFinite(s.discoveryProgress))
-      progress.push(s.discoveryProgress);
+    const checked = s.discoveryWork.match(/^(\d+) candidates checked/);
+    if (checked) progress.push(Number(checked[1]));
+    assert.equal(s.discoveryProgress, null);
   });
   await store.initialize();
   await store.savePreferences({});
   assert.equal(checks, 3);
   assert.deepEqual(store.getSnapshot().current.prequels, []);
-  assert.ok(progress.includes(33));
-  assert.ok(progress.includes(67));
-  assert.ok(progress.includes(100));
+  assert.ok(progress.includes(1));
+  assert.ok(progress.includes(2));
+  assert.ok(progress.includes(3));
+  assert.deepEqual(
+    progress,
+    [...progress].sort((a, b) => a - b),
+  );
 });
 
 test("catalog keeps a validated trailer ID for immediate preview without another lookup", () => {

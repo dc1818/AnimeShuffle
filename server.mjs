@@ -487,7 +487,7 @@ const server = http.createServer(async (req, res) => {
       const page = await candidates.page(u);
       return json(res, 200, {
         ...page,
-        data: page.data.map((a) => attachTaste(a)),
+        data: page.data.map((a) => attachTaste(mal.withCachedDetails(a))),
       });
     }
     if (u.pathname === "/api/catalog") {
@@ -511,7 +511,9 @@ const server = http.createServer(async (req, res) => {
       }
       const data = await mal.request(endpoint + "?" + q, { publicCache: true });
       return json(res, 200, {
-        data: (data.data || []).map((x) => attachTaste(normalize(x.node))),
+        data: (data.data || []).map((x) =>
+          attachTaste(mal.withCachedDetails(normalize(x.node))),
+        ),
         nextOffset: data.paging?.next ? offset + 50 : null,
       });
     }

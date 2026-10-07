@@ -49,7 +49,6 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
         { discoveryLoading: true },
         "Finding your next Discover pick",
       ],
-      [App, { busyMessage: "Saving to MyAnimeList…" }, "Saving to MyAnimeList"],
       [
         Recommendations,
         { busyMessage: "Undoing your choice…" },
@@ -68,6 +67,18 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
       assert.match(html, /class="reaction good" disabled/);
       assert.equal(state.current, current);
       assert.equal(state.recommendationPicks, picks);
+    }
+    for (const Component of [App, Recommendations]) {
+      const state = { ...original, busy: true, watchlistSaving: true };
+      const html = renderToStaticMarkup(
+        React.createElement(Component, {
+          state,
+          store: { ...store, getSnapshot: () => state },
+        }),
+      );
+      assert.doesNotMatch(html, /role="progressbar"/);
+      assert.doesNotMatch(html, /Saving to|Saving your|id="toast"/);
+      assert.match(html, /class="reaction good" disabled/);
     }
     const idle = renderToStaticMarkup(
       React.createElement(Recommendations, { state: original, store }),

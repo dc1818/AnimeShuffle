@@ -53,10 +53,14 @@ test("React store keeps auto-add opt-in and preserves MAL entry when Undo is ref
   assert.equal(starts, 1, "StrictMode must not duplicate initialization");
   await store.react("watch");
   assert.equal(writes, 0, "Auto-add defaults off");
+  assert.equal(store.getSnapshot().message, "");
+  assert.deepEqual(store.getSnapshot().watchlistNewIds, [1]);
   await store.undo();
   store.setSettings({ autoAdd: true });
   await store.react("watch");
   assert.equal(writes, 1);
+  assert.equal(store.getSnapshot().message, "");
+  assert.equal(store.getSnapshot().watchlistSaving, false);
   await store.undo();
   assert.equal(store.getSnapshot().reactions[1], undefined);
   assert.equal(
