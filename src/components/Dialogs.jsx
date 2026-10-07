@@ -163,8 +163,11 @@ export function Dialogs({
         <p>
           Cloudflare stores encrypted MAL tokens and persistent sessions. The
           local Node server keeps tokens in memory until it stops. The app
-          contacts MyAnimeList for anime data and cover images. It has no
-          analytics.
+          contacts MyAnimeList for anime data and cover images. The hosted site
+          records operational analytics. Guest browsers report up to 1,000
+          recent choices and viewing preferences under a random browser identity
+          for owner diagnostics. The full guest profile stays in this browser;
+          inactive reports expire after 90 days.
         </p>
         <p>
           Auto-add is optional. Good and Bad never change MAL statuses or

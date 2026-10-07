@@ -3,6 +3,7 @@ import { normalizeReactionReason } from "./reaction-reasons.js";
 import { readCatalogCache, writeCatalogCache } from "./catalog-cache.js";
 import { recommendationsUnlocked } from "./recommendation-access.js";
 import { createBrowserBackup, browserLocalStorage } from "./browser-storage.js";
+import { guestAnalyticsSnapshot, validGuestToken } from "./guest-analytics.js";
 import { matchesTitle } from "./titles.js";
 import { BACKGROUND_REFRESH_MS } from "./refresh-policy.js";
 import { createDiagnostics } from "./diagnostics.js";
@@ -125,6 +126,9 @@ export function createAnimeStore({
     error: "",
   };
   let profileKey = "guest";
+  let guestToken = null;
+  let guestAnalyticsTimer = null;
+  let guestAnalyticsWrite = Promise.resolve();
   let cloudSync = null;
   let pool = [],
     history = [],
@@ -166,12 +170,17 @@ export function createAnimeStore({
       try {
         const { response, result } = await diagnostics.request(request, url, {
           method: read ? "GET" : "POST",
-          headers: read
-            ? {}
-            : {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": state.session.csrf,
-              },
+          headers: {
+            ...(!state.session.account && validGuestToken(guestToken)
+              ? { "X-AnimeShuffle-Guest": guestToken }
+              : {}),
+            ...(!read
+              ? {
+                  "Content-Type": "application/json",
+                  "X-CSRF-Token": state.session.csrf,
+                }
+              : {}),
+          },
           body: read ? undefined : JSON.stringify(data),
           // Bound writes too: a lost MAL response must not lock both feeds forever.
           // Mutations are never retried automatically because the server may have applied them.
@@ -205,6 +214,32 @@ export function createAnimeStore({
   let lastSavedAt = 0;
   // Serialize backup transactions, including writes caused by background account reads.
   let backupWrites = Promise.resolve();
+  function scheduleGuestAnalytics() {
+    if (
+      staticMode ||
+      profileKey !== "guest" ||
+      !state.accountDataReady ||
+      !state.session.guestAnalyticsEnabled ||
+      !state.session.csrf
+    )
+      return;
+    clearTimeout(guestAnalyticsTimer);
+    const generation = sessionGeneration;
+    guestAnalyticsTimer = setTimeout(() => {
+      guestAnalyticsTimer = null;
+      guestAnalyticsWrite = guestAnalyticsWrite
+        .catch(() => {})
+        .then(async () => {
+          if (generation !== sessionGeneration || state.session.account) return;
+          try {
+            await api("/api/guest/state", guestAnalyticsSnapshot(state));
+          } catch {
+            /* Local saves and recommendations never depend on telemetry. */
+          }
+        });
+    }, 1500);
+    guestAnalyticsTimer.unref?.();
+  }
   function persist(sync = true) {
     const sequence = ++saveSequence;
     const key = "anime-shuffle:" + profileKey;
@@ -214,6 +249,9 @@ export function createAnimeStore({
       preferences: state.preferences,
       onboardingComplete: state.onboardingComplete,
       savedAt: (lastSavedAt = Math.max(Date.now(), lastSavedAt + 1)),
+      ...(profileKey === "guest" && validGuestToken(guestToken)
+        ? { guestAnalyticsToken: guestToken }
+        : {}),
     };
     let localSaved = false;
     try {
@@ -223,6 +261,7 @@ export function createAnimeStore({
       /* IndexedDB can still persist when localStorage is full or blocked. */
     }
     if (sync) cloudSync?.queue(state);
+    scheduleGuestAnalytics();
     const finish = (saved) => {
       if (sequence === saveSequence)
         update({
@@ -274,6 +313,11 @@ export function createAnimeStore({
       }
     }
     lastSavedAt = Number(stored.savedAt) || 0;
+    if (profileKey === "guest") {
+      guestToken = validGuestToken(stored.guestAnalyticsToken)
+        ? stored.guestAnalyticsToken
+        : globalThis.crypto.randomUUID().replaceAll("-", "");
+    }
     update({
       reactions: stored.reactions || {},
       preferences: normalizePreferences(stored.preferences),
@@ -1121,6 +1165,8 @@ export function createAnimeStore({
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
     sessionGeneration++;
+    clearTimeout(guestAnalyticsTimer);
+    guestAnalyticsTimer = null;
     candidateProvider = "tenrai";
     candidateFilterKey = "";
     clearTimeout(prefetchTimer);
@@ -1257,6 +1303,7 @@ export function createAnimeStore({
     if (listWarmup) await listWarmup;
     // Counts become visible only after local, account and MAL data are combined.
     update({ accountDataReady: true });
+    if (profileKey === "guest") await persist(false);
     if (catalogWarmup) {
       update({
         discoveryStage: "Loading the anime catalog…",

@@ -43,6 +43,27 @@ test("admin UI denies guest access and previews JSON before import without start
     vocabulary: [],
     enrichment: { reviews: {}, episodes: {} },
   };
+  const displayed = structuredClone(RESEARCH_SEED);
+  displayed.profiles[0].scope = "SPOILER_SENTINEL_SCOPE";
+  displayed.profiles[0].observations[0].evidence = "SPOILER_SENTINEL_EVIDENCE";
+  displayed.profiles[0].dimensions = [
+    {
+      key: "secret-outcome",
+      area: "relationships",
+      description: "SPOILER_SENTINEL_DIMENSION",
+      confidence: 0.8,
+      basis: "critical",
+      sources: ["review"],
+      containsSpoilers: true,
+    },
+  ];
+  displayed.profiles[0].coverage = [
+    {
+      area: "relationships",
+      state: "partial",
+      notes: "SPOILER_SENTINEL_COVERAGE",
+    },
+  ];
   globalThis.fetch = async (url, options = {}) => {
     calls.push(url);
     if (url === "/api/session")
@@ -53,7 +74,7 @@ test("admin UI denies guest access and previews JSON before import without start
       });
     if (url === "/api/admin/status") return Response.json(status);
     if (url.startsWith("/api/admin/export"))
-      return Response.json({ ...RESEARCH_SEED, nextCursor: null });
+      return Response.json({ ...displayed, nextCursor: null });
     if (url === "/api/admin/validate")
       return Response.json({
         count: 25,
@@ -91,6 +112,19 @@ test("admin UI denies guest access and previews JSON before import without start
     root = createRoot(document.getElementById("root"));
     await act(async () => root.render(React.createElement(Admin)));
     assert.match(document.body.textContent, /Awaiting analysis/);
+    assert.ok(!document.body.textContent.includes("SPOILER_SENTINEL"));
+    const reveal = [...document.querySelectorAll("button")].find(
+      (b) => b.textContent === "Reveal private research — may contain spoilers",
+    );
+    await act(async () => reveal.click());
+    assert.match(document.body.textContent, /SPOILER_SENTINEL_SCOPE/);
+    assert.match(document.body.textContent, /SPOILER_SENTINEL_DIMENSION/);
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Hide private research")
+        .click(),
+    );
+    assert.ok(!document.body.textContent.includes("SPOILER_SENTINEL"));
     const fileInput = document.querySelector('input[type="file"]');
     const change = async (file) => {
       Object.defineProperty(fileInput, "files", {

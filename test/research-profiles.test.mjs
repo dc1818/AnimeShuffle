@@ -1,4 +1,5 @@
 import test from "node:test";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -292,4 +293,123 @@ test("admin permissions are denied by default and checked on every server route,
   app = createCloudApp(db, env);
   assert.equal((await req("/api/admin/export")).status, 403);
   db.db.close();
+});
+
+test("extensible research dimensions retain source context without becoming ranking or public prose", () => {
+  const b = bundle(),
+    p = b.profiles[0];
+  p.dimensions = [
+    {
+      key: "military-recruitment",
+      area: "characters",
+      description:
+        "The leads enter military service as inexperienced recruits.",
+      basis: "premise",
+      confidence: 0.8,
+      sources: [p.sources[0].id],
+    },
+  ];
+  p.coverage = [
+    {
+      area: "characters",
+      state: "partial",
+      notes:
+        "Opening premise only; later character development requires reviews.",
+    },
+  ];
+  const clean = validateResearchBundle(b);
+  assert.equal(
+    clean.profiles[0].dimensions[0].description,
+    p.dimensions[0].description,
+  );
+  const s = storage(),
+    store = createResearchStore(s),
+    preview = store.preview(b);
+  store.commit(b, preview.revision, preview.digest, "test");
+  assert.equal(
+    store.exportBatch({ kind: "profiles" }).profiles[0].dimensions.length,
+    1,
+  );
+  assert.ok(
+    !JSON.stringify(store.projection(p.malId)).includes("military-recruitment"),
+  );
+  p.dimensions[0].area = "presentation";
+  assert.throws(() => validateResearchBundle(b), /synopsis/);
+  p.dimensions[0].area = "characters";
+  p.dimensions[0].sources = ["missing"];
+  assert.throws(() => validateResearchBundle(b), /source/);
+  s.db.close();
+});
+
+test("research questions persist in exports and coverage audits identify explicit missing and stale evidence", () => {
+  const s = storage(),
+    store = createResearchStore(s);
+  store.remember(anime);
+  const b = bundle(),
+    p = b.profiles[0];
+  p.metadataFingerprint = animeFingerprint(anime);
+  p.dimensions = [
+    {
+      key: "character-agency",
+      area: "characters",
+      description: "SPOILER_PRIVATE_CHARACTER_OUTCOME",
+      basis: "premise",
+      confidence: 0.8,
+      sources: [p.sources[0].id],
+      containsSpoilers: true,
+    },
+  ];
+  const preview = store.preview(b);
+  store.commit(b, preview.revision, preview.digest, "owner");
+  const exported = store.exportBatch({ kind: "catalog" });
+  const digest = (x) =>
+    createHash("sha256").update(JSON.stringify(x)).digest("hex");
+  const req = [
+    {
+      key: "character-agency",
+      label: "How does character agency develop?",
+      area: "characters",
+      dimensionKey: "character-agency",
+    },
+    {
+      key: "villain-incentives",
+      label: "What constrains villain choices?",
+      area: "characters",
+      dimensionKey: "villain-incentives",
+    },
+  ];
+  store.saveRequirements(
+    { requirements: req, expectedDigest: digest([]) },
+    "owner",
+  );
+  assert.equal(store.requirements().length, 2);
+  assert.equal(store.exportBatch({ kind: "catalog" }).requirements.length, 2);
+  assert.throws(
+    () =>
+      store.saveRequirements(
+        { requirements: [], expectedDigest: digest([]) },
+        "owner",
+      ),
+    /changed/,
+  );
+  let audit = store.auditCoverage();
+  assert.equal(audit.titles[0].requirements[0].state, "supported");
+  assert.equal(audit.titles[0].requirements[1].state, "missing");
+  assert.ok(
+    !JSON.stringify(audit).includes("SPOILER_PRIVATE_CHARACTER_OUTCOME"),
+  );
+  assert.ok(
+    !JSON.stringify(store.attach(anime)).includes(
+      "SPOILER_PRIVATE_CHARACTER_OUTCOME",
+    ),
+  );
+  assert.equal(
+    store.exportBatch({ kind: "profiles" }).profiles[0].dimensions[0]
+      .containsSpoilers,
+    true,
+  );
+  store.remember({ ...anime, synopsis: "Changed premise." });
+  audit = store.auditCoverage();
+  assert.equal(audit.titles[0].requirements[0].state, "changed");
+  s.db.close();
 });

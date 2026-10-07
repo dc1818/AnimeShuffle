@@ -401,3 +401,183 @@ test("candidate diagnostics use stored tastes without mutating user records or c
   assert.equal(s.sql.exec("SELECT COUNT(*) n FROM reactions")[0].n, 1);
   s.db.close();
 });
+
+test("guest browser snapshots persist, replace current choices, join aggregates and remain owner-only", async () => {
+  const s = storage(),
+    config = env();
+  let app = createCloudApp(s, config);
+  const owner = client(app),
+    guest = client(app),
+    member = client(app);
+  await owner.req("/api/session");
+  const account = await owner.req("/api/account/register", {
+    username: "GuestAdmin",
+    password: "secure-owner-password",
+  });
+  config.ADMIN_ACCOUNT_IDS = account.data.account.id;
+  await guest.req("/api/session");
+  const headers = { "X-AnimeShuffle-Guest": "a".repeat(32) };
+  const snapshot = {
+    reactions: [
+      {
+        anime: { ...anime(123), tokens: "PRIVATE", synopsis: "PRIVATE" },
+        action: "good",
+        at: Date.now(),
+        reason: "characters",
+      },
+      { anime: anime(124), action: "watch", at: Date.now() },
+    ],
+    totalReactions: 2,
+    preferences: { favoriteGenres: ["Action"], tokens: "PRIVATE" },
+    onboardingComplete: true,
+    tokens: "PRIVATE",
+  };
+  assert.equal(
+    (
+      await guest.req("/api/guest/state", snapshot, {
+        ...headers,
+        "x-csrf-token": "bad",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await guest.req("/api/guest/state", snapshot, headers)).status,
+    200,
+  );
+  assert.equal(
+    (await guest.req("/api/guest/state", snapshot, headers)).status,
+    200,
+  );
+  const overview = (await owner.req("/api/admin/overview")).data;
+  assert.equal(overview.guests, 1);
+  assert.equal(overview.activeGuestsToday, 1);
+  assert.equal(
+    overview.reactions.reduce((n, r) => n + r.count, 0),
+    2,
+  );
+  let algorithm = (await owner.req("/api/admin/algorithm")).data;
+  assert.equal(
+    algorithm.cohortCounts.find((c) => c.cohort === "guest").count,
+    2,
+  );
+  assert.equal(algorithm.genres.find((g) => g.genre === "Action").good, 1);
+  const listed = (await owner.req("/api/admin/guests")).data;
+  const id = listed.guests[0].id;
+  assert.ok(!id.includes(headers["X-AnimeShuffle-Guest"]));
+  const detail = (await owner.req("/api/admin/guest?id=" + id)).data;
+  assert.equal(detail.network.ip, "198.51.100.10");
+  assert.equal(detail.preferences.favoriteGenres[0], "Action");
+  assert.equal(detail.totalReactions, undefined);
+  assert.equal(detail.reactions.length, 2);
+  assert.ok(!JSON.stringify(detail).includes("PRIVATE"));
+  assert.ok(
+    !s.db
+      .prepare("SELECT * FROM guest_profiles")
+      .all()[0]
+      .last_network.includes("198.51.100.10"),
+  );
+  assert.equal((await guest.req("/api/admin/guest?id=" + id)).status, 401);
+  await member.req("/api/session");
+  await member.req("/api/account/register", {
+    username: "GuestMember",
+    password: "secure-member-password",
+  });
+  assert.equal((await member.req("/api/admin/guest?id=" + id)).status, 403);
+  assert.equal(
+    (await member.req("/api/guest/state", snapshot, headers)).status,
+    409,
+  );
+  const changed = {
+    ...snapshot,
+    reactions: [{ anime: anime(123), action: "bad", at: Date.now() }],
+    totalReactions: 1,
+  };
+  await guest.req("/api/guest/state", changed, headers);
+  algorithm = (await owner.req("/api/admin/algorithm")).data;
+  assert.equal(algorithm.totalReactions, 1);
+  assert.equal(algorithm.genres.find((g) => g.genre === "Action").bad, 1);
+  assert.equal(algorithm.genres.find((g) => g.genre === "Action").good, 0);
+  app = createCloudApp(s, config);
+  const restarted = client(app);
+  await restarted.req("/api/session");
+  await restarted.req("/api/guest/state", changed, headers);
+  assert.equal(
+    s.db.prepare("SELECT COUNT(*) n FROM guest_profiles").get().n,
+    1,
+  );
+  await restarted.req(
+    "/api/guest/state",
+    { ...changed, reactions: [], totalReactions: 0 },
+    headers,
+  );
+  assert.equal(
+    s.db.prepare("SELECT COUNT(*) n FROM guest_reactions").get().n,
+    0,
+  );
+  const excessive = {
+    ...snapshot,
+    reactions: Array(1001).fill(snapshot.reactions[0]),
+    totalReactions: 1001,
+  };
+  assert.equal(
+    (await restarted.req("/api/guest/state", excessive, headers)).status,
+    400,
+  );
+  config.ADMIN_ANALYTICS = "false";
+  const disabled = await restarted.req("/api/guest/state", snapshot, headers);
+  assert.equal(disabled.data.tracked, false);
+  assert.equal(
+    s.db.prepare("SELECT COUNT(*) n FROM guest_reactions").get().n,
+    0,
+  );
+  s.db.close();
+});
+
+test("guest snapshots and encrypted network observations follow retention windows", () => {
+  const s = storage(),
+    config = env();
+  const app = createCloudApp(s, config);
+  let clock = Date.now();
+  const research = createResearchStore(s);
+  const ops = createAdminOperations({
+    storage: s,
+    env: config,
+    research,
+    now: () => clock,
+  });
+  const request = new Request(origin + "/api/guest/state", {
+    headers: {
+      "X-AnimeShuffle-Guest": "b".repeat(32),
+      "cf-connecting-ip": "198.51.100.10",
+      "X-AnimeShuffle-Country": "US",
+    },
+  });
+  ops.saveGuest(request, {
+    reactions: [{ anime: anime(123), action: "good" }],
+    totalReactions: 1,
+    preferences: {},
+  });
+  ops.record(request);
+  clock += 31 * 86400000;
+  ops.cleanup();
+  assert.equal(
+    s.db.prepare("SELECT last_network FROM guest_profiles").get().last_network,
+    null,
+  );
+  assert.equal(
+    s.db.prepare("SELECT COUNT(*) n FROM guest_reactions").get().n,
+    1,
+  );
+  clock += 60 * 86400000;
+  ops.cleanup();
+  assert.equal(
+    s.db.prepare("SELECT COUNT(*) n FROM guest_profiles").get().n,
+    0,
+  );
+  assert.equal(
+    s.db.prepare("SELECT COUNT(*) n FROM guest_reactions").get().n,
+    0,
+  );
+  s.db.close();
+});

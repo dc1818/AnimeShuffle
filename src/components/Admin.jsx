@@ -29,6 +29,12 @@ export function Admin() {
     [cursor, setCursor] = useState(0),
     [page, setPage] = useState(null);
   const [profileSource, setProfileSource] = useState("profiles");
+  const [revealedProfiles, setRevealedProfiles] = useState(new Set());
+  const [questionLabel, setQuestionLabel] = useState("");
+  const [questionArea, setQuestionArea] = useState("characters");
+  const [questionKey, setQuestionKey] = useState("");
+  const [coverageAudit, setCoverageAudit] = useState(null);
+  const [auditCursor, setAuditCursor] = useState(0);
   const [profiles, setProfiles] = useState([]),
     [profileCursor, setProfileCursor] = useState(null),
     [filter, setFilter] = useState("");
@@ -53,6 +59,7 @@ export function Admin() {
     return data;
   }
   async function reload(active = session) {
+    setRevealedProfiles(new Set());
     const [s, p] = await Promise.all([
       api("/api/admin/status", null, active),
       api(`/api/admin/export?kind=${profileSource}&limit=100`, null, active),
@@ -96,7 +103,7 @@ export function Admin() {
       setPage(data);
       download(data, `anime-shuffle-${kind}-${cursor}.json`);
       setNotice(
-        `Exported ${kind === "profiles" ? data.profiles.length : data.catalog.length} titles. ${data.nextCursor === null ? "This is the last page." : "Use Next batch to continue."}`,
+        `Exported ${["profiles", "automatic"].includes(kind) ? data.profiles.length : data.catalog.length} titles. Export files can contain private research spoilers. ${data.nextCursor === null ? "This is the last page." : "Use Next batch to continue."}`,
       );
     });
   const chooseFile = (event) => {
@@ -193,6 +200,7 @@ export function Admin() {
               {[
                 ["overview", "Overview"],
                 ["accounts", "Accounts & tastes"],
+                ["guests", "Guest browsers"],
                 ["algorithm", "Algorithm"],
                 ["research", "Anime research"],
               ].map(([key, label]) => (
@@ -246,6 +254,168 @@ export function Admin() {
                   <span>{label}</span>
                 </div>
               ))}
+            </section>
+            <section className="admin-panel">
+              <h2>New tastes & missing research</h2>
+              <p>
+                Register a specific research question, then audit which stored
+                profiles explicitly address it. Questions are included in
+                exports for analysis here and in future Cloudflare prompts.
+                Saving a question queues a new analysis pass. It does not add a
+                ranking rule automatically.
+              </p>
+              <form
+                className="admin-actions"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void work(async () => {
+                    const key = questionKey.trim();
+                    await api("/api/admin/research/requirements", {
+                      expectedDigest: status.requirementsDigest,
+                      requirements: [
+                        ...(status.requirements || []).filter(
+                          (r) => r.key !== key,
+                        ),
+                        {
+                          key,
+                          label: questionLabel.trim(),
+                          area: questionArea,
+                          traitKey: null,
+                          dimensionKey: key,
+                        },
+                      ],
+                    });
+                    setCoverageAudit(null);
+                    setAuditCursor(0);
+                    await reload();
+                    setNotice(
+                      "Research question saved. Missing evidence will stay unknown until supported analysis is available.",
+                    );
+                  });
+                }}
+              >
+                <label>
+                  What should future analysis establish?
+                  <input
+                    value={questionLabel}
+                    maxLength={200}
+                    required
+                    onChange={(e) => setQuestionLabel(e.target.value)}
+                    placeholder="How does the villain's motivation change?"
+                  />
+                </label>
+                <label>
+                  Research area
+                  <select
+                    value={questionArea}
+                    onChange={(e) => setQuestionArea(e.target.value)}
+                  >
+                    {(status.researchAreas || []).map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Stable dimension key
+                  <input
+                    value={questionKey}
+                    maxLength={80}
+                    pattern="[a-z][a-z0-9-]*"
+                    required
+                    onChange={(e) => setQuestionKey(e.target.value)}
+                    placeholder="villain-motive-development"
+                  />
+                </label>
+                <button
+                  className="soft-button"
+                  disabled={busy || !status.requirementsDigest}
+                >
+                  Save research question
+                </button>
+              </form>
+              <ul>
+                {(status.requirements || []).map((r) => (
+                  <li key={r.key}>
+                    {r.label} · {r.area} · {r.dimensionKey || r.traitKey}
+                  </li>
+                ))}
+              </ul>
+              <div className="admin-actions">
+                <button
+                  className="soft-button"
+                  disabled={busy || !(status.requirements || []).length}
+                  onClick={() =>
+                    work(async () => {
+                      setAuditCursor(0);
+                      setCoverageAudit(
+                        await api("/api/admin/research/audit?limit=25"),
+                      );
+                    })
+                  }
+                >
+                  Check first 25 titles
+                </button>
+                <button
+                  className="soft-button"
+                  disabled={busy || coverageAudit?.nextCursor == null}
+                  onClick={() =>
+                    work(async () => {
+                      const after = coverageAudit.nextCursor;
+                      setAuditCursor(after);
+                      setCoverageAudit(
+                        await api(
+                          `/api/admin/research/audit?after=${after}&limit=25`,
+                        ),
+                      );
+                    })
+                  }
+                >
+                  Next coverage page
+                </button>
+                <button
+                  className="soft-button"
+                  disabled={!coverageAudit}
+                  onClick={() =>
+                    download(
+                      coverageAudit,
+                      `anime-shuffle-research-gaps-${auditCursor}.json`,
+                    )
+                  }
+                >
+                  Export coverage & gaps
+                </button>
+              </div>
+              {coverageAudit && (
+                <>
+                  <p className="muted">{coverageAudit.instructions}</p>
+                  <div className="admin-table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Anime</th>
+                          <th>Research question</th>
+                          <th>Evidence status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {coverageAudit.titles.flatMap((t) =>
+                          t.requirements.map((r) => (
+                            <tr key={`${t.malId}:${r.key}`}>
+                              <td>
+                                {t.title} · #{t.malId}
+                              </td>
+                              <td>{r.label}</td>
+                              <td>{r.state}</td>
+                            </tr>
+                          )),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </section>
             <p className="muted">
               Known titles are those this deployment has encountered, not the
@@ -301,7 +471,7 @@ export function Admin() {
                     disabled={busy}
                     onClick={exportPage}
                   >
-                    Export 25 titles
+                    Export 25 titles · private JSON
                   </button>
                   <button
                     className="soft-button"
@@ -443,8 +613,32 @@ export function Admin() {
                       </summary>
                       <div className="admin-profile-body">
                         <p>
-                          {p.scope} · {p.analyzer} · {when(p.analyzedAt)}
+                          {when(p.analyzedAt)} · Private research hidden by
+                          default.
                         </p>
+                        <button
+                          className="soft-button"
+                          onClick={() =>
+                            setRevealedProfiles((current) => {
+                              const next = new Set(current);
+                              const key = `${profileSource}:${p.malId}`;
+                              if (next.has(key)) next.delete(key);
+                              else next.add(key);
+                              return next;
+                            })
+                          }
+                        >
+                          {revealedProfiles.has(`${profileSource}:${p.malId}`)
+                            ? "Hide private research"
+                            : "Reveal private research — may contain spoilers"}
+                        </button>
+                        {revealedProfiles.has(
+                          `${profileSource}:${p.malId}`,
+                        ) && (
+                          <p>
+                            {p.scope} · {p.analyzer}
+                          </p>
+                        )}
                         <div className="admin-table-scroll">
                           <table>
                             <thead>
@@ -470,9 +664,18 @@ export function Admin() {
                                   </td>
                                   <td>{o.prominence}</td>
                                   <td>
-                                    {o.evidence}
+                                    {revealedProfiles.has(
+                                      `${profileSource}:${p.malId}`,
+                                    )
+                                      ? o.evidence
+                                      : "Private evidence hidden"}
                                     <small>
-                                      {o.sources.join(", ")} · {o.basis}
+                                      {revealedProfiles.has(
+                                        `${profileSource}:${p.malId}`,
+                                      )
+                                        ? o.sources.join(", ")
+                                        : "Sources hidden"}{" "}
+                                      · {o.basis}
                                     </small>
                                   </td>
                                 </tr>
@@ -480,40 +683,112 @@ export function Admin() {
                             </tbody>
                           </table>
                         </div>
-                        {[
-                          ["Conditional appeal", p.appeal],
-                          ["Caveats", p.caveats],
-                          ["Not established", p.unknowns],
-                        ].map(([name, notes]) =>
-                          notes.length ? (
-                            <div key={name}>
-                              <h3>{name}</h3>
-                              <ul>
-                                {notes.map((n, i) => (
-                                  <li key={i}>{n}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          ) : null,
+                        <h3>Research coverage</h3>
+                        {(p.coverage || []).length ? (
+                          <dl className="admin-diagnostics">
+                            {p.coverage.map((c) => (
+                              <div key={c.area}>
+                                <dt>
+                                  {c.area} · {c.state}
+                                </dt>
+                                <dd>
+                                  {revealedProfiles.has(
+                                    `${profileSource}:${p.malId}`,
+                                  )
+                                    ? c.notes
+                                    : "Private coverage notes hidden"}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        ) : (
+                          <p className="muted">
+                            This older profile has no structured coverage
+                            report. Its traits and notes are useful evidence,
+                            not proof of exhaustive analysis.
+                          </p>
                         )}
-                        <h3>Sources</h3>
-                        <ul>
-                          {p.sources.map((s) => (
-                            <li key={s.id}>
-                              <a
-                                href={s.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {s.title}
-                              </a>{" "}
-                              <small>
-                                {s.id} · {s.type} · accessed{" "}
-                                {when(s.accessedAt)}
-                              </small>
-                            </li>
-                          ))}
-                        </ul>
+                        <h3>Reusable research dimensions</h3>
+                        {(p.dimensions || []).length &&
+                        !revealedProfiles.has(`${profileSource}:${p.malId}`) ? (
+                          <p>
+                            {p.dimensions.length} reusable dimensions. Reveal
+                            private research to read them.
+                          </p>
+                        ) : (p.dimensions || []).length ? (
+                          <div className="admin-table-scroll">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Area / dimension</th>
+                                  <th>Supported context</th>
+                                  <th>Confidence / sources</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {p.dimensions.map((d) => (
+                                  <tr key={d.key}>
+                                    <td>
+                                      {d.area} · {d.key}
+                                    </td>
+                                    <td>{d.description}</td>
+                                    <td>
+                                      {Math.round(d.confidence * 100)} ·{" "}
+                                      {d.basis}
+                                      <small>{d.sources.join(", ")}</small>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="muted">
+                            No reusable dimensions recorded yet. New taste
+                            categories may need further research.
+                          </p>
+                        )}
+                        {revealedProfiles.has(`${profileSource}:${p.malId}`) &&
+                          [
+                            ["Conditional appeal", p.appeal],
+                            ["Caveats", p.caveats],
+                            ["Not established", p.unknowns],
+                          ].map(([name, notes]) =>
+                            notes.length ? (
+                              <div key={name}>
+                                <h3>{name}</h3>
+                                <ul>
+                                  {notes.map((n, i) => (
+                                    <li key={i}>{n}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null,
+                          )}
+                        {revealedProfiles.has(
+                          `${profileSource}:${p.malId}`,
+                        ) && (
+                          <>
+                            <h3>Sources</h3>
+                            <ul>
+                              {p.sources.map((s) => (
+                                <li key={s.id}>
+                                  <a
+                                    href={s.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    {s.title}
+                                  </a>{" "}
+                                  <small>
+                                    {s.id} · {s.type} · accessed{" "}
+                                    {when(s.accessedAt)}
+                                  </small>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
                         <small>
                           These notes are for research review. User explanations
                           use only the controlled trait vocabulary.

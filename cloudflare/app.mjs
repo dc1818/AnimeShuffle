@@ -1,4 +1,5 @@
 import { createAdminOperations } from "../lib/admin-operations.mjs";
+import { guestId } from "../lib/guest-analytics.mjs";
 import {
   createResearchStore,
   isResearchAdmin,
@@ -94,7 +95,12 @@ export function createCloudApp(
   };
   const research = createResearchStore(storage);
   research.installSeed(RESEARCH_SEED, "2026-10-pilot-v1");
-  const operations = createAdminOperations({ storage, env, research });
+  const operations = createAdminOperations({
+    storage,
+    env,
+    research,
+    onGuestAnime: (ids) => catalogModel.prioritize(ids),
+  });
   const episodes = createEpisodeEnrichment({
     sql,
     fetcher,
@@ -118,7 +124,8 @@ export function createCloudApp(
         console.log(JSON.stringify(event));
     },
   });
-  const modelName = env.AI_TASTE_MODEL || "@cf/meta/llama-3.1-8b-instruct";
+  const modelName =
+    env.AI_TASTE_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
   const catalogModel = createCatalogModel({
     storage,
     research,
@@ -444,6 +451,7 @@ export function createCloudApp(
         const info = () => ({
           hosted: true,
           cloudSync: true,
+          guestAnalyticsEnabled: env.ADMIN_ANALYTICS !== "false",
           configured: !!env.MAL_CLIENT_ID,
           oauthConfigured: !!(env.MAL_CLIENT_ID && env.MAL_CLIENT_SECRET),
           connected: !!tokenSession.tokens,
@@ -469,7 +477,23 @@ export function createCloudApp(
         let response;
         if (path === "/api/session" && req.method === "GET")
           response = json(info());
-        else if (path.startsWith("/api/admin/")) {
+        else if (path === "/api/guest/state" && req.method === "POST") {
+          if (account)
+            throw new AppError(
+              "Guest reporting is only available while signed out.",
+              409,
+            );
+          const id = guestId(req, env.TOKEN_ENCRYPTION_KEY);
+          if (!id) throw new AppError("Missing guest browser identity.");
+          rateLimit("guest-report:" + id, 30, 60000);
+          rateLimit(
+            "guest-report-ip:" +
+              (req.headers.get("cf-connecting-ip") || sessionHash),
+            120,
+            60000,
+          );
+          response = json(operations.saveGuest(req, await input(req)));
+        } else if (path.startsWith("/api/admin/")) {
           signedIn();
           if (!isResearchAdmin(account, env.ADMIN_ACCOUNT_IDS))
             throw new AppError(
@@ -500,6 +524,11 @@ export function createCloudApp(
                 : {}),
             },
           );
+          if (
+            path === "/api/admin/research/requirements" &&
+            req.method === "POST"
+          )
+            catalogModel.refill();
         } else if (
           ["/api/account/register", "/api/account/login"].includes(path) &&
           req.method === "POST"

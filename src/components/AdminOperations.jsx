@@ -106,7 +106,9 @@ export function AdminOperations({ section, api, currentAccount }) {
     const path =
       section === "accounts"
         ? `/api/admin/accounts?q=${encodeURIComponent(q)}&status=${filter}&offset=${page}`
-        : `/api/admin/${section}`;
+        : section === "guests"
+          ? `/api/admin/guests?offset=${page}`
+          : `/api/admin/${section}`;
     setData(await api(path));
     setOffset(page);
   }
@@ -168,7 +170,9 @@ export function AdminOperations({ section, api, currentAccount }) {
             ? "Site overview"
             : section === "accounts"
               ? "Accounts & tastes"
-              : "Algorithm diagnostics"}
+              : section === "guests"
+                ? "Guest browsers & tastes"
+                : "Algorithm diagnostics"}
         </h2>
         <button
           className="soft-button"
@@ -189,6 +193,14 @@ export function AdminOperations({ section, api, currentAccount }) {
               ["New accounts · 30 days", data.new30Days],
               ["Suspended", data.suspended],
               ["API requests · 30 days", data.totals.requests],
+              ["Guest browser profiles", data.guests],
+              ["Active guest browsers today", data.activeGuestsToday],
+              ["Active guest browsers · 30 days", data.activeGuests30Days],
+              [
+                "Returning guest browsers · 30 days",
+                data.returningGuests30Days,
+              ],
+              ["Guests completing onboarding", data.onboardedGuests],
             ]}
           />
           <p className="muted">
@@ -197,8 +209,11 @@ export function AdminOperations({ section, api, currentAccount }) {
               ? "Analytics collection is enabled."
               : "Analytics collection is disabled."}{" "}
             Requests are API calls, not page views or people. Active accounts
-            are distinct signed-in accounts using account APIs. Guest tastes
-            stay in their browsers. Older registrations and activity cannot be
+            are distinct signed-in accounts using account APIs. Guest browsers
+            retain a random browser ID and their full local profile; up to 1,000
+            latest choices and viewing preferences are reported for owner
+            diagnostics. Returning means activity on more than one UTC day.
+            Browser counts are not counts of people. Older activity cannot be
             reconstructed.
           </p>
           <div className="admin-columns">
@@ -272,6 +287,13 @@ export function AdminOperations({ section, api, currentAccount }) {
                     countries: data.countries,
                     routes: data.routes,
                     reactions: data.reactions,
+                    reactionCohorts: data.reactionCohorts,
+                    guestBrowsers: {
+                      total: data.guests,
+                      activeToday: data.activeGuestsToday,
+                      active30Days: data.activeGuests30Days,
+                      returning30Days: data.returningGuests30Days,
+                    },
                   },
                   "anime-shuffle-analytics.json",
                 )
@@ -291,6 +313,141 @@ export function AdminOperations({ section, api, currentAccount }) {
               are never shown.
             </p>
           </section>
+        </>
+      )}
+      {data && section === "guests" && (
+        <>
+          <Stats values={[["Guest browser profiles", data.total]]} />
+          <p className="muted">
+            Guest profiles are anonymous, self-reported browser snapshots. Their
+            full preferences and history remain in the browser. Clearing browser
+            storage starts a new identity. Guest accounts cannot be edited
+            remotely through this page.
+          </p>
+          <Table
+            rows={data.guests}
+            columns={[
+              [
+                "Browser",
+                (g) => (
+                  <button
+                    className="soft-button"
+                    disabled={busy}
+                    onClick={() =>
+                      work(async () =>
+                        setSelected(
+                          await api(
+                            `/api/admin/guest?id=${encodeURIComponent(g.id)}`,
+                          ),
+                        ),
+                      )
+                    }
+                  >
+                    Guest {g.id.slice(6, 14)}
+                  </button>
+                ),
+              ],
+              ["First observed", (g) => when(g.firstSeen)],
+              ["Last active", (g) => when(g.lastSeen)],
+              ["Country", "country"],
+              ["Onboarded", (g) => (g.onboardingComplete ? "Yes" : "No")],
+              ["Reported choices", "totalReactions"],
+              ["Stored for diagnostics", "storedReactions"],
+            ]}
+          />
+          <div className="admin-actions">
+            <button
+              className="soft-button"
+              disabled={busy || offset === 0}
+              onClick={() => work(() => refresh(Math.max(0, offset - 50)))}
+            >
+              Previous guest page
+            </button>
+            <button
+              className="soft-button"
+              disabled={busy || !data.hasMore}
+              onClick={() => work(() => refresh(offset + 50))}
+            >
+              Next guest page
+            </button>
+          </div>
+          {selected?.guest && (
+            <>
+              <section className="admin-panel">
+                <h3>Guest {selected.guest.id.slice(6, 14)}</h3>
+                <p className="muted">{selected.scope}</p>
+                <p>
+                  {selected.reactions.length} stored of{" "}
+                  {selected.guest.totalReactions} reported choices.
+                </p>
+                <h4>Latest network observation</h4>
+                <p>
+                  {selected.network
+                    ? `${selected.network.ip || "IP unavailable"} · ${selected.network.country} · ${selected.network.region || "Region unavailable"} · ${selected.network.city || "City unavailable"} · ${when(selected.network.observedAt)}`
+                    : "No retained network observation."}
+                </p>
+                <details>
+                  <summary>All reported viewing preferences</summary>
+                  <pre>{JSON.stringify(selected.preferences, null, 2)}</pre>
+                </details>
+                <button
+                  className="soft-button"
+                  onClick={() =>
+                    save(
+                      selected,
+                      `anime-shuffle-guest-${selected.guest.id.slice(6, 14)}.json`,
+                    )
+                  }
+                >
+                  Export guest snapshot
+                </button>
+              </section>
+              <section className="admin-panel">
+                <h3>Guest taste evidence</h3>
+                <div className="admin-taste-grid">
+                  {[
+                    ["Supported interests", selected.taste.interests],
+                    [
+                      "Curiosity, not confirmed enjoyment",
+                      selected.taste.curious,
+                    ],
+                    ["Mixed reactions", selected.taste.contrasts],
+                  ].map(([title, groups]) => (
+                    <div key={title}>
+                      <h4>{title}</h4>
+                      {!groups.length && <p>Not enough evidence yet.</p>}
+                      {groups.map((g) => (
+                        <details key={g.key}>
+                          <summary>{g.label}</summary>
+                          {[...g.liked, ...g.disliked, ...g.curious]
+                            .slice(0, 12)
+                            .map((e, i) => (
+                              <p key={i}>
+                                {e.anime.englishTitle || e.anime.title} —{" "}
+                                {e.evidence}
+                              </p>
+                            ))}
+                        </details>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="admin-panel">
+                <h3>Reported reactions & watchlist</h3>
+                <Table
+                  rows={selected.reactions}
+                  columns={[
+                    ["Anime", (r) => r.anime.englishTitle || r.anime.title],
+                    ["MAL ID", "id"],
+                    ["Choice", (r) => actionLabel[r.action]],
+                    ["Reason", (r) => r.reason || "Not provided"],
+                    ["Saved", (r) => when(r.at)],
+                  ]}
+                />
+              </section>
+            </>
+          )}
         </>
       )}
       {data && section === "accounts" && (
@@ -893,6 +1050,15 @@ export function AdminOperations({ section, api, currentAccount }) {
           <Stats
             values={[
               ["Stored reactions", data.totalReactions],
+              [
+                "Signed-in reactions",
+                data.cohortCounts?.find((c) => c.cohort === "account")?.count,
+              ],
+              [
+                "Guest reactions",
+                data.cohortCounts?.find((c) => c.cohort === "guest")?.count,
+              ],
+              ["Guest browsers with partial history", data.truncatedGuests],
               [
                 "Accounts with fewer than 10 reactions",
                 data.lowEvidenceAccounts,
