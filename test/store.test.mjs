@@ -506,12 +506,17 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   );
   await store.skip();
   assert.notEqual(store.getSnapshot().current?.id, displayed.id);
+  const afterSkip = store.getSnapshot().recommendationPicks;
+  assert.deepEqual(
+    afterSkip,
+    picks.filter((pick) => pick.anime.id !== displayed.id),
+  );
   assert.equal(store.getSnapshot().recommendationsReady, true);
   seedRecommendationHistory(store);
   await store.loadRecommendations();
   assert.ok(
-    store.getSnapshot().recommendationPicks === picks,
-    "A refreshed MAL list does not replace a loaded batch",
+    store.getSnapshot().recommendationPicks === afterSkip,
+    "A refreshed MAL list does not replace a loaded batch; only the explicitly skipped row is removed",
   );
   seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });

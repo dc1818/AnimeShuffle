@@ -294,10 +294,10 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
 /** Cheap eligibility pass for catalog fill checks; no taste-model training or ranking. */
 export function eligibleCandidates(
   pool,
-  { reactions = {}, list = [], preferences } = {},
+  { reactions = {}, list = [], preferences, skipped = new Set() } = {},
 ) {
   return pool.filter(
-    eligibilityFilter(reactions, list, new Set(), false, preferences),
+    eligibilityFilter(reactions, list, skipped, false, preferences),
   );
 }
 /** Balance learned preferences, recent variety, and a 20% exploration branch. */
@@ -399,14 +399,21 @@ export function chooseNextBatch(
  */
 export function rankRecommendations(
   pool,
-  { reactions = {}, list = [], preferences, limit = 25, metadata = [] } = {},
+  {
+    reactions = {},
+    list = [],
+    preferences,
+    limit = 25,
+    metadata = [],
+    skipped = new Set(),
+  } = {},
 ) {
   const taste = buildTaste(reactions, list, preferences, [
     ...metadata,
     ...pool,
   ]);
   const available = [...new Map(pool.map((a) => [a.id, a])).values()]
-    .filter(eligibilityFilter(reactions, list, new Set(), false, preferences))
+    .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
     .map((anime) => ({ anime, ...taste.model.score(anime), saved: false }));
   const selected = [];
   const audienceMode = normalizePreferences(preferences).childrenTitles;

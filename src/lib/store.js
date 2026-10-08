@@ -6,6 +6,7 @@ import { createBrowserBackup, browserLocalStorage } from "./browser-storage.js";
 import { guestAnalyticsSnapshot, validGuestToken } from "./guest-analytics.js";
 import { matchesTitle } from "./titles.js";
 import { BACKGROUND_REFRESH_MS } from "./refresh-policy.js";
+import { SKIP_COOLDOWN_MS, activeSkipCooldowns } from "./skip-cooldown.js";
 import { createDiagnostics } from "./diagnostics.js";
 import { defaultPreferences, normalizePreferences } from "./preferences.js";
 import {
@@ -130,6 +131,7 @@ export function createAnimeStore({
     error: "",
   };
   let profileKey = "guest";
+  let skipUntil = {};
   let guestToken = null;
   let guestAnalyticsTimer = null;
   let guestAnalyticsWrite = Promise.resolve();
@@ -163,6 +165,13 @@ export function createAnimeStore({
     listeners.forEach((listener) => listener());
   }
   const notify = (message) => update({ message });
+  function activeSkips() {
+    return new Set([
+      ...skipped,
+      ...Object.keys(activeSkipCooldowns(skipUntil, now())).map(Number),
+    ]);
+  }
+  const rankingState = () => ({ ...state, skipped: activeSkips() });
   const pendingReads = new Map();
   async function api(url, data) {
     if (staticMode)
@@ -251,6 +260,7 @@ export function createAnimeStore({
     const key = "anime-shuffle:" + profileKey;
     const snapshot = {
       reactions: state.reactions,
+      skipUntil: activeSkipCooldowns(skipUntil, now()),
       settings: state.settings,
       preferences: state.preferences,
       onboardingComplete: state.onboardingComplete,
@@ -319,6 +329,7 @@ export function createAnimeStore({
       }
     }
     lastSavedAt = Number(stored.savedAt) || 0;
+    skipUntil = activeSkipCooldowns(stored.skipUntil, now());
     if (profileKey === "guest") {
       guestToken = validGuestToken(stored.guestAnalyticsToken)
         ? stored.guestAnalyticsToken
@@ -731,7 +742,7 @@ export function createAnimeStore({
       );
       const pick =
         state.preview || readyIds.size
-          ? chooseNext(pool, { ...state, skipped, recent, readyIds })
+          ? chooseNext(pool, { ...rankingState(), recent, readyIds })
           : null;
       if (pick && (state.preview || readyIds.has(pick.anime.id))) {
         update({
@@ -777,7 +788,7 @@ export function createAnimeStore({
       // pages do not spend candidate checks. Keep a time bound for slow upstreams.
       const searchStarted = performance.now();
       let batch = [];
-      const checked = new Set(skipped);
+      const checked = activeSkips();
       for (
         let attempt = 0;
         search.detailChecks < 100 && performance.now() - searchStarted < 30000;
@@ -849,7 +860,7 @@ export function createAnimeStore({
               anime,
               state.reactions,
               state.list,
-              skipped,
+              activeSkips(),
               false,
               state.preferences,
             )
@@ -912,7 +923,7 @@ export function createAnimeStore({
       try {
         const candidates = rankRecommendations(
           pool.filter((a) => a.id !== state.current?.id),
-          { ...state, limit: 3 },
+          { ...rankingState(), limit: 3 },
         );
         for (const { anime } of candidates) {
           if (
@@ -1154,8 +1165,10 @@ export function createAnimeStore({
       }
     }
     const reactions = { ...state.reactions };
-    if (entry.skip) skipped.delete(entry.anime.id);
-    else if (entry.before) reactions[entry.anime.id] = entry.before;
+    if (entry.skip) {
+      delete skipUntil[entry.anime.id];
+      skipped.delete(entry.anime.id);
+    } else if (entry.before) reactions[entry.anime.id] = entry.before;
     else delete reactions[entry.anime.id];
     recent = recent.filter((a) => a.id !== entry.anime.id);
     update({
@@ -1185,7 +1198,19 @@ export function createAnimeStore({
       whyReasons: state.whyReasons,
       skip: true,
     });
-    skipped.add(state.current.id);
+    const id = state.current.id;
+    skipUntil = {
+      ...activeSkipCooldowns(skipUntil, now()),
+      [id]: now() + SKIP_COOLDOWN_MS,
+    };
+    if (state.recommendationPicks.some((pick) => pick.anime.id === id))
+      update({
+        recommendationPicks: state.recommendationPicks.filter(
+          (pick) => pick.anime.id !== id,
+        ),
+      });
+    // Save immediately, before fetching the next card or leaving the page.
+    void persist(false);
     recent = [...recent, state.current].slice(-10);
     await next();
   }
@@ -1221,6 +1246,7 @@ export function createAnimeStore({
     tasteCheckedAt = 0;
     recent = [];
     skipped = new Set();
+    skipUntil = {};
     offsets = { popular: 0, top: 0, season: 0 };
     sourceIndex = 0;
     update({
@@ -1415,7 +1441,10 @@ export function createAnimeStore({
       await expandFromTaste();
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
-          if (eligibleCandidates(pool, state).length >= 75 || !(await refill()))
+          if (
+            eligibleCandidates(pool, rankingState()).length >= 75 ||
+            !(await refill())
+          )
             break;
         }
       await refreshTasteMetadata(true);
@@ -1427,7 +1456,7 @@ export function createAnimeStore({
         if (r.action === "watch") candidates.set(r.anime.id, r.anime);
       const finishRank = diagnostics.start("recommendations_rank");
       const ranked = rankRecommendations([...candidates.values()], {
-        ...state,
+        ...rankingState(),
         limit: 75,
       });
       finishRank();
@@ -1443,10 +1472,10 @@ export function createAnimeStore({
       for (
         let offset = 0;
         offset < ranked.length &&
-        eligibleCandidates(verified, state).length < 25;
+        eligibleCandidates(verified, rankingState()).length < 25;
         offset += batchSize
       ) {
-        eligibleCount = eligibleCandidates(verified, state).length;
+        eligibleCount = eligibleCandidates(verified, rankingState()).length;
         batchSize = Math.min(3, 25 - eligibleCount);
         const batch = ranked.slice(offset, offset + batchSize);
         const results = await Promise.allSettled(
@@ -1465,7 +1494,7 @@ export function createAnimeStore({
                 full,
                 state.reactions,
                 state.list,
-                new Set(),
+                activeSkips(),
                 false,
                 state.preferences,
               )
@@ -1478,7 +1507,7 @@ export function createAnimeStore({
           }
           checked++;
         }
-        eligibleCount = eligibleCandidates(verified, state).length;
+        eligibleCount = eligibleCandidates(verified, rankingState()).length;
         update({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
         });
@@ -1487,7 +1516,7 @@ export function createAnimeStore({
       if (generation !== sessionGeneration) return;
       update({
         recommendationPicks: rankRecommendations(verified, {
-          ...state,
+          ...rankingState(),
           metadata: pool,
         }),
         recommendationPreferences: state.preferences,
@@ -1534,7 +1563,7 @@ export function createAnimeStore({
         const used = new Set(state.recommendationPicks.map((p) => p.anime.id));
         const candidates = rankRecommendations(
           pool.filter((a) => !used.has(a.id) && !attempted.has(a.id)),
-          { ...state, limit: 1 },
+          { ...rankingState(), limit: 1 },
         );
         if (!candidates.length) {
           if (!filled && !state.preview) {
@@ -1555,14 +1584,14 @@ export function createAnimeStore({
             anime,
             state.reactions,
             state.list,
-            new Set(),
+            activeSkips(),
             false,
             state.preferences,
           )
         )
           continue;
         const pick = rankRecommendations([anime], {
-          ...state,
+          ...rankingState(),
           metadata: pool,
         })[0];
         if (!pick) continue;
@@ -1886,6 +1915,8 @@ export function createAnimeStore({
     revisit: () => {
       if (!state.busy) {
         skipped.clear();
+        skipUntil = {};
+        void persist(false);
         return next();
       }
     },
@@ -2065,6 +2096,7 @@ export function createAnimeStore({
       if (state.busy) return;
       history = [];
       skipped.clear();
+      skipUntil = {};
       recent = [];
       update({
         reactions: {},

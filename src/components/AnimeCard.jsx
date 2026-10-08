@@ -238,7 +238,11 @@ export function AnimeCard({
               {compact ? "Undo this choice" : "Undo"}
             </button>
             {!compact && (
-              <button disabled={busy} onClick={onSkip}>
+              <button
+                disabled={busy}
+                onClick={onSkip}
+                title="Hide this anime for 7 days. Undo brings it back sooner."
+              >
                 <Icon name="skip" />
                 Skip
               </button>
