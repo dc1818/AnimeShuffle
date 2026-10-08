@@ -365,7 +365,7 @@ test("expanded analysis retains reusable dimensions and explicit partial coverag
   );
   assert.equal(
     result.profile.coverage.find((c) => c.area === "music").state,
-    "unknown",
+    "insufficient-evidence",
   );
   const s = storage(),
     research = createResearchStore(s);

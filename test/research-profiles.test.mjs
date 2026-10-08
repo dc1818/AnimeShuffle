@@ -51,6 +51,140 @@ const anime = {
   genres: ["Action"],
   format: "tv",
 };
+test("repeat uploads fill gaps without erasing assessed traits, dimensions or source identity", () => {
+  const db = storage(),
+    store = createResearchStore(db);
+  store.remember(anime);
+  const first = bundle();
+  first.profiles[0].metadataFingerprint = null;
+  first.profiles[0].status = "researched";
+  first.profiles[0].dimensions = [
+    {
+      key: "character-agency",
+      area: "characters",
+      description: "Previously researched character context.",
+      basis: "premise",
+      confidence: 0.8,
+      sources: ["mal"],
+      containsSpoilers: true,
+    },
+  ];
+  first.profiles[0].coverage = [
+    {
+      area: "characters",
+      state: "supported",
+      notes: "Existing detailed findings.",
+    },
+  ];
+  let preview = store.preview(first);
+  store.commit(first, preview.revision, preview.digest);
+  const original = store.exportBatch({ kind: "profiles" }).profiles[0];
+  const patch = bundle();
+  const p = patch.profiles[0];
+  p.metadataFingerprint = null;
+  p.sources[0].url = "https://example.org/another-source";
+  p.observations = [
+    {
+      ...p.observations[0],
+      score: null,
+      evidence: "Not assessed in this follow-up.",
+    },
+    { ...p.observations[0], key: "mentor-bond", score: 0.8 },
+  ];
+  p.coverage = [
+    { area: "characters", state: "not-researched", notes: "Not revisited." },
+    {
+      area: "music",
+      state: "insufficient-evidence",
+      notes: "Sources did not establish music execution.",
+    },
+  ];
+  preview = store.preview(patch);
+  assert.equal(preview.mergeChanges.addedTraits, 1);
+  assert.ok(
+    preview.titles[0].incrementalImpact.added > 0,
+    "the added researched trait must enter actual ranking features",
+  );
+  assert.equal(
+    preview.mergeChanges.retainedTraits,
+    original.observations.length,
+  );
+  const committed = store.commit(
+    patch,
+    preview.revision,
+    preview.digest,
+    "test",
+    "merge:0",
+  );
+  const result = store.exportBatch({ kind: "profiles" }).profiles[0];
+  assert.equal(result.observations.length, original.observations.length + 1);
+  assert.deepEqual(
+    result.observations.find((o) => o.key === "survival-pressure"),
+    original.observations.find((o) => o.key === "survival-pressure"),
+  );
+  assert.equal(result.status, "researched");
+  assert.equal(
+    result.coverage.find((c) => c.area === "characters").state,
+    "supported",
+  );
+  assert.deepEqual(result.dimensions, original.dimensions);
+  const mentor = result.observations.find((o) => o.key === "mentor-bond");
+  assert.equal(
+    result.sources.find((s) => s.id === mentor.sources[0]).url,
+    "https://example.org/another-source",
+  );
+  assert.equal(
+    store.commit(patch, preview.revision, preview.digest, "test", "merge:0")
+      .replayed,
+    true,
+  );
+  const repeated = store.preview(patch);
+  assert.equal(repeated.mergeChanges.addedTraits, 0);
+  assert.equal(
+    repeated.titles[0].incrementalImpact.added,
+    0,
+    "repeating the same evidence must not count as new enrichment",
+  );
+  assert.equal(
+    repeated.mergedBundle.profiles[0].sources.length,
+    result.sources.length,
+  );
+  store.rollback(committed.revision, "test");
+  assert.deepEqual(
+    store.exportBatch({ kind: "profiles" }).profiles[0],
+    original,
+  );
+  db.db.close();
+});
+
+test("conflicting traits need an intentional sourced correction and pending export includes unfinished profiles", () => {
+  const db = storage(),
+    store = createResearchStore(db);
+  const b = bundle();
+  b.profiles[0].metadataFingerprint = null;
+  store.remember(anime);
+  let preview = store.preview(b);
+  store.commit(b, preview.revision, preview.digest);
+  assert.equal(store.exportBatch({ kind: "pending" }).catalog.length, 1);
+  b.profiles[0].observations[0].score = 0.4;
+  assert.doesNotThrow(
+    () => store.preview(b),
+    "incidental versus central prominence is not a presence/absence contradiction",
+  );
+  b.profiles[0].observations[0].score = 0;
+  assert.throws(() => store.preview(b), /Conflicting assessed findings/);
+  b.profiles[0].observations[0].supersedes = true;
+  preview = store.preview(b);
+  assert.equal(preview.mergeChanges.revisedTraits, 1);
+  store.commit(b, preview.revision, preview.digest);
+  assert.equal(
+    store
+      .projection(anime.id)
+      .observations.find((o) => o.key === "survival-pressure").score,
+    0,
+  );
+  db.db.close();
+});
 test("batch origins survive restart, group chunks, support catalog-wide lookup, and restore on rollback", () => {
   const db = storage();
   let s = createResearchStore(db);

@@ -70,6 +70,14 @@ The website model does not search the general web. Broader official/editorial re
 
 The model never writes the explanation shown to a user. Explanations use fixed descriptions and the features that actually contributed to ranking. This reduces spoiler leakage and unsupported prose, but neither text rules nor a model can guarantee a correct reading of irony or subjective criticism. These are evidence-based guesses, not objective scores for writing or animation quality. There is no claim of a trained embedding model or visual analysis of trailers.
 
+## Research imports
+
+Research uploads merge by exact MAL ID, including repeat uploads of a previous batch. New observations fill gaps; omitted fields and null/unknown observations preserve earlier assessments. Sources are remapped so reused source IDs cannot redirect older citations. Reusable dimensions retain distinct interpretations. Conflicting present/absent trait assessments are rejected unless the incoming observation explicitly declares `supersedes: true` with corrective evidence. Preview shows merged counts and incremental feature effects against the current catalog/saved profile; those are not a guarantee of recommendation quality. Latest-import rollback restores the complete previous profile and provenance.
+
+Coverage distinguishes not researched, insufficient evidence, partial, supported, disputed, and not applicable; older unknown labels remain readable. Pending exports include unfinished profiles even if their MAL IDs have already been imported. Exports include the full research checklist. Private research and spoiler text stay behind the existing reveal control. Source-linked dimensions are saved for future tastes but do not become ranking features automatically.
+
+Use `node scripts/prepare-research-batch.mjs SOURCE_DIRECTORY OUTPUT_JSON --live` to prepare a work queue from a preliminary batch and its catalog/review inventory. This creates research inputs, not completed analyses, and cannot be imported as a research result. Use `node scripts/validate-research-batch.mjs completed-batch.json` before Admin preview; it checks the real schema and upload chunk limits without certifying factual accuracy.
+
 ## Built with
 
 | Layer                         | Technology                                                     |

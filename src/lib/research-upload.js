@@ -67,6 +67,7 @@ export async function previewResearchUpload(
     count: 0,
     newProfiles: 0,
     replacements: 0,
+    mergeChanges: {},
     staleInputs: [],
     titles: [],
     revision: null,
@@ -78,6 +79,8 @@ export async function previewResearchUpload(
     report.revision = current.revision;
     for (const key of ["count", "newProfiles", "replacements"])
       report[key] += current[key];
+    for (const [key, value] of Object.entries(current.mergeChanges || {}))
+      report.mergeChanges[key] = (report.mergeChanges[key] || 0) + value;
     report.staleInputs.push(...current.staleInputs);
     report.titles.push(
       ...current.titles.slice(0, Math.max(0, 50 - report.titles.length)),

@@ -651,5 +651,79 @@ export const ANALYSIS_GUIDE = [
   "Private research may incorporate endings, identities, betrayals, deaths and later developments within this exact adaptation to assess arcs and payoffs. Mark plot-revealing dimensions with containsSpoilers=true and spoilersAllowed=true on the profile. Keep these details out of user-facing explanations. The app exposes only controlled trait labels; admin research text is hidden until explicitly revealed.",
   "Record what was not assessed. Lack of a matching phrase is not absence. Use preliminary status when only premise evidence is available. Revisit airing titles, changed source material and taxonomy/model upgrades.",
   "Beyond current ranking traits, retain source-linked dimensions: {key,area,description,basis,confidence,sources}. Use stable descriptive keys and original concise summaries. Cover premise, world, characters, powers, relationships, conflict, structure, pacing, tone, comedy, presentation and music. Capture motivations, flaws, agency, progression mechanisms, costs, interpersonal dynamics, genre prominence and changes across arcs. Only describe what evidence establishes; never fill areas from memory.",
-  "Use coverage entries {area,state,notes}, where state is supported, partial or unknown. Explain limited arcs, conflicting viewpoints and missing sources. A high observation count is not proof of completeness. Existing profiles remain reusable; a new question that no source addressed still requires further research.",
+  "Use coverage entries {area,state,notes} for every area. State is not-researched (not assessed), insufficient-evidence (researched without a reliable conclusion), partial, supported, disputed, or not-applicable (explain why). Legacy unknown is accepted but does not distinguish missing work from missing evidence. Explain limited arcs, conflicting viewpoints and missing sources. Use supersedes:true on a coverage entry only to intentionally correct an earlier coverage state or resolve a documented dispute. A high observation count is not proof of completeness.",
+  "Repeated uploads merge by exact MAL ID. Missing or null-scored traits cannot erase assessed findings. For a deliberate correction of a conflicting trait, review all existing evidence and set supersedes:true on that incoming observation. Cite the corrective evidence. Never use this flag merely to force an import through. Distinct dimension descriptions are preserved as separately keyed findings. Old caveats and unknown notes remain historical research notes; current structured coverage is the place to report what is now assessed.",
+  "Before delivery, compare the actual ranking features with existing catalog and saved profiles. Separate new traits, corrected traits, changed weights, and reusable dimensions that do not yet affect matching. A metadata restatement or unassessed placeholder is not completed enrichment. Do not label a profile researched unless research beyond the premise was actually assessed.",
+  "Every public reason must use supported, spoiler-safe controlled labels tied to positive learned user patterns. No invented reason quotas: fewer valid reasons are better than filler. Low filler is factual coverage, not evidence of liking another filler-free show. Private prose and research dimensions never become public explanations automatically.",
 ];
+
+/** A research checklist, not assertions about an anime or executable tastes. */
+export const RESEARCH_QUESTIONS = {
+  premise: [
+    "Exact adaptation, season/part, release status and evidence boundary",
+    "Primary appeal versus incidental genre ingredients",
+    "Protagonist goal and initial situation",
+  ],
+  world: [
+    "Social hierarchy, institutions, politics and how they constrain characters",
+    "World rules and consistency; exposition versus discovery",
+    "Everyday life, cultural setting and environmental atmosphere",
+  ],
+  characters: [
+    "Agency, goals, competence, flaws, moral choices and development",
+    "Ensemble balance, viewpoint shifts and supporting cast relevance",
+    "Villain appearance, presence, motives, methods and development separately",
+    "Inner conflict, vulnerability and changes supported within this adaptation",
+  ],
+  powers: [
+    "Earned, inherited, granted or effortless strength",
+    "Rules, costs, restrictions, counters and tactical creativity",
+    "Progression, specialization, teamwork and relative power balance",
+    "Whether abilities drive strategy, spectacle, comedy or personal conflict",
+  ],
+  relationships: [
+    "Romance prominence, progression, communication and obstacles",
+    "Established couples, love polygons, rivalry and emotional intimacy",
+    "Friendship, found family, mentorship, family duty and changing trust",
+    "Power imbalances and different perspectives; outcomes kept private",
+  ],
+  conflict: [
+    "Personal, interpersonal, institutional and societal stakes",
+    "Planning and counterplay versus spectacle or brute force",
+    "Moral dilemmas, political maneuvering and psychological conflict",
+    "Escalation, resolution, setbacks and costs supported by exact-entry evidence",
+  ],
+  structure: [
+    "Episodic, serialized, arc-driven or anthology structure",
+    "Prerequisites, adaptation coverage and standalone accessibility",
+    "Setup/payoff, exposition, mysteries, chronology and viewpoint changes",
+    "Documented filler/recap and completeness; no canon assumptions",
+  ],
+  pacing: [
+    "Deliberate setup versus repetitive or stretched material",
+    "Dialogue/action density, downtime and scene rhythm",
+    "Uneven arcs, abrupt transitions and rushed endings",
+    "Preserve reviewer disagreement and identify the discussed episode range",
+  ],
+  tone: [
+    "Optimism, melancholy, bleakness, comfort and emotional intensity",
+    "Tonal transitions and contrast between humor and serious stakes",
+    "Ambiguity, emotional distance, sentimentality and catharsis",
+  ],
+  comedy: [
+    "Deadpan, absurdity, parody, slapstick, embarrassment or observational humor",
+    "Personality contrast, timing, escalation and recurring jokes",
+    "Fanservice humor and whether jokes interrupt emotional scenes",
+  ],
+  presentation: [
+    "Art direction, designs, atmosphere and visual storytelling",
+    "Choreography, spatial clarity, impact and animation consistency",
+    "Predominant chibi versus occasional comic simplification",
+    "Voice acting and production choices distinguished from subjective praise",
+  ],
+  music: [
+    "Score style, instrumentation, recurring themes and emotional role",
+    "Silence, sound design, synchronization and musical storytelling",
+    "Opening/ending impressions separated from the in-episode score",
+  ],
+};

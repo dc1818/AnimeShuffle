@@ -543,7 +543,10 @@ export function Admin() {
                 <p>
                   Choose an Anime Shuffle research JSON file. Validation checks
                   IDs, evidence, vocabulary, scores and versions before any data
-                  is changed.
+                  is changed. Uploading the same MAL ID merges findings. Missing
+                  or unknown fields preserve existing research. Conflicting
+                  assessed traits require an explicit sourced correction;
+                  previews never change data.
                 </p>
                 <label className="admin-file">
                   Research JSON
@@ -557,8 +560,27 @@ export function Admin() {
                 {report && (
                   <>
                     <p>
-                      {report.newProfiles} new · {report.replacements}{" "}
-                      replacements · {report.staleInputs.length} changed inputs
+                      {report.newProfiles} new · {report.replacements} existing
+                      profiles to merge · {report.staleInputs.length} changed
+                      inputs
+                    </p>
+                    <p>
+                      {(report.mergeChanges?.addedTraits || 0) +
+                        (report.mergeChanges?.filledTraits || 0)}{" "}
+                      newly assessed trait fields ·{" "}
+                      {report.mergeChanges?.retainedTraits || 0} existing
+                      assessments retained ·{" "}
+                      {report.mergeChanges?.revisedTraits || 0} explicit
+                      corrections · {report.mergeChanges?.addedDimensions || 0}{" "}
+                      new reusable details. These counts describe stored
+                      findings, not proven recommendation improvement.
+                      {report.mergeChanges?.refinedTraits > 0 && (
+                        <>
+                          {" "}
+                          {report.mergeChanges.refinedTraits} assessed traits
+                          refined.
+                        </>
+                      )}
                     </p>
                     <ul className="admin-import-list">
                       {report.titles.map((t) => (
@@ -566,6 +588,9 @@ export function Admin() {
                           {t.title}{" "}
                           <small>
                             #{t.id} · {t.traits} traits · {t.status}
+                            {t.incrementalImpact && (
+                              <> · {impactLabel[t.incrementalImpact.status]}</>
+                            )}
                           </small>
                         </li>
                       ))}
@@ -953,7 +978,7 @@ export function Admin() {
                             {p.coverage.map((c) => (
                               <div key={c.area}>
                                 <dt>
-                                  {c.area} · {c.state}
+                                  {c.area} · {c.state.replaceAll("-", " ")}
                                 </dt>
                                 <dd>
                                   {revealedProfiles.has(
