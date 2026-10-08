@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { GENRES, FORMAT_OPTIONS, LENGTH_OPTIONS } from "../lib/preferences.js";
+import { AlgorithmGuide } from "./AlgorithmGuide.jsx";
 const when = (v) => (v ? new Date(v).toLocaleString() : "Not recorded");
 const number = (v) => Number(v || 0).toLocaleString();
 const actionLabel = {
@@ -796,6 +797,16 @@ export function AdminOperations({ section, api, currentAccount }) {
                         ],
                       ]}
                     />
+                    <p className="muted">
+                      Positive contributions raise this candidate’s match;
+                      negative contributions lower it. Enjoyment estimates fit
+                      with watched-and-rated evidence; interest estimates
+                      willingness to try it. These scores are not probabilities.
+                      Feature prefixes identify genres, synopsis text, nuanced
+                      traits, review traits, combinations or community evidence.
+                      The table explains scoring evidence, not every eligibility
+                      or variety decision.
+                    </p>
                     <p className="muted">{simulation.scope}</p>
                   </>
                 )}
@@ -1047,6 +1058,8 @@ export function AdminOperations({ section, api, currentAccount }) {
       )}
       {data && section === "algorithm" && (
         <>
+          <AlgorithmGuide />
+          <h2>Usage and research diagnostics</h2>
           <Stats
             values={[
               ["Stored reactions", data.totalReactions],
@@ -1065,12 +1078,30 @@ export function AdminOperations({ section, api, currentAccount }) {
               ],
               ["Owner research profiles", data.research.profiles],
               ["Automatic profiles", data.modelProfiles],
-              ["Catalog awaiting owner research", data.research.pending],
+              [
+                "Titles without an owner research profile",
+                data.research.pending,
+              ],
               ["Changed research inputs", data.research.stale],
             ]}
           />
           <section className="admin-panel">
-            <h3>How to read this</h3>
+            <h3>What these numbers mean</h3>
+            <p>
+              Stored reactions are saved choices, not visits or recommendation
+              impressions. Signed-in and guest counts identify where those
+              choices came from. Partial guest history means only a bounded
+              recent history is available. Fewer than 10 reactions flags sparse
+              account evidence; it is not the recommendation unlock rule.
+            </p>
+            <p>
+              Owner research profiles are saved imports; automatic profiles come
+              from background analysis. These counts can overlap for the same
+              anime and do not measure depth or accuracy. Titles without an
+              owner profile may still have automatic information. Changed inputs
+              mean the catalog metadata differs from the saved research and
+              should be reviewed.
+            </p>
             {data.limitations.map((x) => (
               <p key={x}>{x}</p>
             ))}
@@ -1086,6 +1117,12 @@ export function AdminOperations({ section, api, currentAccount }) {
           </section>
           <section className="admin-panel">
             <h3>Genre response patterns</h3>
+            <p>
+              A reaction can count under several genres. Good/Bad concern
+              enjoyment; Would/Won’t Watch concern interest. These totals do not
+              establish which genre caused a reaction, and they are not global
+              preference weights applied to every user.
+            </p>
             <Table
               rows={data.genres}
               columns={[

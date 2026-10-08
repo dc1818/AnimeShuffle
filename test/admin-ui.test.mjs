@@ -133,7 +133,7 @@ test("admin UI denies guest access and previews JSON before import without start
     owner = true;
     root = createRoot(document.getElementById("root"));
     await act(async () => root.render(React.createElement(Admin)));
-    assert.match(document.body.textContent, /Awaiting analysis/);
+    assert.match(document.body.textContent, /Without an imported profile/);
     assert.match(document.body.textContent, /Imported batch: batch-one.json/);
     assert.match(document.body.textContent, /With assessed traits/);
     assert.ok(!document.body.textContent.includes("SPOILER_SENTINEL"));

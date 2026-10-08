@@ -283,7 +283,7 @@ export function Admin() {
               {[
                 ["Known titles", status.catalog],
                 ["Stored profiles", status.profiles],
-                ["Awaiting analysis", status.pending],
+                ["Without an imported profile", status.pending],
                 ["Preliminary", status.preliminary],
                 ["Changed inputs", status.stale],
               ].map(([label, value]) => (
@@ -294,7 +294,56 @@ export function Admin() {
               ))}
             </section>
             <section className="admin-panel">
-              <h2>New tastes & missing research</h2>
+              <h2>Improve recommendations with anime research</h2>
+              <p>
+                This is information about anime shared by all users. Personal
+                tastes and reactions are separate, under Accounts & tastes.
+              </p>
+              <ol>
+                <li>
+                  <strong>Export inputs.</strong> Choose titles needing research
+                  below and download their metadata, supported trait vocabulary
+                  and research questions.
+                </li>
+                <li>
+                  <strong>Research here in chat.</strong> Attach the export and
+                  ask for sourced, adaptation-specific analysis in the included
+                  Anime Shuffle JSON format. Investigate characters, powers,
+                  relationships, conflict, structure, pacing, tone, comedy,
+                  presentation and music—not just the synopsis. Preserve
+                  uncertainty and independent source references.
+                </li>
+                <li>
+                  <strong>Upload completed analysis.</strong> Choose the
+                  resulting research JSON below. Review validation and matching
+                  impact, then apply the import. A research work queue or
+                  unfinished export is not completed enrichment.
+                </li>
+                <li>
+                  <strong>Check the result.</strong> In the profile library,
+                  distinguish new matching traits from repeated metadata or
+                  notes saved only for future use. Use Algorithm for the scoring
+                  explanation and Accounts & tastes to inspect a candidate.
+                </li>
+              </ol>
+              <p>
+                Re-uploading the same anime fills and merges its profile.
+                Missing or unknown fields preserve earlier research. Spoiler
+                details remain concealed until you reveal them; public
+                recommendation reasons use safe attributes.
+              </p>
+              <p>
+                <strong>What changes recommendations?</strong> Supported,
+                validated traits can affect matching. Free-form research notes
+                are saved for reuse but do not automatically become new scoring
+                rules. “Stored” does not mean thoroughly researched or useful to
+                ranking.
+              </p>
+            </section>
+            <details className="admin-panel">
+              <summary>
+                Optional: add research questions and find missing information
+              </summary>
               <p>
                 Register a specific research question, then audit which stored
                 profiles explicitly address it. Questions are included in
@@ -454,7 +503,7 @@ export function Admin() {
                   </div>
                 </>
               )}
-            </section>
+            </details>
             <p className="muted">
               Known titles are those this deployment has encountered, not the
               full MAL database. Imported profiles do not expire. Preliminary
@@ -464,7 +513,7 @@ export function Admin() {
             </p>
             <div className="admin-columns">
               <section className="admin-panel">
-                <h2>Export for analysis</h2>
+                <h2>1. Export research inputs</h2>
                 <p>
                   Download public catalog inputs with the vocabulary and
                   research checklist. Export stored profiles for backups or
@@ -481,7 +530,7 @@ export function Admin() {
                     }}
                   >
                     <option value="pending">
-                      Unanalysed or changed titles
+                      Missing, incomplete or changed research
                     </option>
                     <option value="automatic">Automatic model profiles</option>
                     <option value="catalog">All known catalog titles</option>
@@ -519,7 +568,7 @@ export function Admin() {
                       setPage(null);
                     }}
                   >
-                    Next batch
+                    Prepare next page
                   </button>
                   {cursor > 0 && (
                     <button
@@ -534,12 +583,14 @@ export function Admin() {
                   )}
                 </div>
                 <small>
-                  Starting after MAL ID {cursor}. Export each page to back up
-                  the entire collection.
+                  Starting after MAL ID {cursor}. Each download contains up to
+                  25 titles. Prepare next page advances the selection; click
+                  Export again to download it. Stored research exports are for
+                  backups or revisions. Files may contain private spoilers.
                 </small>
               </section>
               <section className="admin-panel">
-                <h2>Import analysis</h2>
+                <h2>2. Upload completed research</h2>
                 <p>
                   Choose an Anime Shuffle research JSON file. Validation checks
                   IDs, evidence, vocabulary, scores and versions before any data
