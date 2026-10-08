@@ -1,5 +1,6 @@
 import { RESEARCH_TRAITS } from "./research-taxonomy.js";
 import { nuancedTraits } from "./nuanced-taste.js";
+import { EXTENDED_TRAIT_BY_KEY } from "./extended-research-traits.js";
 import { genreLabel } from "./genres.js";
 import { reviewTraits } from "./taste-traits.js";
 import {
@@ -102,7 +103,9 @@ const family = (key) =>
     brisk: "fast-pace",
     comfort: "warmth",
     subtext: "character-depth",
-  })[key] || key;
+  })[key] ||
+  EXTENDED_TRAIT_BY_KEY.get(key)?.familyKey ||
+  key;
 const naturalDescription = (key, description) =>
   ({
     survival: "a struggle to stay alive against a deadly threat",
@@ -212,7 +215,9 @@ export function explainPickReasons(
     for (const key of chosen) {
       const cue = nuances.get(key);
       parts.push(
-        `${cue.source === "reviews" ? "Review evidence connects" : "Shares"} ${cue.description} with ${title(record.anime)}, ${connectionClause(record)}.`,
+        EXTENDED_TRAIT_BY_KEY.has(key)
+          ? `Shared trait with ${title(record.anime)}, ${connectionClause(record)}: ${cue.description}.`
+          : `${cue.source === "reviews" ? "Review evidence connects" : "Shares"} ${cue.description} with ${title(record.anime)}, ${connectionClause(record)}.`,
       );
     }
     for (const k of chosen) used.add(family(k));

@@ -3511,6 +3511,40 @@ main.wide-main {
   text-align: right;
   overflow-wrap: anywhere;
 }
+.trait-tracker {
+  margin: 1rem 0;
+}
+.trait-tracker-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+.trait-tracker-filters label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.trait-tracker-filters input,
+.trait-tracker-filters select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.6rem;
+}
+.trait-tracker small {
+  display: block;
+  margin-top: 0.4rem;
+}
+.trait-tracker code {
+  overflow-wrap: anywhere;
+}
+.trait-tracker-pages {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 1rem;
+}
 .admin-trait-list {
   display: flex;
   gap: 8px;

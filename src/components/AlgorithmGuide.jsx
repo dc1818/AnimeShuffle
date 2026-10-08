@@ -116,6 +116,31 @@ export function AlgorithmGuide() {
           findings.
         </p>
         <p>
+          The catalog supports 2,588 traits, including 2,400 detailed additions
+          in 120 families. Availability does not mean an anime has been
+          assessed. The admin trait matrix separates presence, absence,
+          uncertainty and missing research. Related tags are not automatically
+          copied.
+        </p>
+        <p>
+          Matching traits need at least 45% confidence, 30% presence and a known
+          role. Central traits count more than incidental ones. Expanded
+          families share a weight budget so twenty similar tags cannot count
+          like twenty unrelated interests. Private outcomes and advisory traits
+          are stored but excluded from the current browser recommender and
+          public payloads. Each new finding also needs a spoiler-safety review:
+          even an ordinary trait can reveal a specific show's secret. Without an
+          explicit safe assignment it stays private. Clearing a saved spoiler
+          warning requires an intentional superseding revision.
+        </p>
+        <p>
+          Cloudflare considers the original vocabulary plus at most 48 relevant
+          new traits per analysis. Owner research questions can prioritize a
+          specific trait key. Text overlap only selects questions; cited
+          evidence is still required before any finding is stored. This is not
+          an exhaustive assessment of every trait on every model call.
+        </p>
+        <p>
           Long descriptions, reusable dimensions and source notes preserve
           context for future analysis. They do not automatically become ranking
           features. A new kind of taste needs a supported trait mapping and

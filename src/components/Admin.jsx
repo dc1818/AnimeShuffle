@@ -3,7 +3,8 @@ import {
   previewResearchUpload,
 } from "../lib/research-upload.js";
 import { AdminOperations } from "./AdminOperations.jsx";
-import { useEffect, useState } from "react";
+import { TraitTracker } from "./TraitTracker.jsx";
+import { useEffect, useState, useMemo } from "react";
 
 const download = (data, name) => {
   const url = URL.createObjectURL(
@@ -24,6 +25,10 @@ export function Admin() {
   const [section, setSection] = useState("overview");
   const [session, setSession] = useState(null),
     [status, setStatus] = useState(null);
+  const vocabularyByKey = useMemo(
+    () => new Map((status?.vocabulary || []).map((t) => [t.key, t])),
+    [status?.vocabulary],
+  );
   const [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false),
@@ -983,19 +988,18 @@ export function Admin() {
                               </tr>
                             </thead>
                             <tbody>
-                              {p.observations.map((o) => (
+                              {p.observations.slice(0, 40).map((o) => (
                                 <tr key={o.key}>
                                   <td>
-                                    {status.vocabulary.find(
-                                      (n) => n.key === o.key,
-                                    )?.explanationSafe === false &&
+                                    {(vocabularyByKey.get(o.key)
+                                      ?.explanationSafe === false ||
+                                      o.containsSpoilers === true) &&
                                     !revealedProfiles.has(
                                       `${profileSource}:${p.malId}`,
                                     )
                                       ? "Private outcome trait"
-                                      : status.vocabulary.find(
-                                          (n) => n.key === o.key,
-                                        )?.label || o.key}
+                                      : vocabularyByKey.get(o.key)?.label ||
+                                        o.key}
                                   </td>
                                   <td>
                                     {o.score === null
@@ -1023,6 +1027,21 @@ export function Admin() {
                             </tbody>
                           </table>
                         </div>
+                        {p.observations.length > 40 && (
+                          <p>
+                            Showing the first 40 saved traits. Open Trait
+                            coverage below to search and page through every
+                            finding.
+                          </p>
+                        )}
+                        <TraitTracker
+                          vocabulary={status.vocabulary}
+                          families={status.traitFamilies}
+                          profile={p}
+                          revealed={revealedProfiles.has(
+                            `${profileSource}:${p.malId}`,
+                          )}
+                        />
                         <h3>Research coverage</h3>
                         {(p.coverage || []).length ? (
                           <dl className="admin-diagnostics">
@@ -1271,6 +1290,23 @@ export function Admin() {
               </section>
             </div>
             <section className="admin-panel">
+              <TraitTracker
+                vocabulary={status.vocabulary}
+                families={status.traitFamilies}
+                onExport={(traits) =>
+                  download(
+                    {
+                      format: "anime-shuffle-trait-definitions",
+                      taxonomyVersion: status.taxonomyVersion,
+                      isAnimeProfileUpload: false,
+                      instructions: status.instructions,
+                      families: status.traitFamilies,
+                      traits,
+                    },
+                    "anime-trait-definitions.json",
+                  )
+                }
+              />
               <details>
                 <summary>
                   <strong>Analysis framework and quality rules</strong>
@@ -1285,11 +1321,6 @@ export function Admin() {
                   calibrated probabilities. Independent sources can disagree.
                   Unassessed attributes must remain unknown.
                 </p>
-                <div className="admin-trait-list">
-                  {status.vocabulary.map((n) => (
-                    <span key={n.key}>{n.label}</span>
-                  ))}
-                </div>
               </details>
             </section>
           </div>

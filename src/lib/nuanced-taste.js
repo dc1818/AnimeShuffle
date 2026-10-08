@@ -1,4 +1,5 @@
 import { RESEARCH_TRAITS } from "./research-taxonomy.js";
+import { EXTENDED_TRAIT_BY_KEY } from "./extended-research-traits.js";
 /** Shared, versioned vocabulary. Presence, prominence and reviewer opinion are
  * separate evidence: a synopsis cannot establish animation or writing quality. */
 export const NUANCE_VERSION = 1;
@@ -365,6 +366,12 @@ export const NUANCES = [
   ),
 ];
 export const NUANCE_BY_KEY = new Map(NUANCES.map((n) => [n.key, n]));
+const RESEARCH_MATCHING_LABELS = new Map(
+  [...NUANCES, ...RESEARCH_TRAITS]
+    .filter((n) => n.matchingEnabled !== false && n.explanationSafe !== false)
+    .map((n) => [n.key, n.label]),
+);
+export const researchTraitCanMatch = (key) => RESEARCH_MATCHING_LABELS.has(key);
 export const OPPOSITES = [
   ["character-writing", "shallow-characters"],
   ["mecha-central", "mecha-incidental"],
@@ -492,15 +499,14 @@ export function nuancedTraits(anime) {
   // Research evidence stays separate from review-vote counts. Only validated
   // numeric attributes reach clients; free-form notes never become explanations.
   if (anime.researchTaste?.version === 1) {
-    const labels = new Map(
-      [...NUANCES, ...RESEARCH_TRAITS].map((n) => [n.key, n.label]),
-    );
+    const labels = RESEARCH_MATCHING_LABELS;
     for (const o of (anime.researchTaste.observations || []).slice(
       0,
       labels.size,
     )) {
       if (
         !labels.has(o.key) ||
+        o.containsSpoilers === true ||
         !Number.isFinite(o.score) ||
         o.score < 0 ||
         o.score > 1 ||
@@ -542,14 +548,32 @@ export function nuancedFeatures(anime) {
   const sorted = [...traits].sort(
     (a, b) => b[1].strength - a[1].strength || a[0].localeCompare(b[0]),
   );
+  const familyOf = (key) => EXTENDED_TRAIT_BY_KEY.get(key)?.familyKey || key;
+  const familyCounts = new Map();
+  for (const [key] of sorted) {
+    const family = familyOf(key);
+    familyCounts.set(family, (familyCounts.get(family) || 0) + 1);
+  }
+  // Each expanded family has one unit of feature energy, however many of its
+  // overlapping descriptions are assessed. Preserve legacy weights otherwise.
   for (const [key, t] of sorted)
     f.push([
       "nuance:" + key,
-      (0.95 * t.strength) / Math.sqrt(Math.max(1, traits.size)),
+      (0.95 * t.strength) /
+        Math.sqrt(
+          Math.max(1, familyCounts.size) * familyCounts.get(familyOf(key)),
+        ),
     ]);
   // Conjunctions learn context, so liking magic-school underdogs need not imply
   // liking every school show, and good mech action can differ from generic mecha.
+  const blendFamilies = new Set();
   const keys = sorted
+    .filter(([key]) => {
+      const family = familyOf(key);
+      if (blendFamilies.has(family)) return false;
+      blendFamilies.add(family);
+      return true;
+    })
     .slice(0, 8)
     .map(([k]) => k)
     .sort();

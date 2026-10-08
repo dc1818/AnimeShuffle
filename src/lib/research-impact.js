@@ -1,10 +1,12 @@
-import { nuancedTraits } from "./nuanced-taste.js";
+import { nuancedTraits, researchTraitCanMatch } from "./nuanced-taste.js";
 
 /** Compare actual ranking features. Counts reveal no private outcome labels. */
 export function researchImpact(anime, profile, automatic = null) {
   const observations = profile?.observations || [];
   const usable = observations.filter(
     (o) =>
+      researchTraitCanMatch(o.key) &&
+      o.containsSpoilers !== true &&
       Number.isFinite(o.score) &&
       o.confidence >= 0.45 &&
       ((o.score >= 0.3 &&
@@ -54,7 +56,9 @@ export function researchImpact(anime, profile, automatic = null) {
       ? "removes-traits"
       : reweighted
         ? "reweights-existing"
-        : usable.length ? "no-feature-change" : "no-active-traits";
+        : usable.length
+          ? "no-feature-change"
+          : "no-active-traits";
   return {
     status,
     active: usable.length,

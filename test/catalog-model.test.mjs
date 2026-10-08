@@ -41,7 +41,7 @@ const anime = (id = 123) => ({
   episodes: 12,
   format: "tv",
   listStatus: { score: 9 },
-  account: "private",
+  account: "PRIVATE_ACCOUNT_SENTINEL",
 });
 const ai = {
   async run(model, input) {
@@ -118,7 +118,7 @@ test("model pipeline retains jobs through daily quota, resumes after restart, an
   );
   const exported = research.exportBatch({ kind: "automatic" });
   assert.equal(exported.profiles.length, 1);
-  assert.ok(!JSON.stringify(exported).includes('"private"'));
+  assert.ok(!JSON.stringify(exported).includes("PRIVATE_ACCOUNT_SENTINEL"));
   assert.equal(model.diagnostics().dailyLimit, null);
   s.db.close();
 });

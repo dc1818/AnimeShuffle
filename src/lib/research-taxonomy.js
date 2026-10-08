@@ -1,6 +1,8 @@
 /** Research-only attributes. These are never guessed from keyword frequency.
  * Labels are the only research text exposed in recommendation explanations. */
-export const RESEARCH_TRAITS = [
+import { EXTENDED_RESEARCH_TRAITS } from "./extended-research-traits.js";
+
+const BASE_RESEARCH_TRAITS = [
   [
     "strategic-conflict",
     "conflicts decided through planning and counterplay",
@@ -637,7 +639,16 @@ export const RESEARCH_TRAITS = [
   explanationSafe: key !== "ambiguous-resolution",
 }));
 
+export const RESEARCH_TRAITS = [
+  ...BASE_RESEARCH_TRAITS,
+  ...EXTENDED_RESEARCH_TRAITS,
+];
+
 export const ANALYSIS_GUIDE = [
+  "For each expanded observation include containsSpoilers: false only after checking that revealing this trait's fixed label for this specific anime would not disclose a twist or outcome. Otherwise use true. Omission defaults new traits to private. The flag concerns the trait assignment; evidence prose is always private. Even a generally safe trait can reveal a particular show's secret. Fixed private-research traits remain private regardless of this flag. A saved spoiler warning is retained across merges; clearing it needs containsSpoilers:false and supersedes:true after an intentional sourced safety review.",
+  "The expanded registry contains 2,400 additional traits in 120 families. Assess only supported traits; do not fill every field or infer absence from omission. Use the stable vocabulary key, not a rewritten label. Family members may coexist; relatedExistingTraitKeys are context, not aliases or permission to copy findings.",
+  "Matching-enabled traits can affect ranking when presence, confidence and prominence pass validation. Private-research traits are stored for later analysis but never sent to public clients or used by the current browser recommender. Free-form dimensions remain private research. Every finding belongs to one exact MAL entry.",
+  "Spoiler-sensitive outcomes and content advisories are tracking-only. Keep plot-revealing evidence in private notes. The admin's Reveal control is required to see those findings. Family weighting limits dense groups of similar traits; more checked boxes are not inherently better recommendations.",
   "Identify the exact MAL title, season and adaptation. Do not transfer later-season events, manga developments or franchise-wide judgments to this title.",
   "Start with the official premise and metadata. Research beyond MAL using official/licensed descriptions, creator interviews, production material, and independent reviews. A distributor repeats promotional claims; it is not independent critical consensus.",
   "Distinguish presence (score), prominence (central/supporting/incidental), confidence and disagreement. Null means unknown; zero requires evidence of absence. Scores are editorial judgments, not calibrated probabilities.",

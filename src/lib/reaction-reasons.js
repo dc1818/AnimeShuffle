@@ -1,3 +1,4 @@
+import { EXTENDED_TRAIT_BY_KEY } from "./extended-research-traits.js";
 /** A reason attributes this particular vote. It is never an automatic global
  * exclusion: the same aspect can work differently in another story. */
 export const REACTION_REASONS = [
@@ -46,12 +47,29 @@ export const normalizeReactionReason = (value) =>
   REACTION_REASONS.some((r) => r.key === value) ? value : null;
 export function attributedFeatures(features, reason) {
   const rule = REACTION_REASONS.find((r) => r.key === reason);
-  if (!rule || !features.some(([key]) => rule.pattern.test(key)))
-    return features;
+  const relevant = (key) =>
+    rule &&
+    (rule.pattern.test(key) ||
+      key
+        .split(":")
+        .slice(1)
+        .some((part) => {
+          const trait = EXTENDED_TRAIT_BY_KEY.get(part);
+          if (!trait) return false;
+          return {
+            characters: ["characters", "relationships"],
+            visuals: ["presentation"],
+            story: ["premise", "world", "powers", "conflict", "structure"],
+            pacing: ["pacing"],
+            tone: ["tone", "comedy"],
+            music: ["music"],
+          }[reason]?.includes(trait.area);
+        }));
+  if (!rule || !features.some(([key]) => relevant(key))) return features;
   // Attenuate unrelated evidence rather than invent an attribute missing from
   // the catalog. An explicit reason contributes a stronger targeted example.
   return features.map(([key, value]) => [
     key,
-    value * (rule.pattern.test(key) ? 1.5 : 0.35),
+    value * (relevant(key) ? 1.5 : 0.35),
   ]);
 }
