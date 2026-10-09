@@ -4,6 +4,7 @@ import {
 } from "../lib/research-upload.js";
 import { AdminOperations } from "./AdminOperations.jsx";
 import { TraitTracker } from "./TraitTracker.jsx";
+import { collectEvidenceExport, downloadEvidenceExport } from "../lib/evidence-export.js";
 import { useEffect, useState, useMemo } from "react";
 
 const download = (data, name) => {
@@ -545,6 +546,16 @@ export function Admin() {
                   </select>
                 </label>
                 <div className="admin-actions">
+                  <button className="soft-button" disabled={busy} onClick={() => work(async () => {
+                    const data = await collectEvidenceExport(
+                      after => api(`/api/admin/export?kind=catalog&limit=100&after=${after}`),
+                      count => setNotice(`Preparing ${count} titles for the evidence collector…`),
+                    );
+                    downloadEvidenceExport(data);
+                    setNotice(`Exported all ${data.count} known titles and ${data.vocabulary.length} traits for the Python evidence collector.`);
+                  })}>
+                    Export all titles for evidence collector
+                  </button>
                   <button
                     className="soft-button"
                     disabled={busy}

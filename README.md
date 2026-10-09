@@ -1,5 +1,15 @@
 # Anime Shuffle
 
+### Export inputs for the Python evidence collector
+
+On **Recommendations**, choose **Export recommendation candidates for research** to download the currently displayed picks first, followed by the remaining verified candidates in that loaded recommendation pool. This is the current pool, not a historical log of every recommendation.
+
+In **Admin → Anime research → Export research inputs**, choose **Export all titles for evidence collector** to download every known catalog title. The browser follows all 100-title pages into one JSON file; there is no 1,000-title cap. Failed pagination reports an error instead of downloading an incomplete file. The known catalog includes titles encountered by the deployment, not only titles displayed as recommendations.
+
+Both exports use `anime-shuffle-evidence-input` schema version 1 and include the full current trait vocabulary. Each anime includes exact MAL ID, title aliases, year, format, episode count, synopsis, public metadata source, and adaptation scope. Missing metadata is explicit; older saved titles gain additional identity metadata as they are fetched again. Account data, tokens, reactions, inferred trait judgments, and private research profiles are excluded.
+
+In the companion Python program choose **9**, select this JSON, and select a new output folder. Then choose **5** to collect evidence and analyze with Luna, or **4** for collection only. Imports preserve priority order, deduplicate MAL IDs, and use the exported website trait definitions.
+
 **Find your next anime and build a watchlist that fits your taste.**
 
 [Try Anime Shuffle](https://animeshuffle.com) · [Sample demo](https://dc1818.github.io/AnimeShuffle/)

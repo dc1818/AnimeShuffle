@@ -8,6 +8,7 @@ import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
 import { buildTaste, tasteReadiness } from "../lib/recommend.js";
+import { makeEvidenceExport, downloadEvidenceExport } from "../lib/evidence-export.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover, onPreferences }) {
@@ -123,6 +124,13 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           </p>
         </div>
         <div>
+          <button className="quiet"
+            disabled={state.recommendationsLoading || (!picks.length && !state.recommendationPool?.length)}
+            onClick={() => downloadEvidenceExport(makeEvidenceExport([
+              ...picks.map(p => p.anime), ...(state.recommendationPool || []),
+            ]))}>
+            Export recommendation candidates for research
+          </button>
           <button
             className="outline"
             disabled={state.busy || state.recommendationsLoading || !hasTaste}

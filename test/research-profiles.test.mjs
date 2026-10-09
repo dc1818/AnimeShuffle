@@ -341,6 +341,12 @@ test("changed input cannot silently overwrite a profile; thin catalog responses 
     s = createResearchStore(db);
   s.remember(anime);
   s.remember({ ...anime, synopsis: "" });
+  s.remember({ ...anime, year: 2013, japaneseTitle: "進撃の巨人", synonyms: ["Attack on Titan"] });
+  s.remember({ ...anime, synopsis: "" });
+  const exportedIdentity = s.exportBatch({ kind: "catalog" }).catalog[0];
+  assert.equal(exportedIdentity.year, 2013);
+  assert.equal(exportedIdentity.japaneseTitle, "進撃の巨人");
+  assert.deepEqual(exportedIdentity.synonyms, ["Attack on Titan"]);
   assert.equal(
     s.exportBatch({ kind: "catalog" }).catalog[0].synopsis,
     anime.synopsis,
