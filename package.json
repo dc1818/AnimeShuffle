@@ -8,6 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "traits:api": "node --env-file-if-exists=.env scripts/import-api-traits.mjs",
     "start": "node server.mjs",
     "build": "node scripts/build.mjs",
     "build:pages": "node scripts/build.mjs --pages",

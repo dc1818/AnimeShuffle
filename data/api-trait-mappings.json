@@ -1,0 +1,103 @@
+{
+  "version": "official-api-mappings-1",
+  "rules": [
+    {
+      "provider": "mal",
+      "labels": ["Martial Arts"],
+      "key": "martial-technique",
+      "rationale": "The provider explicitly classifies martial arts.",
+      "containsSpoilers": false
+    },
+    {
+      "provider": "mal",
+      "labels": ["Combat Sports"],
+      "key": "combat-sport",
+      "rationale": "The provider explicitly classifies competitive combat sports.",
+      "containsSpoilers": false
+    },
+    {
+      "provider": "mal",
+      "labels": ["Love Polygon", "Harem", "Reverse Harem"],
+      "key": "love-polygon",
+      "rationale": "The provider explicitly classifies multiple competing romantic interests.",
+      "containsSpoilers": false
+    },
+    {
+      "provider": "mal",
+      "labels": ["Iyashikei"],
+      "key": "low-stakes-comfort",
+      "rationale": "The iyashikei classification supports a comforting everyday tone.",
+      "containsSpoilers": false
+    },
+    {
+      "provider": "mal",
+      "labels": ["Avant Garde"],
+      "key": "experimental-form",
+      "rationale": "The avant-garde classification supports experimental presentation.",
+      "containsSpoilers": false
+    },
+    {
+      "provider": "mal",
+      "labels": ["Parody"],
+      "key": "genre-parody",
+      "rationale": "The provider explicitly classifies parody.",
+      "containsSpoilers": false
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["martial arts"],
+      "key": "martial-technique",
+      "rationale": "The provider explicitly tags martial arts.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["love triangle"],
+      "key": "love-polygon",
+      "rationale": "The provider explicitly tags competing romantic interests.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["found family"],
+      "key": "found-family",
+      "rationale": "The provider explicitly tags a chosen family.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["post-apocalyptic", "post-apocalyptic future"],
+      "key": "post-apocalyptic-world",
+      "rationale": "The provider explicitly tags a world after catastrophe.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["alternate history", "alternative history"],
+      "key": "alternate-history",
+      "rationale": "The provider explicitly tags a divergence from real history.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["slapstick", "slapstick comedy"],
+      "key": "slapstick",
+      "rationale": "The provider explicitly tags physical comedy.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["deadpan comedy"],
+      "key": "deadpan-comedy",
+      "rationale": "The provider explicitly tags deadpan comedy.",
+      "containsSpoilers": true
+    },
+    {
+      "provider": "tmdb",
+      "labels": ["social satire"],
+      "key": "social-satire",
+      "rationale": "The provider explicitly tags satire of society.",
+      "containsSpoilers": true
+    }
+  ]
+}

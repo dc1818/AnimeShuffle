@@ -256,3 +256,11 @@ exports include `assessmentProgress` by MAL ID and the ordered vocabulary for
 interpreting `checkedThrough`. These counters are separate from supported
 observations and never affect ranking. Public responses continue to exclude
 private evidence and unreviewed spoiler assignments.
+
+## API-only trait imports
+
+Run `npm run traits:api -- --input catalog.json` to collect official MyAnimeList
+metadata and optional explicitly linked TMDB keywords without scraping or model
+inference. See [setup, coverage limits, caching and import instructions](docs/api-trait-importer.md).
+The output uses the existing Admin research uploader. This is an alternative batch
+tool; it does not switch off an already enabled automatic model worker.
