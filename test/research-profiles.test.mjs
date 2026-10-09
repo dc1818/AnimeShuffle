@@ -51,6 +51,26 @@ const anime = {
   genres: ["Action"],
   format: "tv",
 };
+test("clearing imports preserves catalog and automatic research, supports undo and prevents reseeding", () => {
+  const db=storage(),store=createResearchStore(db);
+  store.remember(anime);
+  store.installSeed(RESEARCH_SEED,'clear-test-seed');
+  const count=store.stats().profiles;
+  db.sql.exec("INSERT INTO model_catalog_profiles (id,fingerprint,version,checked,evidence_hash,value) VALUES (?,'test','test',0,'test',?)", anime.id,
+    JSON.stringify({observations:[{key:'found-family',score:1,confidence:.8,prominence:'supporting'}]}));
+  assert.throws(()=>store.clearImported(999,'owner'),/changed/);
+  const result=store.clearImported(store.stats().revision,'owner');
+  assert.equal(result.removed,count);assert.equal(store.stats().profiles,0);
+  assert.equal(store.stats().catalog,1);
+  assert.ok(store.projection(anime.id).observations.some(o=>o.key==='found-family'));
+  store.installSeed(RESEARCH_SEED,'another-seed');assert.equal(store.stats().profiles,0);
+  store.rollback(result.revision,'owner');assert.equal(store.stats().profiles,count);
+  store.clearImported(store.stats().revision,'owner');
+  const b=bundle();b.profiles[0].metadataFingerprint=animeFingerprint(anime);
+  const preview=store.preview(b);
+  store.commit(b,preview.revision,preview.digest,'owner');assert.equal(store.stats().profiles,1);
+  db.db.close();
+});
 test("repeat uploads fill gaps without erasing assessed traits, dimensions or source identity", () => {
   const db = storage(),
     store = createResearchStore(db);

@@ -2,6 +2,10 @@
 
 ### Export inputs for the Python evidence collector
 
+The top of **Admin** has a **Download all website titles · Python JSON** button, visible from every admin tab. It downloads the entire known catalog for option **9** in the Python program. Large exports pace requests to respect the hosted admin rate limit.
+
+Under **Anime research → Import history**, **Clear imported research profiles** removes the active manual/bundled research layer. The catalog, automatic model profiles, user accounts, tastes, and the existing ranking algorithm remain intact. Refresh picks afterward to recalculate a loaded shortlist. **Undo profile clear** restores the saved profiles until the next research change. Cleared starter profiles are not reinstalled on a later deployment; newly uploaded research is still accepted. This action requires the existing admin session and CSRF checks and rejects a stale revision.
+
 On **Recommendations**, choose **Export recommendation candidates for research** to download the currently displayed picks first, followed by the remaining verified candidates in that loaded recommendation pool. This is the current pool, not a historical log of every recommendation.
 
 In **Admin → Anime research → Export research inputs**, choose **Export all titles for evidence collector** to download every known catalog title. The browser follows all 100-title pages into one JSON file; there is no 1,000-title cap. Failed pagination reports an error instead of downloading an incomplete file. The known catalog includes titles encountered by the deployment, not only titles displayed as recommendations.
