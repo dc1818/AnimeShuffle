@@ -41,6 +41,7 @@ export function Admin() {
   const [profileSource, setProfileSource] = useState("profiles");
   const [profileOrigins, setProfileOrigins] = useState({});
   const [profileImpacts, setProfileImpacts] = useState({});
+  const [assessmentProgress, setAssessmentProgress] = useState({});
   const impactLabel = {
     "no-active-traits": "No usable matching traits — research needed",
     "needs-metadata": "Saved traits; contribution needs site metadata",
@@ -98,6 +99,7 @@ export function Admin() {
     setProfiles(p.profiles);
     setProfileOrigins(p.origins || {});
     setProfileImpacts(p.impacts || {});
+    setAssessmentProgress(p.assessmentProgress || {});
     setProfileCursor(p.nextCursor);
   }
   useEffect(() => {
@@ -768,6 +770,7 @@ export function Admin() {
                       setAppliedQuery("");
                       setProfileOrigins(page.origins || {});
                       setProfileImpacts(page.impacts || {});
+                      setAssessmentProgress(page.assessmentProgress || {});
                       setProfiles(page.profiles);
                       setProfileCursor(page.nextCursor);
                     });
@@ -795,6 +798,7 @@ export function Admin() {
                         setProfiles(page.profiles);
                         setProfileOrigins(page.origins || {});
                         setProfileImpacts(page.impacts || {});
+                        setAssessmentProgress(page.assessmentProgress || {});
                         setProfileCursor(page.nextCursor);
                       });
                     }}
@@ -832,6 +836,7 @@ export function Admin() {
                       setProfiles(page.profiles);
                       setProfileOrigins(page.origins || {});
                       setProfileImpacts(page.impacts || {});
+                      setAssessmentProgress(page.assessmentProgress || {});
                       setProfileCursor(page.nextCursor);
                     })
                   }
@@ -1038,6 +1043,11 @@ export function Admin() {
                           vocabulary={status.vocabulary}
                           families={status.traitFamilies}
                           profile={p}
+                          assessmentProgress={
+                            profileSource === "automatic"
+                              ? assessmentProgress[p.malId]
+                              : null
+                          }
                           revealed={revealedProfiles.has(
                             `${profileSource}:${p.malId}`,
                           )}
@@ -1168,6 +1178,10 @@ export function Admin() {
                       setProfiles((p) => [...p, ...next.profiles]);
                       setProfileOrigins((p) => ({ ...p, ...next.origins }));
                       setProfileImpacts((p) => ({ ...p, ...next.impacts }));
+                      setAssessmentProgress((p) => ({
+                        ...p,
+                        ...next.assessmentProgress,
+                      }));
                       setProfileCursor(next.nextCursor);
                     })
                   }
@@ -1208,6 +1222,19 @@ export function Admin() {
                         : status.enrichment.reviews.modelDailyLimit,
                     ],
                     ["Queued model jobs", status.enrichment.model?.queued ?? 0],
+                    [
+                      "Traits checked per complete scan",
+                      status.enrichment.model?.traitsPerAnime ??
+                        status.vocabulary.length,
+                    ],
+                    [
+                      "Completed full-catalog scans",
+                      status.enrichment.model?.completedTraitScans ?? 0,
+                    ],
+                    [
+                      "Trait checks across current scans",
+                      status.enrichment.model?.checkedTraits ?? 0,
+                    ],
                     [
                       "Saved model profiles",
                       status.enrichment.model?.profiles ?? 0,

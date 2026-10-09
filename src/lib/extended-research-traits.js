@@ -17,7 +17,7 @@ export const EXTENDED_RESEARCH_TRAITS = EXTENDED_TRAIT_ROWS.map(
       familyKey,
       area: family.area,
       category: family.label,
-      definition: `Assess ${label}. ${family.question}`,
+      definition: `Assess ${label}. ${family.question}${family.scopeRule ? ` ${family.scopeRule}` : ""}`,
       evidenceOnly: family.evidenceMode === "critical",
       trackingEnabled: true,
       requiresSpoilerReview: true,

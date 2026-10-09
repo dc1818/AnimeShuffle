@@ -144,6 +144,13 @@ const prepared = {
   analysisInstructions: ANALYSIS_GUIDE,
   researchQuestions: RESEARCH_QUESTIONS,
   controlledVocabulary: researchVocabulary,
+  assessmentPlan: {
+    scope: "full-catalog",
+    totalTraits: researchVocabulary.length,
+    perAnime: true,
+    unsupported: "unknown",
+    unexamined: "not-assessed",
+  },
   qualityGates: [
     "Exact anime adaptation and episode range verified; no manga/later-season leakage.",
     "All twelve areas explicitly assessed or marked with a specific research gap; no fabricated facts to fill a quota.",

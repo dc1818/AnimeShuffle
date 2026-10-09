@@ -1,6 +1,11 @@
 /** Stable catalog keys: changing a label must not change its key. No anime assertions. */
-export const TRAIT_CATALOG_VERSION = "expanded-2400-v1";
+import {
+  ADDITIONAL_TRAIT_FAMILIES,
+  ADDITIONAL_TRAIT_ROWS,
+} from "./additional-trait-data.js";
+export const TRAIT_CATALOG_VERSION = "expanded-3000-v2";
 export const TRAIT_FAMILIES = [
+  ...ADDITIONAL_TRAIT_FAMILIES,
   {
     key: "story-engine",
     label: "Story engine",
@@ -12826,4 +12831,5 @@ export const EXTENDED_TRAIT_ROWS = [
     "in-world sound becoming background score",
     "diegetic-audio",
   ],
+  ...ADDITIONAL_TRAIT_ROWS,
 ];

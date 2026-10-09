@@ -64,7 +64,7 @@ Episode flags are checked separately in the background, up to 150 requests per U
 
 There is no default 20-request app cap. `AI_DAILY_REQUEST_LIMIT=0` runs until Cloudflare reports exhaustion; the queue pauses until after the next midnight UTC and resumes automatically. Temporary capacity errors back off separately. Set a positive limit to add an app cap, or `AI_TASTE_ENRICHMENT=false` to turn model work off. The `AI` binding is required. On a Workers Free account, Cloudflare enforces its free allowance. This mode is not a spending cap on a Paid account; choose a positive limit before upgrading if desired. Request counts and reported tokens appear in the dashboard; they are not a remaining-neuron meter.
 
-Titles encountered in Discover, details and imported viewing history are queued, with history and opened titles prioritized. The background catalog scan starts with popular titles and advances one 50-title page every six hours, gradually widening coverage. Jobs, source fingerprints and accepted model profiles survive deployment and have no 2,000-profile eviction limit. Unchanged completed titles reuse their saved analysis; changed metadata or an analysis-version change queues reassessment. Airing/upcoming titles are checked again after 14 days. Identical evidence avoids another model call. A source outage retains the premise profile and retries review evidence later. Existing recommendations work throughout, and loaded picks are never replaced by background results.
+Titles encountered in Discover, details and imported viewing history are queued, with history and opened titles prioritized. The background catalog scan starts with popular titles and advances one 50-title page every six hours, gradually widening coverage. Jobs, source fingerprints and accepted model profiles survive deployment and have no 2,000-profile eviction limit. Unchanged completed titles reuse their saved analysis; changed metadata or an analysis-version change queues reassessment. Airing/upcoming titles are checked again after 14 days. Identical evidence avoids another model call only after its full trait scan has completed. A source outage retains the premise profile and retries review evidence later. Existing recommendations work throughout, and loaded picks are never replaced by background results.
 
 The website model does not search the general web. Broader official/editorial research is supported by source-linked JSON imports through `/admin`. The bundled pilot includes that external research for five titles, with the other twenty marked preliminary. The local Node server runs rule analysis and supports research imports without a Workers AI binding.
 
@@ -219,3 +219,40 @@ The admin JSON uploader has no application-level cap on total profiles or catalo
 Imported unknowns do not suppress valid automated observations. Explicit owner assessments still take priority. Separate reviewer independence keys distinguish authors sharing one review platform and deduplicate mirrored evidence; these keys are opaque identifiers, not public names. Research vocabulary now includes additional character dynamics, romance behavior, power constraints, institutions, thematic concerns, visual presentation and story structure. Registered attributes participate in the existing taste model; private free-form dimensions remain reusable evidence rather than automatic ranking rules.
 
 Why this pick renders separate concrete bullets using supported positive connections to the user's history. It does not manufacture extra connections to meet a bullet minimum. Private research prose never reaches public explanations, and outcome-specific attributes are hidden from both public explanations and the unrevealed admin view.
+
+
+### Complete detailed trait catalog
+
+The registered catalog now contains **3,000 detailed traits in 150 families**,
+plus the **188 original keys** retained for compatibility (3,188 accepted keys).
+The 600 additions cover concrete practices in education, food, transport, maritime
+and agricultural life, animal care, healthcare, legal procedure, journalism,
+public service, espionage, communication, migration, housing, online communities,
+games, competition, crafts, science, collective memory, ritual, material culture,
+weather, scale, and accessible participation. Existing keys are unchanged.
+
+`node scripts/export-trait-catalog.mjs` reproduces
+`data/anime-trait-catalog-3000.json`. This is a **definition catalog**, not a
+completed research upload. Admin imports continue using `anime-shuffle-research`
+schema version 1 and accept every registered key. The import size limit remains
+per request; large batches are split by bytes without truncating observations.
+
+The hosted automatic catalog queue now traverses **every accepted key** in
+32-key passes (100 passes for the current complete registry). Each response must
+acknowledge the exact checked keys; malformed or incomplete responses cannot
+advance progress. Successful passes checkpoint their cursor atomically with
+accepted findings. Restarts, quota pauses and temporary failures resume the
+unfinished pass. Metadata, evidence or analysis-version changes start a fresh
+scan while preserving existing compatible findings. Identical evidence only
+skips inference after the complete scan, never between unfinished passes.
+
+Full-catalog checking uses the existing optional inference service and its quota;
+it is not a free API tag-import implementation and does not remove inference
+costs. No single pass includes all 3,188 definitions. No new model or provider
+is enabled by this change. Finishing a scan means checking the available bounded
+evidence, not researching every possible source or proving every trait.
+Unresolved keys remain unknown; unvisited keys remain not assessed. The admin
+exports include `assessmentProgress` by MAL ID and the ordered vocabulary for
+interpreting `checkedThrough`. These counters are separate from supported
+observations and never affect ranking. Public responses continue to exclude
+private evidence and unreviewed spoiler assignments.

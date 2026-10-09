@@ -76,7 +76,7 @@ test("admin matrix paginates all traits, distinguishes missing from unknown, and
     await act(async () =>
       root.render(React.createElement(TraitTracker, props)),
     );
-    assert.match(document.body.textContent, /1 assessed, 2586 not assessed/);
+    assert.match(document.body.textContent, /1 assessed, 3186 not assessed/);
     assert.equal(document.querySelectorAll("tbody tr").length, 0);
     await act(async () => {
       const d = document.querySelector("details");
@@ -109,6 +109,24 @@ test("admin matrix paginates all traits, distinguishes missing from unknown, and
     await act(async () =>
       root.render(React.createElement(TraitTracker, props)),
     );
+    assert.ok(!document.body.textContent.includes("PRIVATE_OUTCOME_SENTINEL"));
+    await filter("Family", "");
+    await act(async () =>
+      root.render(
+        React.createElement(TraitTracker, {
+          ...props,
+          assessmentProgress: {
+            checked: 32,
+            checkedThrough: 32,
+            total: 3188,
+            complete: false,
+          },
+        }),
+      ),
+    );
+    assert.match(document.body.textContent, /32 \/ 3,188 keys checked/);
+    await filter("Assessment", "unknown");
+    assert.equal(document.querySelectorAll("tbody tr").length, 33);
     assert.ok(!document.body.textContent.includes("PRIVATE_OUTCOME_SENTINEL"));
   } finally {
     await act(async () => root.unmount());

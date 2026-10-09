@@ -90,11 +90,11 @@ function bundle(selected = traits) {
   return { format: "anime-shuffle-research", schemaVersion: 1, profiles: [p] };
 }
 
-test("all 2400 catalog keys import, persist, merge without loss, and private findings never project", () => {
-  assert.equal(traits.length, 2400);
-  assert.equal(TRAIT_FAMILIES.length, 120);
-  assert.equal(researchVocabulary.length, 2588);
-  assert.equal(new Set(researchVocabulary.map((t) => t.key)).size, 2588);
+test("all 3000 catalog keys import, persist, merge without loss, and private findings never project", () => {
+  assert.equal(traits.length, 3000);
+  assert.equal(TRAIT_FAMILIES.length, 150);
+  assert.equal(researchVocabulary.length, 3188);
+  assert.equal(new Set(researchVocabulary.map((t) => t.key)).size, 3188);
   assert.ok(traits.every((t) => /^[a-z][a-z0-9-]{0,79}$/.test(t.key)));
   const db = storage();
   let store = createResearchStore(db);
@@ -105,7 +105,7 @@ test("all 2400 catalog keys import, persist, merge without loss, and private fin
   store = createResearchStore(db);
   assert.equal(
     store.exportBatch({ kind: "profiles" }).profiles[0].observations.length,
-    2400,
+    3000,
   );
   const patch = bundle([traits[0]]);
   patch.profiles[0].observations[0].score = null;
@@ -113,7 +113,7 @@ test("all 2400 catalog keys import, persist, merge without loss, and private fin
   store.commit(patch, preview.revision, preview.digest);
   assert.equal(
     store.exportBatch({ kind: "profiles" }).profiles[0].observations.length,
-    2400,
+    3000,
   );
   const projected = store.projection(anime.id);
   assert.equal(

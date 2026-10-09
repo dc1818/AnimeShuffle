@@ -116,11 +116,10 @@ export function AlgorithmGuide() {
           findings.
         </p>
         <p>
-          The catalog supports 2,588 traits, including 2,400 detailed additions
-          in 120 families. Availability does not mean an anime has been
-          assessed. The admin trait matrix separates presence, absence,
-          uncertainty and missing research. Related tags are not automatically
-          copied.
+          The catalog supports 3,188 traits, including 3,000 detailed traits in
+          150 families. Availability does not mean an anime has been assessed.
+          The admin trait matrix separates presence, absence, uncertainty and
+          missing research. Related tags are not automatically copied.
         </p>
         <p>
           Matching traits need at least 45% confidence, 30% presence and a known
@@ -134,11 +133,11 @@ export function AlgorithmGuide() {
           warning requires an intentional superseding revision.
         </p>
         <p>
-          Cloudflare considers the original vocabulary plus at most 48 relevant
-          new traits per analysis. Owner research questions can prioritize a
-          specific trait key. Text overlap only selects questions; cited
-          evidence is still required before any finding is stored. This is not
-          an exhaustive assessment of every trait on every model call.
+          Cloudflare checks the full catalog in resumable passes of 32 keys.
+          Each anime stays queued until every key has been checked against its
+          available evidence. Progress survives restarts and quota pauses. A
+          completed scan does not imply complete evidence: unsupported traits
+          remain unknown, and cited evidence is required for every finding.
         </p>
         <p>
           Long descriptions, reusable dimensions and source notes preserve

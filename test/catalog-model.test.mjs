@@ -82,7 +82,7 @@ test("model pipeline retains jobs through daily quota, resumes after restart, an
       throw Error(
         "3036: You have used up your daily free allocation of 10,000 neurons",
       );
-    return real(...args);
+    return real(...args.slice(0, 4));
   };
   const args = {
     storage: s,
@@ -207,7 +207,7 @@ test("changed metadata refreshes model work, empty evidence stays unknown, criti
     fetcher: empty,
     analyzer: async (...args) => {
       calls++;
-      return real(...args);
+      return real(...args.slice(0, 4));
     },
   });
   m.enqueue(anime());
@@ -257,7 +257,7 @@ test("missing review source is retried without discarding premise analysis or re
         : new Response("", { status: 503 }),
     analyzer: async (...args) => {
       calls++;
-      return real(...args);
+      return real(...args.slice(0, 4));
     },
   });
   m.enqueue(anime());
@@ -372,7 +372,7 @@ test("expanded analysis retains reusable dimensions and explicit partial coverag
   const m = createCatalogModel({
     storage: s,
     research,
-    analyzer,
+    analyzer: (...args) => analyzer(...args.slice(0, 4)),
     schedule: async () => {},
     fetcher: empty,
   });

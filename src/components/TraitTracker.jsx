@@ -21,6 +21,7 @@ export function TraitTracker({
   profile,
   revealed = false,
   onExport,
+  assessmentProgress,
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -35,7 +36,21 @@ export function TraitTracker({
     () => new Map((profile?.observations || []).map((o) => [o.key, o])),
     [profile],
   );
-  const recorded = vocabulary.filter((t) => observations.has(t.key)).length;
+  const checkedKeys = useMemo(
+    () =>
+      new Set(
+        vocabulary
+          .slice(0, assessmentProgress?.checkedThrough || 0)
+          .map((t) => t.key),
+      ),
+    [vocabulary, assessmentProgress],
+  );
+  const trackingState = (key) =>
+    observations.has(key)
+      ? traitTrackingState(observations.get(key))
+      : checkedKeys.has(key)
+        ? "unknown"
+        : "not-assessed";
   const assessed = vocabulary.filter((t) =>
     Number.isFinite(observations.get(t.key)?.score),
   ).length;
@@ -51,12 +66,22 @@ export function TraitTracker({
             searchable.toLowerCase().includes(search.toLowerCase())) &&
           (!area || t.area === area) &&
           (!family || t.familyKey === family) &&
-          (!state || traitTrackingState(observations.get(t.key)) === state) &&
+          (!state || trackingState(t.key) === state) &&
           (!use ||
             (use === "matching") === !privateTrait(t, observations.get(t.key)))
         );
       }),
-    [vocabulary, observations, search, area, family, state, use, showPrivate],
+    [
+      vocabulary,
+      observations,
+      search,
+      area,
+      family,
+      state,
+      use,
+      showPrivate,
+      checkedKeys,
+    ],
   );
   const update = (setter) => (e) => {
     setter(e.target.value);
@@ -78,18 +103,33 @@ export function TraitTracker({
             : "Search the complete trait catalog"}
         </strong>
         {profile
-          ? ` — ${assessed} assessed, ${vocabulary.length - recorded} not assessed`
+          ? ` — ${assessed} assessed, ${vocabulary.filter((t) => trackingState(t.key) === "not-assessed").length} not assessed`
           : ` — ${vocabulary.length.toLocaleString()} supported traits`}
       </summary>
       {open && (
         <>
+          {assessmentProgress && (
+            <p className="trait-scan-progress">
+              <strong>Full-catalog scan:</strong>{" "}
+              {assessmentProgress.checked.toLocaleString()} /{" "}
+              {assessmentProgress.total.toLocaleString()} keys checked against
+              available evidence.
+              {assessmentProgress.complete
+                ? " Scan complete; unsupported traits remain unknown."
+                : " Remaining keys stay queued for later passes."}
+              {assessmentProgress.stale &&
+                " Previous scan is stale and will be refreshed."}{" "}
+              Checked is not the same as supported.
+            </p>
+          )}
           <p>
             {profile
               ? "This view describes only this saved profile and exact MAL entry. Imported and Cloudflare profiles are listed separately in the library; matching combines eligible findings from both. "
               : "These are available research questions, not claims already made about any anime. "}
-            Omitted traits are not assessed. Unknown means research was
-            attempted without a conclusion. Presence describes how much a trait
-            occurs, not whether viewers enjoy it.
+            Omitted traits are not assessed unless the scan records a completed
+            check. Unknown means research was attempted without a conclusion.
+            Presence describes how much a trait occurs, not whether viewers
+            enjoy it.
           </p>
           <p>
             <strong>Matching:</strong> supported, sufficiently confident traits
@@ -165,7 +205,8 @@ export function TraitTracker({
           </div>
           <p>
             {rows.length.toLocaleString()} traits match these filters.{" "}
-            {profile && `${recorded - assessed} recorded as unknown.`}
+            {profile &&
+              `${vocabulary.filter((t) => trackingState(t.key) === "unknown").length} checked or recorded as unknown.`}
           </p>
           {onExport && (
             <button className="soft-button" onClick={() => onExport(rows)}>
@@ -209,7 +250,7 @@ export function TraitTracker({
                           ) : (
                             <>
                               {profile
-                                ? stateLabel[traitTrackingState(o)]
+                                ? stateLabel[trackingState(t.key)]
                                 : "No anime selected"}
                               {o && (
                                 <small>
