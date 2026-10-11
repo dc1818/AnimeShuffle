@@ -1,3 +1,4 @@
+import { semanticPreference } from "./semantic-taste.js";
 import { feedbackExamples } from "./reaction-feedback.js";
 import { attributedFeatures } from "./reaction-reasons.js";
 import { nuancedFeatures } from "./nuanced-taste.js";
@@ -361,7 +362,8 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
         score:
           0.8 * personalScore(a, dot(enjoyment, f), dot(interest, f)) +
           0.2 * neighborhood(a).score +
-          continuation(a).score,
+          continuation(a).score +
+          semanticPreference(a, records),
       };
     },
     support(a) {

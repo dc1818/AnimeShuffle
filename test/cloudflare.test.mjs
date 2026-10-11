@@ -589,3 +589,67 @@ test("optional feedback round trips through account sync with axis validation an
     db.db.close();
   }
 });
+
+test("Cloudflare AI queues saved seen reactions only, never anonymous browsing or watch intentions", async () => {
+  const db = storage();
+  const options = {
+    ...env,
+    AI_TASTE_ENRICHMENT: "true",
+    AI_DAILY_REQUEST_LIMIT: "40",
+    AI: {
+      async run() {
+        throw Error("Unexpected inference during HTTP request");
+      },
+    },
+  };
+  const app = createCloudApp(db, options, {
+    interval: 0,
+    fetcher: async (url) => {
+      if (url.includes("/anime/42"))
+        return Response.json({
+          id: 42,
+          title: "Public title",
+          synopsis: "A traveler crosses a mysterious world.",
+          nsfw: "white",
+          media_type: "tv",
+          status: "finished_airing",
+        });
+      return Response.json({ data: [] });
+    },
+  });
+  const b = browser(() => app);
+  await b.request("/api/session");
+  await b.request("/api/anime/42");
+  const queued = () =>
+    db.db.prepare("SELECT COUNT(*) n FROM model_catalog_jobs").get().n;
+  assert.equal(queued(), 0, "viewing details must not spend AI allowance");
+  await b.request("/api/account/register", {
+    username: "Aitester",
+    password: "a secure testing password",
+  });
+  await b.request("/api/account/state", {
+    revision: 0,
+    changes: [{ id: 42, reaction: { anime, action: "watch", at: 123 } }],
+  });
+  assert.equal(queued(), 0);
+  await b.request("/api/account/state", {
+    revision: 1,
+    changes: [{ id: 42, reaction: { anime, action: "good", at: 124 } }],
+  });
+  assert.equal(queued(), 1);
+  const d = (await b.request("/api/taste?ids=42")).body.enrichment.model;
+  assert.equal(d.analysisMode, "rated-or-seen-compact");
+  assert.equal(d.budget.requestsToday, 0);
+  assert.equal(d.budget.dailyNeurons, 8000);
+  await b.request("/api/account/state", {
+    revision: 2,
+    changes: [{ id: 42, reaction: null }],
+  });
+  await app.alarm();
+  assert.equal(
+    queued(),
+    0,
+    "Undo before processing cancels the unqualified job",
+  );
+  db.db.close();
+});

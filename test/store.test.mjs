@@ -78,8 +78,9 @@ test("clearing reactions and removing saved entries cannot leave stale Undo hist
   });
   await store.initialize();
   await store.savePreferences({});
+  const savedId = store.getSnapshot().current.id;
   await store.react("watch");
-  await store.removeSaved(1);
+  await store.removeSaved(savedId);
   assert.equal(store.getSnapshot().canUndo, false);
   await store.react("good");
   await store.clearLocal();
@@ -1215,7 +1216,7 @@ test("Discover stops at exhausted sources and does not loop on a stuck upstream 
     });
     await store.initialize();
     await store.savePreferences({});
-    assert.equal(calls, nextOffset === null ? 2 : 1);
+    assert.equal(calls, nextOffset === null ? 3 : 1);
     if (nextOffset === null) {
       assert.equal(store.inspectDiscovery().hasMorePages, false);
       assert.equal(store.getSnapshot().discoveryStatus, "exhausted");

@@ -351,41 +351,40 @@ export function chooseNextBatch(
     list.length === 0 &&
     !initial.favoriteGenres.length &&
     !initial.favoriteAnime.length;
-  const explore = !cold && random() < 0.2;
-  const ranked = available
-    .map((a, index) => {
-      const match = taste.model.score(a);
-      let score = match.score;
-      if (isAudienceFilteredTitle(a)) score -= 0.15;
-      if (cold) {
-        const overlap = (a.genres || []).filter((g) =>
-          recent.slice(-4).some((x) => x.genres?.includes(g)),
-        ).length;
-        score = 2 - overlap * 0.9 + random() * 0.3 + match.continuation;
-        if (count === 0 && a.id === 1) score += 5;
-      } else if (explore) {
-        // Evidence-aware exploration, not a claim of calibrated bandit uncertainty.
-        score += 0.25 * (1 - taste.model.support(a));
-        score -=
-          0.15 * Math.max(0, ...recent.slice(-4).map((b) => similarity(a, b)));
-        score += random() * 0.08;
-      } else {
-        const overlap = (a.genres || []).filter((g) =>
-          recent.slice(-2).some((x) => x.genres?.includes(g)),
-        ).length;
-        score -= overlap * 0.03;
-        score += random() * 0.025;
-      }
-      return { a, score, index };
-    })
-    .sort((a, b) => b.score - a.score);
-  // Prefer a verified candidate only among near-equal matches.
-  // A materially stronger uncached match still wins, preserving exploration and taste.
-  const nearBest = ranked.filter(
-    (p) => p.score >= ranked[0].score - (cold ? 0.3 : 0.025),
+  const draw = random();
+  const hidden = !cold && draw < 0.3;
+  const explore = !cold && draw >= 0.3 && draw < 0.45;
+  const scored = available.map((a) => {
+    const match = taste.model.score(a);
+    const overlap = (a.genres || []).filter((g) =>
+      recent.slice(-3).some((x) => x.genres?.includes(g)),
+    ).length;
+    let score = cold ? -0.05 * overlap : match.score - 0.025 * overlap;
+    if (isAudienceFilteredTitle(a)) score -= 0.15;
+    if (explore) score += 0.1 * (1 - taste.model.support(a));
+    return { a, score };
+  });
+  const best = Math.max(...scored.map((p) => p.score));
+  const lesserKnown = scored.filter(
+    (p) =>
+      Number.isFinite(p.a.members) &&
+      p.a.members > 0 &&
+      p.a.members < 100000 &&
+      p.score >= best - 0.3,
   );
-  const first = nearBest.find((p) => readyIds.has(p.a.id)) || ranked[0];
-  return [first, ...ranked.filter((p) => p !== first)]
+  const choices = hidden && lesserKnown.length ? lesserKnown : scored;
+  // Exponential-race sampling is weighted random WITHOUT replacement. Taste
+  // matters, but one top score or a cached cover can never monopolize discovery.
+  // Popularity is not a quality requirement; unrated titles remain eligible.
+  const temperature = cold ? 0.35 : explore ? 0.28 : 0.14;
+  const ranked = choices
+    .map((p) => {
+      const weight = Math.exp(Math.max(-12, (p.score - best) / temperature));
+      const u = Math.max(1e-9, Math.min(1 - 1e-9, random()));
+      return { ...p, key: -Math.log(u) / weight };
+    })
+    .sort((a, b) => a.key - b.key);
+  return ranked
     .slice(0, Math.max(1, Math.min(6, limit)))
     .map(({ a: anime }) => ({
       anime,

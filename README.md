@@ -70,17 +70,19 @@ The hosted app also learns small item-to-item correlations from saved site react
 
 A second attribute layer separates mecha-focused stories from incidental mechs, romance subplots from romance-led stories, and reincarnation, transported-world, summoned-hero, and otome-game premises. It also tracks power-system rules, outcast progression, stealth versus supernatural combat, chibi cutaways versus a chibi art style, villain design versus motivation, and other story and presentation details. Attribute combinations help distinguish preferences that share a genre. Unknown attributes stay unknown; conflicting prominence claims are not treated as facts.
 
-After a reaction, **Add a reason (optional)** opens broad categories and selectable details. Each selected aspect can be liked or disliked independently of the overall vote. Unwatched titles use artwork, premise, trailer, genre and length instead of asking for viewing judgments. Unselected options carry no signal. Up to 12 reasons and a 500-character personal note stay with the reaction and sync with signed-in Cloudflare accounts; guests save locally. Notes are not interpreted or included in guest analytics or recommendation evaluation exports. Revisit feedback in Profile → Your reactions & reasons.
+After a reaction, open **More about this anime → Why this pick? → Add reasons for this reaction**. The editor replaces the details panel and identifies the previously rated title. It is hidden until a saved reaction exists. Broad categories lead to selectable details, each independently liked or disliked. Unwatched reactions use artwork, premise, trailer, genre and length. Up to 12 reasons are saved automatically; there is no personal-note field. Done returns to the explanation without changing the recommendation.
 
 The content model adds bounded, axis-specific training examples only for explicitly selected aspects that match supported structured catalog features. It never treats a synopsis keyword as proof of visual quality, invents an anime attribute, or treats a missing attribute as a dislike. Unsupported aspects (for example a trailer judgment without matching metadata) are retained as viewer feedback but do not yet change content matching. Overall choices and collaborative recommendations continue to work. New feedback replaces legacy single-reason attribution for that reaction.
 
 Episode flags are checked separately in the background, up to 150 requests per UTC day. Details shows how many episodes were checked and distinguishes partial from complete coverage. Only complete available episode lists contribute a filler-rate feature. Provider filler flags are not a canon judgment, and filler, recaps, slow pacing, and total length remain separate concepts.
 
-**Cloudflare Workers AI** catalog analysis is optional and disabled by default in `wrangler.jsonc` and runs in a separate persistent background queue. It combines the public synopsis with a bounded, spoiler-permissive sample of completed reviews for private research; no accounts, private lists, ratings, or reviewer identities are sent to the model. Premise traits require cited synopsis sentences; critical traits require at least three independent review authors. Invalid or unsupported output is discarded. The model can select from the full research vocabulary, distinguishing prominence and confidence. Automated profiles stay preliminary and never override owner-imported traits.
+**Cloudflare Workers AI** enrichment is enabled for anime with a saved Good/Bad reaction or MAL rating/viewing history. Browsing a title, opening its details, skipping, or planning to watch it does not qualify it. Eligibility is shared across users; only public anime evidence is sent to the models. Existing reaction history is backfilled, and stale broad-catalog jobs are removed. A compact Llama 3.1 8B pass replaces exhaustive 3,188-trait scans. Cited evidence and existing validation still apply; unsupported judgments are discarded.
 
-There is no default 20-request app cap. `AI_DAILY_REQUEST_LIMIT=0` runs until Cloudflare reports exhaustion; the queue pauses until after the next midnight UTC and resumes automatically. Temporary capacity errors back off separately. Set a positive limit to add an app cap, or `AI_TASTE_ENRICHMENT=false` to turn model work off. The `AI` binding is required. On a Workers Free account, Cloudflare enforces its free allowance. This mode is not a spending cap on a Paid account; choose a positive limit before upgrading if desired. Request counts and reported tokens appear in the dashboard; they are not a remaining-neuron meter.
+BGE Small (`@cf/baai/bge-small-en-v1.5`) embeds bounded synopsis and spoiler-safe review passages into separate 384-dimensional vectors. This is Cloudflare's supported embedding model, not MiniLM. Saved embeddings add a small similarity contribution only when both titles have compatible cached vectors. Unanalyzed candidates retain the ordinary content/community ranking. Embeddings do not certify trait presence, quality or sentiment.
 
-Titles encountered in Discover, details and imported viewing history are queued, with history and opened titles prioritized. The background catalog scan starts with popular titles and advances one 50-title page every six hours, gradually widening coverage. Jobs, source fingerprints and accepted model profiles survive deployment and have no 2,000-profile eviction limit. Unchanged completed titles reuse their saved analysis; changed metadata or an analysis-version change queues reassessment. Airing/upcoming titles are checked again after 14 days. Identical evidence avoids another model call only after its full trait scan has completed. A source outage retains the premise profile and retries review evidence later. Existing recommendations work throughout, and loaded picks are never replaced by background results.
+The persistent, site-wide guard reserves a conservative neuron estimate **before every Llama or embedding request**. Defaults and hard ceilings are 40 calls and 8,000 reserved neurons per UTC day; failures and timeouts retain reservations. `AI_DAILY_REQUEST_LIMIT` and `AI_DAILY_NEURON_LIMIT` may lower these limits; zero stops AI calls. `AI_TASTE_ENRICHMENT=false` disables processing. Reservations use UTF-8 byte counts, maximum output, published per-model rates and 2× headroom. Unknown models fail closed. These are site reservations, not Cloudflare's actual account-wide remaining balance; other applications' usage is not visible. Cloudflare allowance errors pause all site AI calls until the next UTC day. No paid billing mode is enabled.
+
+Results, jobs and budgets survive restarts. Unchanged finished anime reuse their analysis; airing titles refresh after 14 days and changed metadata can trigger reassessment. An embedding failure does not discard a completed Llama result. Missing evidence is retried later. Admin → Overview shows scope, shared calls, reserved neurons, reset time, queued jobs and cached semantic profiles. Recommendations continue while AI is paused.
 
 The website model does not search the general web. Broader official/editorial research is supported by source-linked JSON imports through `/admin`. The bundled pilot includes that external research for five titles, with the other twenty marked preliminary. The local Node server runs rule analysis and supports research imports without a Workers AI binding.
 
@@ -236,7 +238,6 @@ Imported unknowns do not suppress valid automated observations. Explicit owner a
 
 Why this pick renders separate concrete bullets using supported positive connections to the user's history. It does not manufacture extra connections to meet a bullet minimum. Private research prose never reaches public explanations, and outcome-specific attributes are hidden from both public explanations and the unrevealed admin view.
 
-
 ### Complete detailed trait catalog
 
 The registered catalog now contains **3,000 detailed traits in 150 families**,
@@ -253,25 +254,7 @@ completed research upload. Admin imports continue using `anime-shuffle-research`
 schema version 1 and accept every registered key. The import size limit remains
 per request; large batches are split by bytes without truncating observations.
 
-The hosted automatic catalog queue now traverses **every accepted key** in
-32-key passes (100 passes for the current complete registry). Each response must
-acknowledge the exact checked keys; malformed or incomplete responses cannot
-advance progress. Successful passes checkpoint their cursor atomically with
-accepted findings. Restarts, quota pauses and temporary failures resume the
-unfinished pass. Metadata, evidence or analysis-version changes start a fresh
-scan while preserving existing compatible findings. Identical evidence only
-skips inference after the complete scan, never between unfinished passes.
-
-Full-catalog checking uses the existing optional inference service and its quota;
-it is not a free API tag-import implementation and does not remove inference
-costs. No single pass includes all 3,188 definitions. No new model or provider
-is enabled by this change. Finishing a scan means checking the available bounded
-evidence, not researching every possible source or proving every trait.
-Unresolved keys remain unknown; unvisited keys remain not assessed. The admin
-exports include `assessmentProgress` by MAL ID and the ordered vocabulary for
-interpreting `checkedThrough`. These counters are separate from supported
-observations and never affect ranking. Public responses continue to exclude
-private evidence and unreviewed spoiler assignments.
+The exhaustive 32-key pass machinery is retained for compatibility with older research workflows and exports, but **the hosted queue now uses compact rated/seen analysis**. It does not walk all 3,188 traits for every title. Existing full-scan checkpoints remain historical data; they are not claims that a compact profile is complete. Unresolved keys stay unknown, and public projections still exclude private evidence and unreviewed spoilers.
 
 ## API-only trait imports
 
@@ -281,14 +264,15 @@ inference. See [setup, coverage limits, caching and import instructions](docs/ap
 The output uses the existing Admin research uploader. This is an alternative batch
 tool; it does not switch off an already enabled automatic model worker.
 
-
 ### Lightweight hybrid recommendations
 
-The normal recommender needs no LLM, API inference budget, or exhaustive trait profiles. Automatic AI enrichment is off in `wrangler.jsonc`. Existing metadata, synopsis terms, and valid optional traits still work.
+The normal recommender needs no LLM, API inference budget, or exhaustive trait profiles. Optional cached enrichment now runs within the rated/seen scope and daily limits described above. Existing metadata, synopsis terms, and valid optional traits still work.
 
 - Enjoyment and prospective interest remain separate in both personal learning and community correlations. Community correlations use only other enabled accounts, require at least five overlapping votes on the same axis, and shrink small samples toward zero. Constant popularity supplies no correlation. Community influence grows with supporting connections and is capped at 30% per axis.
-- Nearby-title matching also uses cached lexical synopsis features and genres, so research tags are optional. This is lexical similarity, not semantic embeddings.
+- Nearby-title matching also uses cached lexical synopsis features and genres, so research tags are optional. Compatible cached semantic vectors can add a small, bounded similarity signal.
 - Candidate expansion rotates across up to four diverse positive seeds and twelve related candidates per shortlist refresh. The faster Discover path has a smaller budget. Related entries remain subject to the same eligibility rules.
+- Discover uses weighted random sampling without replacement, rather than always choosing the highest score or starting with Cowboy Bebop. About 30% of established-taste draws prefer titles with fewer than 100,000 MAL members when a reasonably matching candidate exists; 15% use broader exploration. These are selection modes, not promised outcome percentages or quality guarantees.
+- The Tenrai catalog source traverses a per-session permutation of all available filtered ID-ordered pages, mixed with popular/top pages and related-title expansion. New regions are loaded in background every third advance. Hard filters, known-title exclusions, prequel rules and skip cooldowns still apply. If Tenrai fails, MAL ranked-page fallback remains available; catalog completeness and uniform sampling of every anime ever made are not claimed. The Top 25 stays ranked.
 - Favorite genres are soft preferences unless the user enables the explicit restriction. **Skip** means “not now”: a seven-day cooldown, never a dislike.
 - Viewport-visible Discover cards and recommendation rows record exposures, including position, timestamp and model version. Reactions, skips and undo are logged separately. Prefetched/off-screen titles are not counted as exposures. Guest events remain local. Signed-in events use a retryable, account-scoped outbox and authenticated endpoint, capped at 1,000 events per account and 90 days (50,000 server events total). There is no claim that an exposure means the person read the card.
 

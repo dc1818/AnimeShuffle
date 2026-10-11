@@ -218,3 +218,38 @@ test("catalog keeps a validated trailer ID for immediate preview without another
     undefined,
   );
 });
+
+test("shuffle traverses every filtered catalog page without popularity ordering or repeats", async () => {
+  const seen = [];
+  const catalog = createCandidateCatalog({
+    interval: 0,
+    fetcher: async (url) => {
+      const u = new URL(url);
+      assert.equal(u.searchParams.get("order_by"), "mal_id");
+      assert.equal(u.searchParams.get("sfw"), "true");
+      const page = Number(u.searchParams.get("page"));
+      seen.push(page);
+      return Response.json({
+        data: [{ ...raw, mal_id: page, members: page * 100 }],
+        pagination: { last_visible_page: 7, has_next_page: page < 7 },
+      });
+    },
+  });
+  const ids = [];
+  let offset = 0;
+  while (offset !== null) {
+    const u = query({}, offset);
+    u.searchParams.set("source", "shuffle");
+    u.searchParams.set("seed", "123456");
+    const p = await catalog.page(u);
+    ids.push(p.data[0].id);
+    offset = p.nextOffset;
+  }
+  assert.equal(new Set(ids).size, 7);
+  assert.deepEqual(
+    [...ids].sort((a, b) => a - b),
+    [1, 2, 3, 4, 5, 6, 7],
+  );
+  assert.notEqual(ids[0], 1);
+  assert.equal(seen.length, 7);
+});

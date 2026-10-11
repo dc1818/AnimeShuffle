@@ -143,7 +143,9 @@ export function createAnimeStore({
     history = [],
     recent = [],
     skipped = new Set();
-  let offsets = { popular: 0, top: 0, season: 0 },
+  const shuffleSeed = Math.floor(Math.random() * 4294967296);
+  let prefetchRefills = 0;
+  let offsets = { shuffle: 0, popular: 0, top: 0, season: 0 },
     sourceIndex = 0;
   let lastDiscoverySearch = null;
   let initialization;
@@ -529,6 +531,7 @@ export function createAnimeStore({
             : a.researchTaste,
           episodeTaste: data.episodes?.[a.id] || a.episodeTaste,
           communityTaste: data.community?.[a.id] || [],
+          semanticTaste: data.semantic?.[a.id] || a.semanticTaste,
         };
         mergePool(enriched);
         if (details.has(a.id))
@@ -636,14 +639,19 @@ export function createAnimeStore({
     const includeNsfw = state.preferences.includeNsfw === true;
     // MAL pagination changes with this filter; restart cursors when switching modes.
     if (catalogNsfw !== includeNsfw || candidateFilterKey !== filters) {
-      offsets = { popular: 0, top: 0, season: 0 };
+      offsets = {
+        shuffle: candidateProvider === "tenrai" ? 0 : null,
+        popular: 0,
+        top: 0,
+        season: 0,
+      };
       sourceIndex = 0;
       catalogNsfw = includeNsfw;
       candidateFilterKey = filters;
     }
     const sources =
       candidateProvider === "tenrai"
-        ? ["popular", "top"]
+        ? ["shuffle", "popular", "shuffle", "top", "shuffle"]
         : ["popular", "top", "season"];
     for (let n = 0; n < sources.length; n++) {
       const source = sources[sourceIndex % sources.length];
@@ -656,7 +664,7 @@ export function createAnimeStore({
       const warm =
         candidateProvider === "tenrai" &&
         startupFilterKey === filters &&
-        source === "popular" &&
+        source === "shuffle" &&
         offset === 0
           ? startupCatalog
           : null;
@@ -666,14 +674,19 @@ export function createAnimeStore({
         page =
           (warm && (await warm)) ||
           (await api(
-            `/api/catalog?source=${source}&offset=${offset}${candidateProvider === "tenrai" ? "&provider=tenrai&preferences=" + encodeURIComponent(filters) : includeNsfw ? "&nsfw=true" : ""}`,
+            `/api/catalog?source=${source}&offset=${offset}${source === "shuffle" ? "&seed=" + shuffleSeed : ""}${candidateProvider === "tenrai" ? "&provider=tenrai&preferences=" + encodeURIComponent(filters) : includeNsfw ? "&nsfw=true" : ""}`,
           ));
       } catch (error) {
         if (generation !== sessionGeneration) return false;
         if (candidateProvider !== "tenrai") throw error;
         // Keep provider cursors separate: a Tenrai page is not a MAL offset.
         candidateProvider = "mal";
-        offsets = { popular: 0, top: 0, season: 0 };
+        offsets = {
+          shuffle: candidateProvider === "tenrai" ? 0 : null,
+          popular: 0,
+          top: 0,
+          season: 0,
+        };
         sourceIndex = 0;
         startupCatalog = null;
         diagnostics.record?.({
@@ -935,6 +948,8 @@ export function createAnimeStore({
         return;
       prefetchRunning = true;
       try {
+        // Continue adding fresh catalog regions even while cached picks remain.
+        if (++prefetchRefills % 3 === 1 && pool.length < 3000) await refill();
         const candidates = rankRecommendations(
           pool.filter((a) => a.id !== state.current?.id),
           { ...rankingState(), limit: 3 },
@@ -1268,7 +1283,12 @@ export function createAnimeStore({
     recent = [];
     skipped = new Set();
     skipUntil = {};
-    offsets = { popular: 0, top: 0, season: 0 };
+    offsets = {
+      shuffle: candidateProvider === "tenrai" ? 0 : null,
+      popular: 0,
+      top: 0,
+      season: 0,
+    };
     sourceIndex = 0;
     update({
       session,
@@ -1408,7 +1428,9 @@ export function createAnimeStore({
     if (!staticMode && !readCatalogCache(storage).length) {
       startupFilterKey = JSON.stringify(catalogPreferences());
       startupCatalog = api(
-        "/api/catalog?source=popular&offset=0&provider=tenrai&preferences=" +
+        "/api/catalog?source=shuffle&offset=0&seed=" +
+          shuffleSeed +
+          "&provider=tenrai&preferences=" +
           encodeURIComponent(startupFilterKey),
       ).catch(() => null);
     }

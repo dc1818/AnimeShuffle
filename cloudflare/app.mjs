@@ -1,3 +1,5 @@
+import { createAiBudget, TASTE_MODEL } from "../lib/ai-budget.mjs";
+import { createSemanticAnalyzer } from "../lib/semantic-enrichment.mjs";
 import { normalizeFeedback } from "../src/lib/reaction-feedback.js";
 import { createAdminOperations } from "../lib/admin-operations.mjs";
 import { guestId } from "../lib/guest-analytics.mjs";
@@ -127,31 +129,73 @@ export function createCloudApp(
         console.log(JSON.stringify(event));
     },
   });
-  const modelName =
-    env.AI_TASTE_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
+  const modelName = TASTE_MODEL;
+  const aiBudget = createAiBudget({
+    storage,
+    ai: env.AI,
+    dailyNeurons: env.AI_DAILY_NEURON_LIMIT ?? 8000,
+    dailyRequests: env.AI_DAILY_REQUEST_LIMIT ?? 40,
+  });
+  sql.exec(
+    "CREATE TABLE IF NOT EXISTS model_seen_titles (id INTEGER PRIMARY KEY)",
+  );
+  const eligibleModelIds = () =>
+    all(`SELECT anime_id id FROM reactions WHERE json_extract(value,'$.action') IN ('good','bad')
+    UNION SELECT anime_id id FROM guest_reactions WHERE json_extract(value,'$.action') IN ('good','bad')
+    UNION SELECT id FROM model_seen_titles LIMIT 5000`).map((r) => r.id);
+  const modelEligible = (id) =>
+    !!one(
+      `SELECT 1 FROM model_seen_titles WHERE id=?
+    UNION ALL SELECT 1 FROM reactions WHERE anime_id=? AND json_extract(value,'$.action') IN ('good','bad')
+    UNION ALL SELECT 1 FROM guest_reactions WHERE anime_id=? AND json_extract(value,'$.action') IN ('good','bad') LIMIT 1`,
+      id,
+      id,
+      id,
+    );
+  const rememberSeen = (anime, listStatus) => {
+    if (
+      ["watching", "completed", "on_hold", "dropped"].includes(
+        listStatus?.status,
+      ) ||
+      Number(listStatus?.score) > 0 ||
+      Number(listStatus?.num_episodes_watched) > 0
+    ) {
+      sql.exec("INSERT OR IGNORE INTO model_seen_titles VALUES (?)", anime.id);
+      catalogModel.prioritize([anime.id]);
+    }
+  };
   const catalogModel = createCatalogModel({
     storage,
     research,
     fetcher,
     schedule: scheduleEnrichment,
     model: modelName,
-    discover: (offset) =>
-      candidates.page(
-        new URL(
-          `https://catalog.invalid/api/catalog?source=popular&offset=${offset}`,
-        ),
-      ),
+    fullScan: false,
+    eligible: modelEligible,
+    eligibleIds: eligibleModelIds,
+    semanticAnalyzer:
+      env.AI_TASTE_ENRICHMENT === "true" && env.AI?.run
+        ? createSemanticAnalyzer(aiBudget)
+        : null,
     analyzer:
       env.AI_TASTE_ENRICHMENT === "true"
-        ? createCatalogAnalyzer(env.AI, { model: modelName })
+        ? createCatalogAnalyzer(env.AI?.run ? aiBudget : null, {
+            model: modelName,
+            compact: true,
+          })
         : null,
-    dailyLimit: Math.max(0, Number(env.AI_DAILY_REQUEST_LIMIT) || 0),
+    dailyLimit: Math.max(
+      1,
+      Math.min(40, Number(env.AI_DAILY_REQUEST_LIMIT) || 40),
+    ),
   });
   const attachTaste = (anime, priority = 0) => {
     catalogModel.enqueue(anime, priority);
-    return research.attach(
+    const enriched = research.attach(
       episodes.attach(reviews.attach(anime, priority), priority),
     );
+    const semantic = catalogModel.semantic(anime.id);
+    return semantic ? { ...enriched, semanticTaste: semantic } : enriched;
   };
   const publicStore = {
     get(path) {
@@ -538,7 +582,10 @@ export function createCloudApp(
                 {
                   reviews: reviews.diagnostics(),
                   episodes: episodes.diagnostics(),
-                  model: catalogModel.diagnostics(),
+                  model: {
+                    ...catalogModel.diagnostics(),
+                    budget: aiBudget.diagnostics(),
+                  },
                 },
               ),
               ...(path === "/api/admin/status"
@@ -714,6 +761,14 @@ export function createCloudApp(
                 account.id,
               );
             });
+            catalogModel.prioritize(
+              cleaned
+                .filter(
+                  (c) =>
+                    c.reaction && ["good", "bad"].includes(c.reaction.action),
+                )
+                .map((c) => c.id),
+            );
             communityCache = null;
             response = json({ revision: account.revision + 1 });
           }
@@ -872,10 +927,11 @@ export function createCloudApp(
             session: tokenSession,
           });
           response = json({
-            data: (d.data || []).map((x) => ({
-              ...attachTaste(normalize(x.node), 3),
-              listStatus: x.list_status,
-            })),
+            data: (d.data || []).map((x) => {
+              const anime = attachTaste(normalize(x.node), 3);
+              rememberSeen(anime, x.list_status);
+              return { ...anime, listStatus: x.list_status };
+            }),
             nextOffset: d.paging?.next ? offset + 100 : null,
           });
         } else if (path === "/api/search" && req.method === "GET") {
@@ -923,7 +979,10 @@ export function createCloudApp(
             enrichment: {
               ...reviews.diagnostics(),
               episodes: episodes.diagnostics(),
-              model: catalogModel.diagnostics(),
+              model: {
+                ...catalogModel.diagnostics(),
+                budget: aiBudget.diagnostics(),
+              },
             },
             episodes: Object.fromEntries(
               ids.map((id) => [id, episodes.cached(id)]).filter(([, p]) => p),
@@ -931,6 +990,11 @@ export function createCloudApp(
             research: Object.fromEntries(
               ids
                 .map((id) => [id, research.projection(id)])
+                .filter(([, p]) => p),
+            ),
+            semantic: Object.fromEntries(
+              ids
+                .map((id) => [id, catalogModel.semantic(id)])
                 .filter(([, p]) => p),
             ),
             profiles: Object.fromEntries(

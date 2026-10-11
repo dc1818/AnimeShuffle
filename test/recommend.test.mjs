@@ -232,3 +232,34 @@ test("a shared studio with negative learned contribution is not presented as a r
   assert.match(text, /Action/);
   assert.doesNotMatch(text, /Studio A/);
 });
+
+test("weighted discovery varies matches, includes lesser-known candidates, and never requires popularity or scores", () => {
+  let seed = 7;
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const candidates = [
+    anime(101, ["Action"], { members: 2000000 }),
+    anime(102, ["Action"], { members: 12000, score: null }),
+    anime(103, ["Drama"], { members: 40000 }),
+  ];
+  const reactions = { 1: { action: "good", anime: anime(1, ["Action"]) } };
+  const counts = new Map();
+  for (let i = 0; i < 250; i++) {
+    const p = chooseNext(candidates, { reactions, random });
+    counts.set(p.anime.id, (counts.get(p.anime.id) || 0) + 1);
+  }
+  assert.equal(counts.size, 3);
+  assert.ok(counts.get(102) > 20);
+  assert.ok(counts.get(101) > 0);
+  const rejected = {
+    ...reactions,
+    102: { action: "bad", anime: candidates[1] },
+  };
+  for (let i = 0; i < 20; i++)
+    assert.notEqual(
+      chooseNext(candidates, { reactions: rejected, random }).anime.id,
+      102,
+    );
+});

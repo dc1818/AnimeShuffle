@@ -107,10 +107,10 @@ for (const staticMode of [false, true])
       assert.equal(button("Start shuffling").disabled, true);
       await click("Surprise me — any anime");
       assert.equal(document.querySelector("dialog"), null);
-      assert.equal(
-        document.getElementById("anime-title").textContent,
-        "Cowboy Bebop",
-      );
+      const firstChosen = store.getSnapshot().current;
+      const firstTitle = document.getElementById("anime-title").textContent;
+      assert.ok(firstChosen?.id && firstTitle);
+
       if (staticMode)
         assert.ok(
           document
@@ -123,7 +123,10 @@ for (const staticMode of [false, true])
       assert.equal(document.getElementById("details-card"), null);
       // Keyboard numbers are present in button text, so dispatch by class for reactions.
       await act(async () => document.querySelector(".reaction.watch").click());
-      assert.equal(store.getSnapshot().reactions[1].action, "watch");
+      assert.equal(
+        store.getSnapshot().reactions[firstChosen.id].action,
+        "watch",
+      );
       assert.equal(document.getElementById("toast"), null);
       assert.ok(
         document.querySelector('[aria-label="New watchlist additions"]'),
@@ -270,7 +273,7 @@ for (const staticMode of [false, true])
       await click("Undo");
       assert.equal(
         document.getElementById("anime-title").textContent,
-        "Cowboy Bebop",
+        firstTitle,
       );
       assert.equal(
         Object.keys(store.getSnapshot().reactions).filter(
@@ -284,7 +287,10 @@ for (const staticMode of [false, true])
           document.querySelector(".reaction." + action).click(),
         );
         assert.equal(document.getElementById("details-card"), null);
-        assert.equal(store.getSnapshot().reactions[1].action, action);
+        assert.equal(
+          store.getSnapshot().reactions[firstChosen.id].action,
+          action,
+        );
         await click("Undo");
       }
       await click("More about this anime");
@@ -292,14 +298,14 @@ for (const staticMode of [false, true])
       assert.equal(document.getElementById("details-card"), null);
       assert.notEqual(
         document.getElementById("anime-title").textContent,
-        "Cowboy Bebop",
+        firstTitle,
       );
       await click("More about this anime");
       await click("Undo");
       assert.equal(document.getElementById("details-card"), null);
       assert.equal(
         document.getElementById("anime-title").textContent,
-        "Cowboy Bebop",
+        firstTitle,
       );
       assert.equal(
         Object.keys(store.getSnapshot().reactions).filter(
@@ -323,7 +329,7 @@ for (const staticMode of [false, true])
       );
       assert.equal(
         store.getSnapshot().current.title,
-        "Cowboy Bebop",
+        firstChosen.title,
         "Saving filters must not replace the loaded card",
       );
       assert.deepEqual(store.getSnapshot().preferences.formats, ["movies"]);

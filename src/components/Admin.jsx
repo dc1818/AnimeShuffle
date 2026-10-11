@@ -1292,17 +1292,29 @@ export function Admin() {
                     ],
                     ["Queued model jobs", status.enrichment.model?.queued ?? 0],
                     [
-                      "Traits checked per complete scan",
-                      status.enrichment.model?.traitsPerAnime ??
-                        status.vocabulary.length,
+                      "AI scope",
+                      status.enrichment.model?.analysisMode ===
+                      "rated-or-seen-compact"
+                        ? "Rated or seen anime · compact analysis"
+                        : "Full trait scans",
                     ],
                     [
-                      "Completed full-catalog scans",
-                      status.enrichment.model?.completedTraitScans ?? 0,
+                      "Shared AI calls today",
+                      `${status.enrichment.model?.budget?.requestsToday ?? 0} / ${status.enrichment.model?.budget?.dailyRequests ?? 0}`,
                     ],
                     [
-                      "Trait checks across current scans",
-                      status.enrichment.model?.checkedTraits ?? 0,
+                      "Reserved neuron budget (site only)",
+                      `${status.enrichment.model?.budget?.reservedNeurons ?? 0} / ${status.enrichment.model?.budget?.dailyNeurons ?? 0}`,
+                    ],
+                    [
+                      "AI budget resets",
+                      status.enrichment.model?.budget?.resetsAt
+                        ? when(status.enrichment.model.budget.resetsAt)
+                        : "00:00 UTC",
+                    ],
+                    [
+                      "Cached semantic profiles",
+                      status.enrichment.model?.semanticProfiles ?? 0,
                     ],
                     [
                       "Saved model profiles",

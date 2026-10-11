@@ -556,3 +556,104 @@ test("a research-question change during inference cannot mark the old pass as th
   assert.equal(calls, 2);
   s.db.close();
 });
+
+test("compact queue analyzes only admitted titles, removes stale broad jobs, and caches both calls across restarts", async () => {
+  const s = storage(),
+    research = createResearchStore(s);
+  let clock = Date.now(),
+    calls = 0,
+    embeddings = 0;
+  const admitted = new Set([123]);
+  research.remember(anime(123));
+  research.remember(anime(999));
+  const legacy = createCatalogModel({
+    storage: s,
+    research,
+    analyzer: async () => ({}),
+    schedule: async () => {},
+    fetcher: empty,
+    now: () => clock,
+  });
+  legacy.enqueue(anime(999));
+  const opts = {
+    storage: s,
+    research,
+    fullScan: false,
+    eligible: (id) => admitted.has(id),
+    eligibleIds: () => [...admitted],
+    now: () => clock,
+    schedule: async () => {},
+    fetcher: empty,
+    analyzer: async (a, r, f, requirements, pass) => {
+      assert.equal(pass, null);
+      calls++;
+      return { profile: null, evidenceHash: "evidence", usage: {} };
+    },
+    semanticAnalyzer: async () => {
+      embeddings++;
+      return { version: "test", model: "test", premise: Array(384).fill(0.1) };
+    },
+  };
+  let m = createCatalogModel(opts);
+  assert.equal(m.diagnostics().queued, 1);
+  m.enqueue(anime(999));
+  await m.run();
+  assert.equal(calls, 1);
+  assert.equal(embeddings, 1);
+  assert.equal(m.diagnostics().queued, 0);
+  assert.ok(m.semantic(123));
+  clock += 86400000;
+  m = createCatalogModel(opts);
+  m.enqueue(anime(123));
+  await m.run();
+  assert.equal(calls, 1);
+  assert.equal(embeddings, 1);
+  admitted.add(456);
+  m.enqueue(anime(456));
+  admitted.delete(456);
+  clock += 20000;
+  await m.run();
+  assert.equal(calls, 1);
+  assert.equal(m.diagnostics().queued, 0);
+  s.db.close();
+});
+
+test("embedding quota after successful compact analysis does not repeat the LLM the next day", async () => {
+  const s = storage(),
+    research = createResearchStore(s);
+  let clock = Date.now(),
+    calls = 0,
+    embeds = 0;
+  const opts = {
+    storage: s,
+    research,
+    fullScan: false,
+    eligible: () => true,
+    now: () => clock,
+    schedule: async () => {},
+    fetcher: empty,
+    analyzer: async () => {
+      calls++;
+      return { profile: null, usage: {} };
+    },
+    semanticAnalyzer: async () => {
+      if (++embeds === 1)
+        throw Object.assign(Error("daily free allocation exhausted"), {
+          code: 3036,
+        });
+      return { model: "test" };
+    },
+  };
+  let m = createCatalogModel(opts);
+  m.enqueue(anime());
+  await m.run();
+  assert.equal(calls, 1);
+  assert.equal(m.diagnostics().reason, "daily_allowance_exhausted");
+  clock = m.diagnostics().pauseUntil + 1;
+  m = createCatalogModel(opts);
+  await m.run();
+  assert.equal(calls, 1);
+  assert.equal(embeds, 2);
+  assert.equal(m.diagnostics().queued, 0);
+  s.db.close();
+});
