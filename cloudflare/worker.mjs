@@ -126,6 +126,19 @@ export default {
       const entry = new URL("/", url);
       return secure(await env.ASSETS.fetch(new Request(entry, request)));
     }
+    if (
+      ["/feedback-preview", "/feedback-preview.html"].includes(url.pathname)
+    ) {
+      // Isolated, same-origin layout frames only. This fixture has no account
+      // access and cannot make API requests; application routes remain unframeable.
+      const response = secure(await env.ASSETS.fetch(request));
+      response.headers.set("X-Frame-Options", "SAMEORIGIN");
+      response.headers.set(
+        "Content-Security-Policy",
+        "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.myanimelist.net https://api-cdn.myanimelist.net; font-src 'self'; connect-src 'none'; frame-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'",
+      );
+      return response;
+    }
     return secure(await env.ASSETS.fetch(request));
   },
 };
