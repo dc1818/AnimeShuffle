@@ -106,6 +106,7 @@ export function createAnimeStore({
     whyReasons: [],
     busy: true,
     ready: false,
+    backendUnavailable: false,
     accountDataReady: false,
     discoveryLoading: false,
     discoveryProgress: null,
@@ -183,6 +184,12 @@ export function createAnimeStore({
   async function api(url, data) {
     if (staticMode)
       throw new Error("Accounts and MyAnimeList require the server version.");
+    if (state.backendUnavailable) {
+      const error = new Error("Anime Shuffle is temporarily unavailable.");
+      error.code = "backend_unavailable";
+      error.status = 503;
+      throw error;
+    }
     const read = data === undefined;
     // A list fetched before a write must never undo that write in local state.
     if (!read && url.startsWith("/api/plan")) malWriteVersion++;
@@ -211,6 +218,8 @@ export function createAnimeStore({
           ),
         });
         if (!response.ok) {
+          if (result.code === "backend_unavailable")
+            update({ backendUnavailable: true });
           const error = new Error(result.error || "Request failed.");
           error.code = result.code;
           error.status = response.status;
@@ -1498,7 +1507,7 @@ export function createAnimeStore({
             : await api("/api/session"),
         );
       } catch (error) {
-        update({ error: error.message, busy: false });
+        update({ error: error.message, busy: false, backendUnavailable: true });
       } finally {
         update({ ready: true });
       }

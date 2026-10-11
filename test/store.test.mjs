@@ -18,6 +18,45 @@ function memory() {
     setItem: (key, value) => values.set(key, value),
   };
 }
+test("failed startup shows outage state without changing saved data or retrying in the background", async () => {
+  const storage = memory();
+  const saved = JSON.stringify({ reactions: { 123: { action: "good" } } });
+  storage.setItem("anime-shuffle:guest", saved);
+  let calls = 0;
+  const store = createAnimeStore({
+    storage,
+    request: async () => {
+      calls++;
+      return Response.json(
+        { error: "Unavailable", code: "backend_unavailable" },
+        { status: 503 },
+      );
+    },
+  });
+  await store.initialize();
+  assert.equal(store.getSnapshot().backendUnavailable, true);
+  assert.equal(store.getSnapshot().ready, true);
+  assert.equal(storage.getItem("anime-shuffle:guest"), saved);
+  const before = calls;
+  await store.initialize();
+  assert.equal(calls, before);
+});
+
+test("an upstream catalog error does not falsely signal a shared database outage", async () => {
+  const store = createAnimeStore({
+    storage: memory(),
+    request: async (url) => {
+      if (url === "/api/session")
+        return Response.json({ configured: true, connected: false });
+      return Response.json(
+        { error: "Metadata unavailable", code: "mal_unavailable" },
+        { status: 503 },
+      );
+    },
+  });
+  await store.initialize();
+  assert.equal(store.getSnapshot().backendUnavailable, false);
+});
 test("React store keeps auto-add opt-in and preserves MAL entry when Undo is refused", async () => {
   let writes = 0,
     starts = 0;

@@ -1142,7 +1142,9 @@ export function createCloudApp(
             error: error.status
               ? error.message
               : "Cloud storage or configuration is unavailable. Check the Cloudflare deployment settings.",
-            code: error.code || "server_error",
+            code:
+              error.code ||
+              (error.status ? "server_error" : "backend_unavailable"),
           },
           error.status || 503,
         );

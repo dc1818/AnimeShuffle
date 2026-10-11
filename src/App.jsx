@@ -13,6 +13,7 @@ import { Watchlist } from "./components/Watchlist.jsx";
 import { combinedWatchlist } from "./lib/watchlist.js";
 import { Dialogs } from "./components/Dialogs.jsx";
 import { BACKGROUND_REFRESH_MS } from "./lib/refresh-policy.js";
+import { ServiceUnavailable } from "./components/ServiceUnavailable.jsx";
 
 /** Page-level UI state stays in React; domain commands live in the injected store. */
 export function App({ store }) {
@@ -21,6 +22,21 @@ export function App({ store }) {
     store.getSnapshot,
     store.getSnapshot,
   );
+  useEffect(() => {
+    store.initialize();
+  }, [store]);
+  if (state.backendUnavailable) return <ServiceUnavailable />;
+  // Do not flash the normal page or onboarding before the session probe succeeds.
+  if (!state.ready)
+    return (
+      <div className="service-start" role="status">
+        Connecting to Anime Shuffle…
+      </div>
+    );
+  return <ConnectedApp store={store} state={state} />;
+}
+
+function ConnectedApp({ store, state }) {
   const [view, setView] = useState("discover");
   const [freshnessTick, setFreshnessTick] = useState(0);
   useEffect(() => {
@@ -59,9 +75,6 @@ export function App({ store }) {
   ]);
   const [authError, setAuthError] = useState("");
   const onboardingShown = useRef(false);
-  useEffect(() => {
-    store.initialize();
-  }, [store]);
   useEffect(() => {
     if (!state.ready || onboardingShown.current) return;
     onboardingShown.current = true;

@@ -129,6 +129,7 @@ export default {
             {
               error:
                 "Anime Shuffle is temporarily unavailable. Please try again later.",
+              code: "backend_unavailable",
             },
             {
               status: 503,

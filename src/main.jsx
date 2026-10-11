@@ -3,6 +3,7 @@ import { browserLocalStorage } from "./lib/browser-storage.js";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.jsx";
+import { ServiceUnavailable } from "./components/ServiceUnavailable.jsx";
 import { createDiagnostics } from "./lib/diagnostics.js";
 import { createAnimeStore } from "./lib/store.js";
 
@@ -45,7 +46,9 @@ window.animeShuffleDebug.enrichment = async () => {
 };
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    {location.pathname.replace(/\/$/, "") === "/admin" ? (
+    {new URLSearchParams(location.search).get("preview") === "unavailable" ? (
+      <ServiceUnavailable preview />
+    ) : location.pathname.replace(/\/$/, "") === "/admin" ? (
       <Admin />
     ) : (
       <App store={store} />
