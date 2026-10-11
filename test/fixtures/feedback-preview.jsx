@@ -2,8 +2,7 @@
 // analytics, recommendations requests, or changes to the visitor's profile.
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ReactionFeedback } from "../../src/components/ReactionFeedback.jsx";
-import { AnimeCard } from "../../src/components/AnimeCard.jsx";
+import { AnimeCard, AnimeDetails } from "../../src/components/AnimeCard.jsx";
 import { demo } from "../../src/lib/demo.js";
 const sizes = [
   [320, 640],
@@ -14,7 +13,8 @@ const sizes = [
 function Fixture() {
   const [action, setAction] = useState("good"),
     [long, setLong] = useState(false),
-    [feedback, setFeedback] = useState(null);
+    [feedback, setFeedback] = useState(null),
+    [details, setDetails] = useState(true);
   const anime = {
     ...demo[0],
     title: long
@@ -43,6 +43,7 @@ function Fixture() {
               setFeedback(null);
             }}
           >
+            <option value="none">No reactions yet</option>
             <option value="good">Good</option>
             <option value="bad">Bad</option>
             <option value="watch">Would watch</option>
@@ -57,25 +58,34 @@ function Fixture() {
           />
           Long title
         </label>
+        <button onClick={() => setDetails(true)}>Open details</button>
         <small>Layout preview · No profile changes</small>
       </div>
       <main>
-        <div className="cards-layout">
+        <div className={`cards-layout${details ? " expanded" : ""}`}>
           <AnimeCard
             anime={demo[1]}
             onReact={() => {}}
             onSkip={() => {}}
             onUndo={() => {}}
-            onDetails={() => {}}
+            onDetails={() => setDetails(true)}
             dynamic={false}
           />
+          {details && (
+            <AnimeDetails
+              responsive
+              anime={demo[1]}
+              reactions={
+                action === "none"
+                  ? {}
+                  : { [anime.id]: { anime, action, feedback, at: 1 } }
+              }
+              onSaveFeedback={async (_id, next) => setFeedback(next)}
+              onClose={() => setDetails(false)}
+              reason="A different pick to explore your taste."
+            />
+          )}
         </div>
-        <ReactionFeedback
-          key={`${action}:${long}`}
-          reaction={{ anime, action, feedback }}
-          onSave={async (_id, next) => setFeedback(next)}
-          startOpen
-        />
       </main>
     </>
   );

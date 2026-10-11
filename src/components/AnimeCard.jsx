@@ -1,3 +1,5 @@
+import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
+import { englishTitle, primaryTitle } from "../lib/titles.js";
 import { loadMedia } from "../lib/media-cache.js";
 import { AnimeMedia } from "./AnimeMedia.jsx";
 import { TrailerPreview } from "./TrailerPreview.jsx";
@@ -260,9 +262,33 @@ export function AnimeDetails({
   reasons,
   onClose,
   responsive = false,
+  reactions = {},
+  onSaveFeedback,
 }) {
   const panel = useRef(null);
   const tabId = useId();
+  const feedbackTrigger = useRef(null);
+  const restoreFeedbackFocus = useRef(false);
+  const [editingId, setEditingId] = useState(null);
+  const eligible = Object.values(reactions).filter(
+    (r) => r?.anime?.id && reactionLabel(r.action),
+  );
+  const recent = eligible.sort(
+    (a, b) => (Number(b.at) || 0) - (Number(a.at) || 0),
+  )[0];
+  const editing = eligible.find(
+    (r) => String(r.anime.id) === String(editingId),
+  );
+  function backToWhy() {
+    restoreFeedbackFocus.current = true;
+    setEditingId(null);
+  }
+  useEffect(() => {
+    if (!editing && restoreFeedbackFocus.current) {
+      feedbackTrigger.current?.focus();
+      restoreFeedbackFocus.current = false;
+    }
+  }, [editing]);
   const mediaEnabled = document.documentElement.dataset.hosting !== "pages";
   const tabs = [
     "Synopsis",
@@ -284,6 +310,7 @@ export function AnimeDetails({
   // Each anime starts at its synopsis, including when a parent reuses this panel.
   useEffect(() => {
     setActiveTab(0);
+    setEditingId(null);
   }, [anime.id]);
   function changeTab(event, index) {
     let next;
@@ -348,7 +375,8 @@ export function AnimeDetails({
         overlay
           ? (event) => {
               event.preventDefault();
-              onClose();
+              if (editing) backToWhy();
+              else onClose();
             }
           : undefined
       }
@@ -368,138 +396,188 @@ export function AnimeDetails({
           : undefined
       }
       id="details-card"
-      className="details-card"
+      className={`details-card${editing ? " feedback-active" : ""}`}
       aria-labelledby="details-heading"
     >
-      <div className="details-header">
-        <button
-          className="icon-button close"
-          aria-label="Close anime details"
-          onClick={onClose}
-        >
-          <Icon name="close" />
-        </button>
-        <span className="eyebrow">About this anime</span>
-        <h2 id="details-heading">
-          <AnimeTitle anime={anime} />
-        </h2>
-        {!!anime.prequels?.length && (
-          <p className="runtime-estimate">
-            This is a separate entry in a series. Your reaction and watchlist
-            save apply to this entry.
-          </p>
-        )}
-        <div
-          className={`details-tabs${mediaEnabled ? " with-media" : ""}`}
-          role="tablist"
-          aria-label="Anime information"
-        >
-          {tabs.map((label, index) => (
+      {editing ? (
+        <ReactionFeedback
+          key={`${editing.anime.id}:${editing.action}:${editing.at}`}
+          reaction={editing}
+          onSave={onSaveFeedback}
+          onDone={backToWhy}
+          onClose={onClose}
+          headingId="details-heading"
+        />
+      ) : (
+        <>
+          <div className="details-header">
             <button
-              key={label}
-              type="button"
-              role="tab"
-              id={`${tabId}-tab-${index}`}
-              aria-controls={`${tabId}-panel-${index}`}
-              aria-selected={activeTab === index}
-              tabIndex={activeTab === index ? 0 : -1}
-              onClick={() => setActiveTab(index)}
-              onKeyDown={(event) => changeTab(event, index)}
+              className="icon-button close"
+              aria-label="Close anime details"
+              onClick={onClose}
             >
-              {label}
+              <Icon name="close" />
             </button>
-          ))}
-        </div>
-      </div>
-      <div className="details-body" key={anime.id}>
-        <div
-          role="tabpanel"
-          id={`${tabId}-panel-0`}
-          aria-labelledby={`${tabId}-tab-0`}
-          hidden={activeTab !== 0}
-          tabIndex={0}
-        >
-          <p className="full-synopsis">
-            {synopsisText(anime.synopsis) || "No synopsis available."}
-          </p>
-        </div>
-        <div
-          role="tabpanel"
-          id={`${tabId}-panel-1`}
-          aria-labelledby={`${tabId}-tab-1`}
-          hidden={activeTab !== 1}
-          tabIndex={0}
-        >
-          {anime.episodeTaste?.total > 0 && (
-            <p className="episode-coverage">
-              {anime.episodeTaste.complete && anime.episodeTaste.filler === 0
-                ? "No episodes are marked as filler."
-                : `${anime.episodeTaste.filler} of ${anime.episodeTaste.total} checked episodes are marked as filler.`}
-              {anime.episodeTaste.recap > 0 &&
-                ` ${anime.episodeTaste.recap} episodes are marked as recap.`}
-              {anime.episodeTaste.complete
-                ? " Full available episode list checked."
-                : " Partial coverage; this is not a full-series estimate."}
-            </p>
-          )}
-          <dl className="detail-facts">
-            {Object.entries(facts).map(([name, value]) => (
-              <div className="fact" key={name}>
-                <dt>{name}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        {mediaEnabled &&
-          ["trailer", "pictures"].map((kind, index) => (
+            <span className="eyebrow">About this anime</span>
+            <h2 id="details-heading">
+              <AnimeTitle anime={anime} />
+            </h2>
+            {!!anime.prequels?.length && (
+              <p className="runtime-estimate">
+                This is a separate entry in a series. Your reaction and
+                watchlist save apply to this entry.
+              </p>
+            )}
             <div
-              key={kind}
-              role="tabpanel"
-              id={`${tabId}-panel-${index + 2}`}
-              aria-labelledby={`${tabId}-tab-${index + 2}`}
-              hidden={activeTab !== index + 2}
-              tabIndex={0}
+              className={`details-tabs${mediaEnabled ? " with-media" : ""}`}
+              role="tablist"
+              aria-label="Anime information"
             >
-              <AnimeMedia
-                key={`${anime.id}-${kind}`}
-                anime={anime}
-                kind={kind}
-                active={activeTab === index + 2}
-              />
-            </div>
-          ))}
-        <div
-          role="tabpanel"
-          id={`${tabId}-panel-${tabs.length - 1}`}
-          aria-labelledby={`${tabId}-tab-${tabs.length - 1}`}
-          hidden={activeTab !== tabs.length - 1}
-          tabIndex={0}
-        >
-          <div className="why-card">
-            <Icon name="shuffle" />
-            <div>
-              <h3>Why this pick?</h3>
-              <ul className="why-reasons">
-                {(reasons?.length
-                  ? reasons
-                  : [reason || "Something new for your next watch."]
-                ).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              {tabs.map((label, index) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="tab"
+                  id={`${tabId}-tab-${index}`}
+                  aria-controls={`${tabId}-panel-${index}`}
+                  aria-selected={activeTab === index}
+                  tabIndex={activeTab === index ? 0 : -1}
+                  onClick={() => setActiveTab(index)}
+                  onKeyDown={(event) => changeTab(event, index)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-        <a
-          className="external-button"
-          href={`https://myanimelist.net/anime/${anime.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View on MyAnimeList <Icon name="external" />
-        </a>
-      </div>
+          <div className="details-body" key={anime.id}>
+            <div
+              role="tabpanel"
+              id={`${tabId}-panel-0`}
+              aria-labelledby={`${tabId}-tab-0`}
+              hidden={activeTab !== 0}
+              tabIndex={0}
+            >
+              <p className="full-synopsis">
+                {synopsisText(anime.synopsis) || "No synopsis available."}
+              </p>
+            </div>
+            <div
+              role="tabpanel"
+              id={`${tabId}-panel-1`}
+              aria-labelledby={`${tabId}-tab-1`}
+              hidden={activeTab !== 1}
+              tabIndex={0}
+            >
+              {anime.episodeTaste?.total > 0 && (
+                <p className="episode-coverage">
+                  {anime.episodeTaste.complete &&
+                  anime.episodeTaste.filler === 0
+                    ? "No episodes are marked as filler."
+                    : `${anime.episodeTaste.filler} of ${anime.episodeTaste.total} checked episodes are marked as filler.`}
+                  {anime.episodeTaste.recap > 0 &&
+                    ` ${anime.episodeTaste.recap} episodes are marked as recap.`}
+                  {anime.episodeTaste.complete
+                    ? " Full available episode list checked."
+                    : " Partial coverage; this is not a full-series estimate."}
+                </p>
+              )}
+              <dl className="detail-facts">
+                {Object.entries(facts).map(([name, value]) => (
+                  <div className="fact" key={name}>
+                    <dt>{name}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            {mediaEnabled &&
+              ["trailer", "pictures"].map((kind, index) => (
+                <div
+                  key={kind}
+                  role="tabpanel"
+                  id={`${tabId}-panel-${index + 2}`}
+                  aria-labelledby={`${tabId}-tab-${index + 2}`}
+                  hidden={activeTab !== index + 2}
+                  tabIndex={0}
+                >
+                  <AnimeMedia
+                    key={`${anime.id}-${kind}`}
+                    anime={anime}
+                    kind={kind}
+                    active={activeTab === index + 2}
+                  />
+                </div>
+              ))}
+            <div
+              role="tabpanel"
+              id={`${tabId}-panel-${tabs.length - 1}`}
+              aria-labelledby={`${tabId}-tab-${tabs.length - 1}`}
+              hidden={activeTab !== tabs.length - 1}
+              tabIndex={0}
+            >
+              <div className="why-card">
+                <Icon name="shuffle" />
+                <div>
+                  <h3>Why this pick?</h3>
+                  <ul className="why-reasons">
+                    {(reasons?.length
+                      ? reasons
+                      : [reason || "Something new for your next watch."]
+                    ).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              {recent && onSaveFeedback && (
+                <section
+                  className="why-feedback-entry"
+                  aria-label="Your recent reaction"
+                >
+                  <span className="feedback-eyebrow">YOUR RECENT REACTION</span>
+                  <div className="why-feedback-title">
+                    {coverUrl(recent.anime) && (
+                      <img src={coverUrl(recent.anime)} alt="" loading="lazy" />
+                    )}
+                    <div>
+                      <strong>
+                        {englishTitle(recent.anime) ||
+                          primaryTitle(recent.anime)}
+                      </strong>
+                      <span className={`feedback-badge ${recent.action}`}>
+                        {reactionLabel(recent.action)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    ref={feedbackTrigger}
+                    className="primary"
+                    onClick={() => setEditingId(recent.anime.id)}
+                  >
+                    {recent.feedback?.aspects?.length
+                      ? "Edit reasons for this reaction"
+                      : "Add reasons for this reaction"}
+                  </button>
+                  <p className="feedback-hint">
+                    About{" "}
+                    {englishTitle(recent.anime) || primaryTitle(recent.anime)},
+                    which you marked {reactionLabel(recent.action)}.
+                  </p>
+                </section>
+              )}
+            </div>
+            <a
+              className="external-button"
+              href={`https://myanimelist.net/anime/${anime.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on MyAnimeList <Icon name="external" />
+            </a>
+          </div>
+        </>
+      )}
     </Panel>
   );
 }

@@ -1,5 +1,4 @@
 import { RecommendationExposure } from "./components/RecommendationExposure.jsx";
-import { ReactionFeedback } from "./components/ReactionFeedback.jsx";
 import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -37,8 +36,6 @@ export function App({ store }) {
     setDetails(false);
   }, [state.current?.id, state.discoveryLoading, view]);
   const [dialog, setDialog] = useState(null);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  useEffect(() => setFeedbackOpen(false), [state.lastReactionId]);
   const unlocked = recommendationsUnlocked(state.reactions);
   const [unlockNotice, setUnlockNotice] = useState(false);
   useEffect(() => {
@@ -113,10 +110,10 @@ export function App({ store }) {
     window.history.replaceState({}, "", location.pathname);
   }, [state.ready, state.session.connected, store]);
   useEffect(() => {
-    if (!state.message || feedbackOpen) return;
+    if (!state.message) return;
     const timer = setTimeout(store.dismissMessage, 6000);
     return () => clearTimeout(timer);
-  }, [state.message, feedbackOpen, store]);
+  }, [state.message, store]);
   useEffect(() => {
     function keydown(event) {
       if (
@@ -344,11 +341,7 @@ export function App({ store }) {
         }
       >
         {view === "profile" ? (
-          <Profile
-            state={state}
-            onDiscover={() => setView("discover")}
-            onSaveFeedback={store.setReactionFeedback}
-          />
+          <Profile state={state} onDiscover={() => setView("discover")} />
         ) : view === "recommendations" ? (
           <Recommendations
             state={state}
@@ -432,6 +425,8 @@ export function App({ store }) {
                   {details && (
                     <AnimeDetails
                       responsive
+                      reactions={state.reactions}
+                      onSaveFeedback={store.setReactionFeedback}
                       anime={state.current}
                       reason={state.detailReason || state.reason}
                       reasons={state.whyReasons}
@@ -496,18 +491,6 @@ export function App({ store }) {
             )}
           </section>
         )}
-        {!dialog &&
-          !details &&
-          view !== "profile" &&
-          state.reactions[state.lastReactionId] && (
-            <ReactionFeedback
-              key={`${state.lastReactionId}:${state.reactions[state.lastReactionId].at}`}
-              reaction={state.reactions[state.lastReactionId]}
-              onOpenChange={setFeedbackOpen}
-              onSave={store.setReactionFeedback}
-              onDismiss={store.dismissReactionReason}
-            />
-          )}
       </main>
       <footer>
         <span>

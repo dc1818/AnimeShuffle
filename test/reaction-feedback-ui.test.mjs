@@ -10,7 +10,7 @@ import React, { act } from "react";
 test("optional UI asks only applicable viewing questions and requires an explicit aspect opinion", async () => {
   const folder = await mkdtemp(path.resolve(".feedback-ui-"));
   await build({
-    entryPoints: ["src/components/ReactionFeedback.jsx"],
+    entryPoints: ["src/components/AnimeCard.jsx"],
     outfile: path.join(folder, "ui.mjs"),
     bundle: true,
     platform: "node",
@@ -18,13 +18,14 @@ test("optional UI asks only applicable viewing questions and requires an explici
     jsx: "automatic",
     packages: "external",
   });
-  const { ReactionFeedback } = await import(
+  const { AnimeDetails } = await import(
     pathToFileURL(path.join(folder, "ui.mjs"))
   );
   const dom = new JSDOM('<div id="root"></div>', { pretendToBeVisual: true });
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  document.documentElement.dataset.hosting = "pages";
   window.matchMedia = () => ({
     matches: true,
     addEventListener() {},
@@ -39,9 +40,17 @@ test("optional UI asks only applicable viewing questions and requires an explici
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root"));
   const saves = [];
+  const reaction = {
+    anime: { id: 1, title: "Cowboy Bebop" },
+    action: "good",
+    at: 1,
+  };
   const props = {
-    reaction: { anime: { id: 1, title: "Cowboy Bebop" }, action: "good" },
-    onSave: async (...args) => saves.push(args),
+    anime: { id: 205, title: "Samurai Champloo" },
+    responsive: true,
+    reactions: {},
+    onClose() {},
+    onSaveFeedback: async (...args) => saves.push(args),
   };
   const click = async (text) => {
     const button = [...document.querySelectorAll("button")].find(
@@ -52,11 +61,40 @@ test("optional UI asks only applicable viewing questions and requires an explici
   };
   try {
     await act(async () =>
-      root.render(React.createElement(ReactionFeedback, props)),
+      root.render(React.createElement(AnimeDetails, props)),
     );
-    assert.equal(document.querySelector("dialog"), null);
-    await click("Add a reason (optional)");
-    assert.ok(document.querySelector("dialog[open]"));
+    await click("Why this pick?");
+    assert.equal(
+      document.querySelector(".why-feedback-entry"),
+      null,
+      "first visit has no feedback entry",
+    );
+    await act(async () =>
+      root.render(
+        React.createElement(AnimeDetails, {
+          ...props,
+          reactions: { 1: reaction },
+        }),
+      ),
+    );
+    assert.match(
+      document.querySelector(".why-feedback-entry").textContent,
+      /Cowboy Bebop/,
+    );
+    await click("Add reasons for this reaction");
+    assert.equal(
+      document.querySelectorAll("dialog").length,
+      1,
+      "reuse existing mobile panel",
+    );
+    assert.equal(
+      document.querySelector('[role="tablist"]'),
+      null,
+      "editor replaces anime details",
+    );
+    assert.equal(document.querySelector("h2").textContent, "Cowboy Bebop");
+    assert.equal(document.querySelector("textarea"), null);
+    assert.ok(!document.body.textContent.includes("personal note"));
     assert.ok(!document.body.textContent.includes("Romance"));
     await click("Characters");
     await click("Villain / antagonist");
@@ -85,21 +123,37 @@ test("optional UI asks only applicable viewing questions and requires an explici
       { key: "animation", sentiment: "disliked" },
     ]);
     await click("Done");
-    assert.equal(document.querySelector("dialog"), null);
+    assert.equal(document.querySelector(".feedback-editor"), null);
+    assert.equal(
+      document.querySelector('[role="tab"][aria-selected="true"]').textContent,
+      "Why this pick?",
+    );
+    assert.equal(
+      document.activeElement.textContent,
+      "Add reasons for this reaction",
+    );
     await act(async () =>
       root.render(
-        React.createElement(ReactionFeedback, {
+        React.createElement(AnimeDetails, {
           ...props,
-          key: "watch",
-          reaction: { ...props.reaction, action: "watch" },
-          startOpen: true,
+          reactions: { 1: { ...reaction, action: "watch" } },
         }),
       ),
     );
+    await click("Add reasons for this reaction");
     assert.ok(document.body.textContent.includes("What caught your eye?"));
     assert.ok(!document.body.textContent.includes("Animation"));
     assert.ok(document.body.textContent.includes("Artwork"));
     assert.ok(!document.body.textContent.includes("Villain"));
+    await act(async () =>
+      root.render(React.createElement(AnimeDetails, props)),
+    );
+    assert.equal(
+      document.querySelector(".feedback-editor"),
+      null,
+      "removed reaction cannot still be edited",
+    );
+    assert.equal(document.querySelector(".why-feedback-entry"), null);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

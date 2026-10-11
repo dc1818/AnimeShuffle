@@ -329,6 +329,8 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                         {about === pick.anime.id && (
                           <div className="recommendation-details">
                             <AnimeDetails
+                              reactions={state.reactions}
+                              onSaveFeedback={store.setReactionFeedback}
                               anime={pick.anime}
                               reason={pick.detailReason || pick.reason}
                               reasons={pick.whyReasons}

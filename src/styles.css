@@ -3775,26 +3775,68 @@ main.wide-main {
   line-height: 1.5;
 }
 
-/* Optional opinions: compact in flow, a desktop side panel, and a user-opened
-   native dialog on phones. Long titles and translated labels wrap safely. */
-.feedback-prompt {
-  position: relative;
-  width: min(100%, 470px);
-  margin: 14px auto 0;
-  padding: 12px 42px 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+/* Optional reasons live inside the existing anime details panel. */
+.why-feedback-entry {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
   overflow-wrap: anywhere;
 }
-.feedback-summary {
+.why-feedback-title {
   display: flex;
+  gap: 12px;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  margin: 12px 0;
 }
-.feedback-summary strong {
-  font-size: 14px;
+.why-feedback-title img {
+  width: 54px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex: none;
+}
+.why-feedback-title > div {
+  min-width: 0;
+}
+.why-feedback-title strong {
+  display: block;
+  margin-bottom: 8px;
+}
+.why-feedback-entry > button {
+  width: 100%;
+  padding: 12px;
+  min-height: 44px;
+  white-space: normal;
+}
+.details-card.feedback-active {
+  padding: 0;
+  overflow: hidden;
+}
+.feedback-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  max-height: calc(100dvh - 110px);
+  text-align: left;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.feedback-back {
+  display: block;
+  border: 0;
+  background: none;
+  color: #8ce1fa;
+  padding: 0 0 12px;
+  min-height: 44px;
+  text-align: left;
+}
+.feedback-close {
+  border: 0;
+  background: transparent;
+  font-size: 26px;
+  min-width: 44px;
+  min-height: 44px;
 }
 .feedback-badge {
   display: inline-block;
@@ -3813,51 +3855,6 @@ main.wide-main {
 }
 .feedback-badge.nope {
   background: #c49eea;
-}
-.feedback-link {
-  display: block;
-  background: none;
-  border: 0;
-  color: #a8e0ee;
-  text-decoration: underline;
-  padding: 10px 0 2px;
-  min-height: 36px;
-  text-align: left;
-}
-.feedback-dismiss,
-.feedback-close {
-  border: 0;
-  background: transparent;
-  font-size: 26px;
-  min-width: 44px;
-  min-height: 44px;
-}
-.feedback-dismiss {
-  position: absolute;
-  top: 4px;
-  right: 0;
-}
-.feedback-panel {
-  position: fixed;
-  inset: 90px 20px auto auto;
-  margin: 0;
-  width: 370px;
-  max-width: calc(100vw - 24px);
-  max-height: calc(100dvh - 110px);
-  padding: 0;
-  border: 1px solid #638695;
-  border-radius: 16px;
-  background: #0c161d;
-  color: var(--text);
-  box-shadow: 0 16px 60px #0009;
-  z-index: 150;
-  overflow: hidden;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.feedback-panel[open] {
-  display: flex;
-  flex-direction: column;
 }
 .feedback-header {
   display: flex;
@@ -3904,7 +3901,7 @@ main.wide-main {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
 }
-.feedback-panel button {
+.feedback-editor button {
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -3929,8 +3926,7 @@ main.wide-main {
   font-size: 12px;
   color: var(--muted);
 }
-.feedback-search input,
-.feedback-note textarea {
+.feedback-search input {
   width: 100%;
   min-width: 0;
   border: 1px solid #456171;
@@ -3982,34 +3978,13 @@ main.wide-main {
   background: #ff7b96;
   border-color: #ff7b96;
 }
-.feedback-opinion small,
-.feedback-note small {
+.feedback-opinion small {
   display: block;
   font-size: 12px;
   margin-top: 8px;
   color: var(--muted);
 }
-.feedback-note {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-}
-.feedback-note summary {
-  cursor: pointer;
-  min-height: 44px;
-  color: #a8e0ee;
-  padding-block: 8px;
-}
-.feedback-note label {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.feedback-note textarea {
-  min-height: 90px;
-  resize: vertical;
-}
-.feedback-panel .feedback-footer {
+.feedback-editor .feedback-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4030,111 +4005,33 @@ main.wide-main {
   padding: 9px 18px;
   flex: none;
 }
-.feedback-panel::backdrop {
-  background: #030912a8;
+
+.feedback-header h2 {
+  max-height: 4.5em;
+  overflow-y: auto;
 }
-@media (min-width: 1200px) {
-  main:has(.feedback-panel[open]) .cards-layout {
-    padding-right: 370px;
-  }
-  main:has(.feedback-panel[open]) .cards-layout.expanded {
-    padding-right: 0;
-  }
+.feedback-header .feedback-hint {
+  margin-bottom: 0;
 }
-@media (min-width: 701px) and (max-width: 1199px) {
-  .feedback-panel {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    max-width: none;
-    max-height: min(680px, 75dvh);
-    margin-top: 12px;
-    box-shadow: none;
-  }
-  .feedback-prompt:has(.feedback-panel[open]) {
-    padding: 12px;
-    width: min(100%, 540px);
+@media (max-width: 900px) {
+  dialog.details-card .feedback-editor {
+    height: 100%;
+    max-height: none;
   }
 }
-@media (max-width: 700px) {
-  .feedback-panel {
-    inset: auto 8px 8px;
-    width: calc(100% - 16px);
-    max-width: none;
-    max-height: calc(100dvh - 32px);
-    border-radius: 18px;
-  }
+@media (max-width: 560px) {
   .feedback-header {
-    padding: 12px 14px;
-  }
-  .feedback-header h2 {
-    font-size: 18px;
-    max-height: 4.5em;
-    overflow-y: auto;
+    padding: 12px;
+    gap: 4px;
   }
   .feedback-body {
-    padding: 14px;
+    padding: 12px;
   }
-  .feedback-panel .feedback-footer {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  .feedback-editor .feedback-footer {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+    gap: 6px;
   }
-}
-.reaction-history {
-  margin-block: 24px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-}
-.reaction-history summary {
-  cursor: pointer;
-  font-weight: 600;
-  min-height: 32px;
-}
-.reaction-history p,
-.reaction-history label {
-  font-size: 14px;
-  color: var(--muted);
-}
-.reaction-history input {
-  display: block;
-  margin-top: 8px;
-  width: 100%;
-  max-width: 470px;
-  background: #0b1a23;
-  color: var(--text);
-  border: 1px solid #456171;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 16px;
-}
-.reaction-history ul {
-  list-style: none;
-  margin: 16px 0;
-  padding: 0;
-}
-.reaction-history li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--line);
-  padding: 10px 0;
-}
-.reaction-history li > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.reaction-history small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-}
-.reaction-history li > button {
-  flex: none;
-  min-height: 44px;
-  padding: 8px;
-  background: #132630;
-  border: 1px solid #456171;
-  border-radius: 8px;
+  .feedback-footer button {
+    padding-inline: 12px;
+  }
 }
