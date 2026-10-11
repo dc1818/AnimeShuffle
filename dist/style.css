@@ -2679,15 +2679,30 @@ main.wide-main {
 }
 .inline-trailer-frame {
   flex: 1;
+  position: relative;
   min-width: 200px;
   min-height: 200px;
 }
 .inline-trailer-frame iframe {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   min-height: 200px;
   border: 0;
+}
+.leaderboard-row .poster-stage.has-preview {
+  min-height: 360px;
+  min-width: 200px;
+}
+.leaderboard-row .ranked-card {
+  grid-template-columns: minmax(220px, 32%) minmax(0, 1fr);
+}
+@media (max-width: 700px) {
+  .leaderboard-row .ranked-card {
+    grid-template-columns: 1fr;
+  }
 }
 .inline-trailer-feedback {
   display: flex;

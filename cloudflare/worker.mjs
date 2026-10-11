@@ -116,9 +116,27 @@ export default {
           .slice(0, 100);
         forwarded.headers.set("X-AnimeShuffle-" + header, value);
       }
-      return env.BACKEND.get(env.BACKEND.idFromName("anime-shuffle-v1")).fetch(
-        forwarded,
-      );
+      try {
+        return await env.BACKEND.get(
+          env.BACKEND.idFromName("anime-shuffle-v1"),
+        ).fetch(forwarded);
+      } catch (error) {
+        // Constructor/storage failures cannot reach the app's JSON error handler.
+        // Keep the response readable without disclosing internal error details.
+        console.error("Anime backend unavailable", error?.name || "Error");
+        return secure(
+          Response.json(
+            {
+              error:
+                "Anime Shuffle is temporarily unavailable. Please try again later.",
+            },
+            {
+              status: 503,
+              headers: { "Cache-Control": "no-store", "Retry-After": "300" },
+            },
+          ),
+        );
+      }
     }
     if (["/admin", "/admin/"].includes(url.pathname)) {
       // Fetch the canonical asset URL internally; /index.html redirects to /

@@ -39,19 +39,20 @@ export function InlineTrailer({
     setSlow(false);
     ready.current = false;
     const container = host.current;
+    // Navigate the iframe immediately on the playback click, in parallel with
+    // the shared control API. Slow script loading must not postpone the video.
+    const frame = document.createElement("iframe");
+    frame.title = title;
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
+    frame.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
+    frame.allowFullscreen = true;
+    frame.src = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&autoplay=0&mute=1&playsinline=1&rel=0`;
+    container.replaceChildren(frame);
     loadYouTubeAPI()
       .then((YT) => {
         if (disposed) return;
         // Set referrer policy before navigation. The site-wide no-referrer policy
         // otherwise causes YouTube error 153 in some browsers.
-        const frame = document.createElement("iframe");
-        frame.title = title;
-        frame.referrerPolicy = "strict-origin-when-cross-origin";
-        frame.allow =
-          "autoplay; encrypted-media; fullscreen; picture-in-picture";
-        frame.allowFullscreen = true;
-        frame.src = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&autoplay=0&mute=1&playsinline=1&rel=0`;
-        container.replaceChildren(frame);
         instance = new YT.Player(frame, {
           events: {
             onReady: (event) => {

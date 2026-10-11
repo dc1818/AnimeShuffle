@@ -1,4 +1,5 @@
 import { normalizeFeedback } from "./reaction-feedback.js";
+import { preparePreview } from "./media-cache.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { createRecommendationEvents } from "./recommendation-events.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
@@ -77,6 +78,7 @@ export function createAnimeStore({
   // Serialize account writes without borrowing the feed's global busy state.
   let prefetchTimer = null;
   let prefetchRunning = false;
+  let preparedDiscovery = [];
   let sessionGeneration = 0;
   let refillPending = null;
   let startupCatalog = null;
@@ -463,6 +465,10 @@ export function createAnimeStore({
     mergePool(anime);
     return anime;
   }
+  function warmPreview(anime) {
+    if (!state.preview && typeof window !== "undefined" && anime)
+      void preparePreview(anime).catch(() => {});
+  }
   let tasteCheckedAt = 0;
   async function refreshTasteMetadata(force = false) {
     const generation = sessionGeneration;
@@ -767,8 +773,36 @@ export function createAnimeStore({
           .filter(([, e]) => e.expires > Date.now())
           .map(([id]) => id),
       );
-      const pick =
-        state.preview || readyIds.size
+      // Look-ahead draws from the same taste-weighted random sampler. Reuse
+      // that draw instead of randomly selecting a different, cold title again.
+      const prepared = preparedDiscovery.find(
+        (entry) =>
+          entry.preferences === JSON.stringify(state.preferences) &&
+          readyIds.has(entry.id) &&
+          entry.id !== state.current?.id &&
+          pool.some(
+            (a) =>
+              a.id === entry.id &&
+              isEligible(
+                a,
+                state.reactions,
+                state.list,
+                activeSkips(),
+                false,
+                state.preferences,
+              ),
+          ),
+      );
+      if (prepared)
+        preparedDiscovery = preparedDiscovery.filter(
+          (entry) => entry.id !== prepared.id,
+        );
+      const pick = prepared
+        ? chooseNext(
+            pool.filter((a) => a.id === prepared.id),
+            { ...rankingState(), recent },
+          )
+        : state.preview || readyIds.size
           ? chooseNext(pool, { ...rankingState(), recent, readyIds })
           : null;
       if (pick && (state.preview || readyIds.has(pick.anime.id))) {
@@ -869,6 +903,7 @@ export function createAnimeStore({
         reportChecks();
         checked.add(pick.anime.id);
         let anime = pick.anime;
+        warmPreview(anime);
         if (!state.preview) {
           try {
             anime = await animeDetails(anime.id);
@@ -948,12 +983,15 @@ export function createAnimeStore({
         return;
       prefetchRunning = true;
       try {
-        // Continue adding fresh catalog regions even while cached picks remain.
-        if (++prefetchRefills % 3 === 1 && pool.length < 3000) await refill();
-        const candidates = rankRecommendations(
-          pool.filter((a) => a.id !== state.current?.id),
-          { ...rankingState(), limit: 3 },
+        const candidates = chooseNextBatch(
+          pool.filter(
+            (a) =>
+              a.id !== state.current?.id &&
+              !preparedDiscovery.some((entry) => entry.id === a.id),
+          ),
+          { ...rankingState(), recent, limit: 3 },
         );
+        const preferences = JSON.stringify(state.preferences);
         for (const { anime } of candidates) {
           if (
             generation !== sessionGeneration ||
@@ -961,13 +999,25 @@ export function createAnimeStore({
             state.recommendationsLoading
           )
             break;
+          warmPreview(anime);
           await animeDetails(anime.id);
+          if (
+            generation === sessionGeneration &&
+            preferences === JSON.stringify(state.preferences)
+          )
+            preparedDiscovery = [
+              ...preparedDiscovery,
+              { id: anime.id, preferences },
+            ].slice(-6);
         }
         if (
           generation === sessionGeneration &&
           !state.busy &&
           !state.recommendationsLoading
         ) {
+          // Prepare the next random cards before a potentially cold catalog page.
+          // Continue broad catalog exploration after the look-ahead is ready.
+          if (++prefetchRefills % 3 === 1 && pool.length < 3000) await refill();
           await refreshTasteMetadata();
           if (
             Object.keys(state.reactions).length > 0 ||
@@ -1259,6 +1309,7 @@ export function createAnimeStore({
     candidateFilterKey = "";
     clearTimeout(prefetchTimer);
     prefetchTimer = null;
+    preparedDiscovery = [];
     refillPending = null;
     watchlistSyncPending = null;
     replacementSlots = [];
@@ -1488,17 +1539,49 @@ export function createAnimeStore({
         });
         return;
       }
-      await refreshTasteMetadata();
-      await expandFromTaste();
+      // A returning visitor can explore verified cached picks immediately,
+      // even if we still need to retrieve more candidates for the full list.
+      if (!state.recommendationPicks.length) {
+        const ready = pool.filter(
+          (a) => state.preview || details.get(a.id)?.expires > Date.now(),
+        );
+        const initial = rankRecommendations(ready, {
+          ...rankingState(),
+          metadata: pool,
+        });
+        if (initial.length) {
+          initial.slice(0, 3).forEach(({ anime }) => warmPreview(anime));
+          update({
+            recommendationPicks: initial,
+            recommendationPool: ready,
+            recommendationPreferences: state.preferences,
+          });
+        }
+      }
+      // Cached analysis is an enhancer: an unavailable snapshot must not hold
+      // the entire leaderboard behind an optional request.
+      // Give an already-cached server snapshot a short head start, including a
+      // fresh snapshot on explicit Refresh. Slow enrichment continues in the
+      // background and can never delay selection beyond this small grace period.
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 200);
+        refreshTasteMetadata(force).finally(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+      // Sparse catalogs still need neighbor retrieval. With enough candidates,
+      // do this later through normal background look-ahead.
+      if (eligibleCandidates(pool, rankingState()).length < 25)
+        await expandFromTaste();
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
           if (
-            eligibleCandidates(pool, rankingState()).length >= 75 ||
+            eligibleCandidates(pool, rankingState()).length >= 25 ||
             !(await refill())
           )
             break;
         }
-      await refreshTasteMetadata(true);
       if (generation !== sessionGeneration) return;
       const candidates = new Map(pool.map((a) => [a.id, a]));
       for (const a of state.list)
@@ -1519,7 +1602,7 @@ export function createAnimeStore({
       // Three concurrent detail reads shorten the network wait without flooding MAL.
       // Settle a whole batch before continuing; retain ranking order regardless of
       // response order, and never leave requests running after releasing busy.
-      let batchSize = 3;
+      let batchSize = 1;
       for (
         let offset = 0;
         offset < ranked.length &&
@@ -1527,8 +1610,10 @@ export function createAnimeStore({
         offset += batchSize
       ) {
         eligibleCount = eligibleCandidates(verified, rankingState()).length;
-        batchSize = Math.min(3, 25 - eligibleCount);
+        batchSize = Math.min(verified.length ? 3 : 1, 25 - eligibleCount);
         const batch = ranked.slice(offset, offset + batchSize);
+        if (verified.length < 3)
+          batch.forEach(({ anime }) => warmPreview(anime));
         const results = await Promise.allSettled(
           batch.map(({ anime }) =>
             state.preview ? Promise.resolve(anime) : animeDetails(anime.id),
@@ -1561,6 +1646,12 @@ export function createAnimeStore({
         eligibleCount = eligibleCandidates(verified, rankingState()).length;
         update({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
+          recommendationPicks: rankRecommendations(verified, {
+            ...rankingState(),
+            metadata: pool,
+          }),
+          recommendationPreferences: state.preferences,
+          recommendationPool: verified.slice(),
         });
         await yieldToBrowser();
       }
@@ -1591,6 +1682,7 @@ export function createAnimeStore({
         recommendationProgress: null,
       });
       replacementSlots = [];
+      schedulePrefetch();
     }
   }
   async function replaceDecidedRecommendations() {

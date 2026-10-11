@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { cachedMedia, loadMedia } from "../lib/media-cache.js";
 import { trailerThumbnail } from "../lib/media-data.js";
 import { InlineTrailer } from "./InlineTrailer.jsx";
+import { loadYouTubeAPI } from "../lib/youtube.js";
 
 /** Tabs fetch metadata only when visited. Selecting a trailer starts YouTube. */
 export function AnimeMedia({ anime, kind, active }) {
@@ -67,6 +68,8 @@ export function AnimeMedia({ anime, kind, active }) {
                 <button
                   key={t.videoId}
                   aria-pressed={selected?.videoId === t.videoId}
+                  onPointerEnter={() => loadYouTubeAPI().catch(() => {})}
+                  onFocus={() => loadYouTubeAPI().catch(() => {})}
                   onClick={() => setSelected(t)}
                 >
                   <span className="media-trailer-frame">

@@ -1,4 +1,5 @@
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
+import { paletteFromPixels } from "../lib/cover-palette.js";
 import { englishTitle, primaryTitle } from "../lib/titles.js";
 import { loadMedia } from "../lib/media-cache.js";
 import { AnimeMedia } from "./AnimeMedia.jsx";
@@ -32,20 +33,7 @@ function coverPalette(image) {
   canvas.width = canvas.height = 24;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   context.drawImage(image, 0, 0, 24, 24);
-  const pixels = context.getImageData(0, 0, 24, 24).data;
-  const colors = [];
-  for (let index = 0; index < pixels.length; index += 4) {
-    const rgb = [...pixels.slice(index, index + 2)];
-    const max = Math.max(...rgb),
-      min = Math.min(...rgb);
-    if (max - min > 35 && max > 65 && max < 240) colors.push(rgb);
-  }
-  if (!colors.length) return null;
-  const primary = colors[Math.floor(colors.length / 3)];
-  const distance = (color) =>
-    color.reduce((total, channel, i) => total + (channel - primary[i]) ** 2, 0);
-  const secondary = colors.sort((a, b) => distance(b) - distance(a))[0];
-  return [primary.join(", "), secondary.join(", ")];
+  return paletteFromPixels(context.getImageData(0, 0, 24, 24).data);
 }
 
 /** React owns the card markup, event handlers, loading states and cover fallback. */
@@ -68,24 +56,29 @@ export function AnimeCard({
   selectedGenres = [],
   onPreferences,
 }) {
-  const previewsEnabled =
-    !compact && document.documentElement.dataset.hosting !== "pages";
+  const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [sampled, setSampled] = useState(null);
+  const coverKey = `${anime.id}:${anime.image || ""}`;
   useEffect(() => {
-    if (compact) return;
+    setFailed(false);
+    // Cached images may be complete before React receives their load event.
+    if (image.current?.complete && image.current.naturalWidth) imageLoaded();
+  }, [coverKey]);
+  useEffect(() => {
     const palette = dynamic
-      ? sampled || anime.palette || ["25, 100, 130", "129, 43, 77"]
+      ? (sampled?.key === coverKey && sampled.palette) ||
+        anime.palette || ["25, 100, 130", "129, 43, 77"]
       : ["20, 55, 70", "55, 38, 61"];
     document.body.style.setProperty("--cool", palette[0]);
     document.body.style.setProperty("--warm", palette[1]);
-  }, [sampled, dynamic, anime.palette, compact]);
+  }, [sampled, dynamic, anime.palette, coverKey]);
   function imageLoaded() {
     setFailed(false);
     // Pixel access can fail when a browser blocks canvas; the default theme remains usable.
     try {
-      setSampled(coverPalette(image.current));
+      setSampled({ key: coverKey, palette: coverPalette(image.current) });
     } catch {}
   }
   return (
@@ -117,6 +110,7 @@ export function AnimeCard({
         />
         {anime.image && (
           <img
+            key={coverKey}
             ref={image}
             className="poster"
             src={coverUrl(anime)}

@@ -80,6 +80,10 @@ export function createCloudApp(
   sql.exec(
     `CREATE TABLE IF NOT EXISTS reactions (account_id TEXT NOT NULL, anime_id INTEGER NOT NULL, value TEXT NOT NULL, PRIMARY KEY(account_id,anime_id))`,
   );
+  // Eligibility is looked up by title, not by account, for every catalog item.
+  sql.exec(
+    "CREATE INDEX IF NOT EXISTS reactions_rated_anime ON reactions(anime_id) WHERE json_extract(value,'$.action') IN ('good','bad')",
+  );
   sql.exec(
     `CREATE TABLE IF NOT EXISTS limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires INTEGER NOT NULL)`,
   );
@@ -87,6 +91,9 @@ export function createCloudApp(
   // Public catalog/detail responses survive Worker restarts; private MAL lists never enter this cache.
   sql.exec(
     "CREATE TABLE IF NOT EXISTS public_mal_cache (path TEXT PRIMARY KEY, expires INTEGER NOT NULL, value TEXT NOT NULL)",
+  );
+  sql.exec(
+    "CREATE INDEX IF NOT EXISTS public_mal_cache_expiry ON public_mal_cache(expires)",
   );
   const scheduleEnrichment = (at) => {
     const scheduled = (async () => {

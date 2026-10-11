@@ -77,6 +77,30 @@ const anime = {
   status: "finished_airing",
   nsfw: "white",
 };
+test("rated-title eligibility and cache expiry use indexes instead of full table scans", () => {
+  const s = storage();
+  createCloudApp(s, env, { interval: 0 });
+  for (const table of ["reactions", "guest_reactions"]) {
+    const plan = s.db
+      .prepare(
+        `EXPLAIN QUERY PLAN SELECT 1 FROM ${table} WHERE anime_id=? AND json_extract(value,'$.action') IN ('good','bad') LIMIT 1`,
+      )
+      .all(123);
+    assert.ok(
+      plan.some((r) => r.detail.includes(`USING INDEX ${table}_rated_anime`)),
+      JSON.stringify(plan),
+    );
+    assert.ok(
+      !plan.some((r) => r.detail.startsWith("SCAN ")),
+      JSON.stringify(plan),
+    );
+  }
+  const expiry = s.db
+    .prepare("EXPLAIN QUERY PLAN DELETE FROM public_mal_cache WHERE expires<=?")
+    .all(Date.now());
+  assert.ok(expiry.some((r) => r.detail.includes("public_mal_cache_expiry")));
+  s.db.close();
+});
 test("Cloudflare accounts and sessions survive restart; devices share preferences and per-anime changes", async () => {
   const db = storage();
   let app = createCloudApp(db, env, { interval: 0 });

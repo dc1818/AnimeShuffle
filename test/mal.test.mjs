@@ -3,6 +3,32 @@ import assert from "node:assert/strict";
 import { validImage, normalize, createMalClient, fields } from "../lib/mal.mjs";
 const response = (data, status = 200) =>
   new Response(JSON.stringify(data), { status });
+test("public reads overlap with bounded concurrency, spaced starts and shared duplicate requests", async () => {
+  let active = 0,
+    peak = 0;
+  const starts = [];
+  const client = createMalClient({
+    clientId: "test",
+    interval: 5,
+    fetcher: async () => {
+      starts.push(Date.now());
+      peak = Math.max(peak, ++active);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      active--;
+      return response({ id: 1 });
+    },
+  });
+  await Promise.all(
+    [1, 1, 2, 3, 4, 5, 6].map((id) =>
+      client.request(`/anime/${id}`, { publicCache: true }),
+    ),
+  );
+  assert.equal(starts.length, 6, "Duplicate public reads share a request");
+  assert.equal(peak, 3);
+  assert.equal(active, 0);
+  for (let i = 1; i < starts.length; i++)
+    assert.ok(starts[i] - starts[i - 1] >= 4);
+});
 test("image proxy accepts only MAL cover hosts and paths", () => {
   assert.ok(validImage("https://cdn.myanimelist.net/images/anime/4/19644.jpg"));
   for (const u of [

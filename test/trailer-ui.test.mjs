@@ -71,11 +71,11 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     );
   try {
     await act(async () => render(1));
-    assert.equal(calls, 0);
-    assert.equal(document.querySelector(".watch-preview").disabled, true);
+    assert.equal(calls, 1);
+    assert.equal(document.querySelector(".watch-preview").disabled, false);
     assert.match(
       document.querySelector(".watch-preview").textContent,
-      /Preparing/,
+      /Watch preview/,
     );
     await act(async () => new Promise((resolve) => setTimeout(resolve, 130)));
     assert.equal(calls, 1);
@@ -132,11 +132,9 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     assert.equal(instances[1].destroyed, true);
     await act(async () => new Promise((resolve) => setTimeout(resolve, 130)));
     await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(
-      calls,
-      2,
-      "Pending metadata does not allow repeated playback clicks",
-    );
+    assert.equal(calls, 2, "One click joins the pending metadata lookup");
+    assert.equal(document.querySelector(".trailer-panel").hidden, false);
+    assert.match(document.body.textContent, /Finding preview/);
     await act(async () => render(3));
     await act(async () => release());
     assert.equal(
@@ -146,7 +144,7 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     );
     await act(async () => render(1));
     await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 2, "Metadata survives tab/card remounts");
+    assert.equal(calls, 3, "Metadata survives tab/card remounts");
     await act(async () =>
       render(10, { previewVideoId: "12345678901", previewRegionChecked: true }),
     );
@@ -155,13 +153,34 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     assert.match(document.querySelector("iframe").src, /12345678901/);
     assert.equal(
       calls,
-      2,
+      3,
       "Catalog trailer starts without any metadata request",
     );
     await act(async () => instances.at(-1).events.onError({ data: 150 }));
-    assert.match(document.querySelector("iframe").src, /abcdefghijk/, "Main preview switches away from rejected catalog video");
-    assert.equal(calls, 3);
+    assert.match(
+      document.querySelector("iframe").src,
+      /abcdefghijk/,
+      "Main preview switches away from rejected catalog video",
+    );
+    assert.equal(calls, 4);
 
+    let finishMetadata;
+    globalThis.fetch = () =>
+      new Promise((resolve) => {
+        finishMetadata = resolve;
+      });
+    await act(async () => render(20));
+    assert.equal(document.querySelector(".watch-preview").disabled, false);
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.equal(document.querySelector(".trailer-panel").hidden, false);
+    await act(async () =>
+      finishMetadata(Response.json({ videoId: "abcdefghijk" })),
+    );
+    assert.match(
+      document.querySelector("iframe").src,
+      /abcdefghijk/,
+      "One click starts the player after delayed metadata arrives",
+    );
   } finally {
     await act(async () => root.unmount());
     globalThis.fetch = original;

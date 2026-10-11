@@ -1,4 +1,4 @@
-import { normalizeTrailerResponse } from "./media-data.js";
+import { catalogPreview, normalizeTrailerResponse } from "./media-data.js";
 // Shared public metadata only. A card and its details panel join one lookup.
 // Successful lookups survive tab changes; transient failures are always retryable.
 const cache = new Map(),
@@ -9,6 +9,14 @@ export function cachedMedia(id, kind = "trailer") {
   if (entry?.expires > Date.now()) return entry.data;
   cache.delete(key);
   return null;
+}
+// Start public metadata while the candidate's required details are being checked.
+// A catalog preview needs no request; the complete trailer list is still fetched
+// separately when opening More details or replacing an unavailable video.
+export function preparePreview(anime) {
+  return Promise.resolve(
+    cachedMedia(anime.id) || catalogPreview(anime) || loadMedia(anime.id),
+  );
 }
 export function loadMedia(id, kind = "trailer") {
   const key = `${kind}:${id}`,

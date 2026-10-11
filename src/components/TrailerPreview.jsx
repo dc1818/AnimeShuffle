@@ -43,10 +43,9 @@ export function TrailerPreview({ anime }) {
   }, [load]);
   useEffect(() => {
     mounted.current = true;
-    const timer = setTimeout(warm, 100);
+    warm();
     return () => {
       mounted.current = false;
-      clearTimeout(timer);
     };
   }, [warm]);
   useEffect(() => {
@@ -84,8 +83,10 @@ export function TrailerPreview({ anime }) {
         ref={trigger}
         className="watch-preview"
         onClick={play}
+        onPointerEnter={() => loadYouTubeAPI().catch(() => {})}
+        onFocus={() => loadYouTubeAPI().catch(() => {})}
         title={error || undefined}
-        disabled={(!result && !error) || (result && !video && !error)}
+        disabled={!!result && !video && !error}
         aria-busy={!result && !error}
         aria-expanded={open}
         hidden={open}

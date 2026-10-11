@@ -19,7 +19,7 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
     jsx: "automatic",
     packages: "external",
   });
-  const { AnimeDetails } = await import(pathToFileURL(outfile));
+  const { AnimeDetails, AnimeCard } = await import(pathToFileURL(outfile));
   const dom = new JSDOM('<div id="root"></div>', {
     url: "https://shuffle.example",
   });
@@ -229,6 +229,29 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
     assert.equal(players[1].destroyed, true);
     assert.equal(tab("Synopsis").getAttribute("aria-selected"), "true");
     assert.equal(document.querySelector("iframe"), null);
+    await act(async () =>
+      root.render(
+        React.createElement(AnimeCard, {
+          anime: {
+            id: 40,
+            title: "Recommendation",
+            genres: [],
+            previewVideoId: "abcdefghijk",
+            previewRegionChecked: true,
+          },
+          compact: true,
+        }),
+      ),
+    );
+    assert.ok(
+      document.querySelector(".poster-stage .watch-preview"),
+      "Expanded recommendation has the same preview control",
+    );
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.ok(
+      document.querySelector(".poster-stage .trailer-panel iframe"),
+      "Video takes over the recommendation cover",
+    );
   } finally {
     await act(async () => root.unmount());
     globalThis.fetch = original;

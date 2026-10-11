@@ -14,7 +14,14 @@ function Fixture() {
   const [action, setAction] = useState("good"),
     [long, setLong] = useState(false),
     [feedback, setFeedback] = useState(null),
-    [details, setDetails] = useState(true);
+    [details, setDetails] = useState(
+      !location.search.includes("surface=recommendations"),
+    ),
+    [compact, setCompact] = useState(
+      location.search.includes("surface=recommendations"),
+    ),
+    [displayed, setDisplayed] = useState(1),
+    [dynamic, setDynamic] = useState(true);
   const anime = {
     ...demo[0],
     title: long
@@ -24,6 +31,7 @@ function Fixture() {
   };
   return (
     <>
+      <div className="ambient" aria-hidden="true" />
       <header className="topbar">
         <a className="brand">Anime Shuffle</a>
         <nav>
@@ -59,22 +67,59 @@ function Fixture() {
           Long title
         </label>
         <button onClick={() => setDetails(true)}>Open details</button>
+        <label>
+          Displayed anime{" "}
+          <select
+            aria-label="Displayed anime"
+            value={displayed}
+            onChange={(e) => setDisplayed(Number(e.target.value))}
+          >
+            {demo.map((a, index) => (
+              <option key={a.id} value={index}>
+                {a.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={compact}
+            onChange={(e) => setCompact(e.target.checked)}
+          />
+          Recommendation layout
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={dynamic}
+            onChange={(e) => setDynamic(e.target.checked)}
+          />
+          Dynamic background
+        </label>
         <small>Layout preview · No profile changes</small>
       </div>
       <main>
-        <div className={`cards-layout${details ? " expanded" : ""}`}>
+        <div
+          className={
+            compact
+              ? "leaderboard-row"
+              : `cards-layout${details ? " expanded" : ""}`
+          }
+        >
           <AnimeCard
-            anime={demo[1]}
+            anime={demo[displayed]}
+            compact={compact}
             onReact={() => {}}
             onSkip={() => {}}
             onUndo={() => {}}
             onDetails={() => setDetails(true)}
-            dynamic={false}
+            dynamic={dynamic}
           />
           {details && (
             <AnimeDetails
               responsive
-              anime={demo[1]}
+              anime={demo[displayed]}
               reactions={
                 action === "none"
                   ? {}

@@ -4,6 +4,7 @@ import {
 } from "../lib/recommendation-access.js";
 import { RecommendationExposure } from "./RecommendationExposure.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
+import { preparePreview } from "../lib/media-cache.js";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
@@ -30,6 +31,10 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
       !savedIds.has(pick.anime.id),
   );
   const [opened, setOpened] = useState(undefined);
+  useEffect(() => {
+    // Keep a preview open while later verified rows arrive or change rank.
+    if (opened === undefined && picks.length) setOpened(picks[0].anime.id);
+  }, [opened, picks[0]?.anime.id]);
   useEffect(() => {
     if (unlocked) store.visitRecommendations?.();
   }, [unlocked, store]);
@@ -183,7 +188,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           </button>
         </div>
       )}
-      {state.recommendationsLoading ||
+      {(state.recommendationsLoading && !picks.length) ||
       (!state.recommendationsReady &&
         !picks.length &&
         hasTaste &&
@@ -210,6 +215,14 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
         </div>
       ) : (
         <>
+          {state.recommendationsLoading && (
+            <LoadingIndicator
+              compact
+              progress={state.recommendationProgress}
+              label="Finishing your shortlist…"
+              detail="You can explore previews while the remaining matches are checked."
+            />
+          )}
           {state.recommendationError && (
             <p role="alert">{state.recommendationError}</p>
           )}
@@ -274,6 +287,10 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                       className="leaderboard-toggle"
                       aria-expanded={expanded}
                       aria-controls={panelId}
+                      onPointerEnter={() =>
+                        preparePreview(pick.anime).catch(() => {})
+                      }
+                      onFocus={() => preparePreview(pick.anime).catch(() => {})}
                       onClick={() => {
                         setOpened(expanded ? null : pick.anime.id);
                         setAbout(null);
@@ -314,7 +331,8 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                           reason={pick.reason}
                           saved={pick.saved}
                           compact
-                          busy={state.busy}
+                          dynamic={state.settings?.dynamic !== false}
+                          busy={state.busy || state.recommendationsLoading}
                           reactionDisabled={reacted}
                           canUndo={state.undoableIds?.includes(pick.anime.id)}
                           onUndo={() => store.undo(pick.anime.id)}

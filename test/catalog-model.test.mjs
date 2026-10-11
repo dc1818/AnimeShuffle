@@ -618,6 +618,39 @@ test("compact queue analyzes only admitted titles, removes stale broad jobs, and
   s.db.close();
 });
 
+test("compact queue avoids same-day restart scans while new ratings and explicit refills still enqueue", () => {
+  const s = storage(),
+    research = createResearchStore(s);
+  let scans = 0,
+    clock = Date.now();
+  const admitted = new Set([123]);
+  const options = {
+    storage: s,
+    research,
+    fullScan: false,
+    eligible: (id) => admitted.has(id),
+    eligibleIds: () => {
+      scans++;
+      return [...admitted];
+    },
+    now: () => clock,
+    schedule: async () => {},
+    analyzer: async () => ({}),
+  };
+  createCatalogModel(options);
+  const restarted = createCatalogModel(options);
+  assert.equal(scans, 1);
+  admitted.add(456);
+  restarted.prioritize([456]);
+  assert.equal(restarted.diagnostics().queued, 2);
+  restarted.refill();
+  assert.equal(scans, 2);
+  clock += DAY;
+  createCatalogModel(options);
+  assert.equal(scans, 3);
+  s.db.close();
+});
+
 test("embedding quota after successful compact analysis does not repeat the LLM the next day", async () => {
   const s = storage(),
     research = createResearchStore(s);

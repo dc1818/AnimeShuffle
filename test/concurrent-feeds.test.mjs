@@ -83,7 +83,13 @@ test("Discover accepts choices while recommendations run and the published batch
 test("Discover replaces a matching loaded row without moving other rows or setting the recommendation loading state", async () => {
   const { store } = fixture();
   await store.initialize();
-  await store.savePreferences({});
+  const random = Math.random;
+  Math.random = () => 0;
+  try {
+    await store.savePreferences({});
+  } finally {
+    Math.random = random;
+  }
   seedRecommendationHistory(store);
   await store.loadRecommendations();
   const current = store.getSnapshot().current;

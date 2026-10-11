@@ -277,7 +277,7 @@ for (const setup of ["settings", "onboarding"])
     );
   });
 
-test("loading reports completed work and publishes recommendations as a complete batch", async () => {
+test("loading reports completed work and publishes verified recommendations progressively", async () => {
   const snapshots = [];
   const store = createAnimeStore({ storage: memory(), staticMode: true });
   store.subscribe(() => snapshots.push(store.getSnapshot()));
@@ -294,9 +294,9 @@ test("loading reports completed work and publishes recommendations as a complete
   await store.loadRecommendations();
   const loading = snapshots.filter((s) => s.recommendationsLoading);
   assert.ok(loading.length > 0);
-  // No partial leaderboard may escape before all verification work settles.
+  // Verified picks become available before the complete batch settles.
   const partial = loading.filter((s) => !s.recommendationsReady);
-  assert.ok(partial.every((s) => s.recommendationPicks.length === 0));
+  assert.ok(partial.some((s) => s.recommendationPicks.length > 0));
   assert.ok(loading.some((s) => Number.isFinite(s.recommendationProgress)));
   assert.equal(store.getSnapshot().recommendationsLoading, false);
   assert.equal(store.getSnapshot().recommendationsReady, true);
@@ -1265,3 +1265,46 @@ test("shortlist detail checks overlap with a three-request cap and reuse the loa
   assert.equal(store.getSnapshot().recommendationPicks, picks);
   assert.equal(store.getSnapshot().current, current);
 });
+
+test(
+  "a stalled optional taste snapshot cannot hold a verified shortlist",
+  { timeout: 2500 },
+  async () => {
+    const catalog = Array.from({ length: 30 }, (_, i) => ({
+      ...anime,
+      id: i + 1,
+    }));
+    let releaseTaste,
+      requested = false;
+    const store = createAnimeStore({
+      storage: memory(),
+      request: async (url) => {
+        if (url === "/api/session") return Response.json({ configured: true });
+        if (url.startsWith("/api/catalog"))
+          return Response.json({ data: catalog, nextOffset: null });
+        if (url.startsWith("/api/taste")) {
+          requested = true;
+          return new Promise((resolve) => {
+            releaseTaste = () => resolve(Response.json({ profiles: {} }));
+          });
+        }
+        if (url.startsWith("/api/anime/"))
+          return Response.json(
+            catalog.find((a) => a.id === Number(url.split("/").pop())),
+          );
+        throw Error(url);
+      },
+    });
+    try {
+      await store.initialize();
+      await store.savePreferences({ favoriteGenres: ["Action"] });
+      seedRecommendationHistory(store);
+      await store.loadRecommendations();
+      assert.equal(requested, true);
+      assert.equal(store.getSnapshot().recommendationPicks.length, 25);
+      assert.equal(store.getSnapshot().recommendationsLoading, false);
+    } finally {
+      releaseTaste?.();
+    }
+  },
+);
