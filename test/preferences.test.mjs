@@ -95,6 +95,7 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
     }),
     {
       favoriteGenres: [],
+      restrictGenres: false,
       favoriteAnime: [],
       formats: ["movies"],
       lengths: [],
@@ -160,7 +161,10 @@ test("viewing genres restrict both feeds with any-match semantics and Any genre 
   };
   const drama = { ...action, id: 202, title: "Drama", genres: ["Drama"] };
   const comedy = { ...action, id: 203, title: "Comedy", genres: ["Comedy"] };
-  const preferences = { favoriteGenres: ["Action", "Drama"] };
+  const preferences = {
+    favoriteGenres: ["Action", "Drama"],
+    restrictGenres: true,
+  };
   assert.equal(
     isEligible(comedy, {}, [], new Set(), false, preferences),
     false,
@@ -189,6 +193,7 @@ test("viewing genres restrict both feeds with any-match semantics and Any genre 
 test("Experimental aliases preserve canonical MAL matching and OR genre filtering", () => {
   const preferences = normalizePreferences({
     favoriteGenres: ["Experimental", "Avant Garde", "Action"],
+    restrictGenres: true,
   });
   assert.deepEqual(preferences.favoriteGenres, ["Avant Garde", "Action"]);
   const pool = [

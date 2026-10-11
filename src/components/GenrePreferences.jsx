@@ -8,18 +8,32 @@ export function GenrePreferences({ value, setValue, disabled }) {
     <fieldset className="preference-group" disabled={disabled}>
       <legend>What genres do you like?</legend>
       <p>
-        This filters Discover and Recommendations: only anime matching at least
-        one selected genre will appear. Choose Any genre to remove the
-        restriction.
+        Favorites guide your picks while leaving room for discoveries outside
+        those genres. Turn on the restriction below only if you want a filter.
       </p>
       {selected.length > 0 && (
         <p className="genre-focus" role="status">
           <span>
-            Only <strong>{selected.map(genreLabel).join(", ")}</strong> anime
-            will appear in new picks with these preferences.
+            Favorites: <strong>{selected.map(genreLabel).join(", ")}</strong>.
+            {value.restrictGenres
+              ? " New picks must match at least one."
+              : " Other genres can still appear."}
           </span>
         </p>
       )}
+      <label>
+        <input
+          type="checkbox"
+          checked={value.restrictGenres === true}
+          onChange={(e) =>
+            setValue((current) => ({
+              ...current,
+              restrictGenres: e.target.checked,
+            }))
+          }
+        />
+        Only recommend my selected genres
+      </label>
       <div className="genre-choices">
         <button
           className="any-choice"
@@ -57,9 +71,8 @@ export function GenreFocus({ genres = [], onChange }) {
   return (
     <div className="genre-focus" aria-label="Current genre preferences">
       <span>
-        Only showing anime in:{" "}
-        <strong>{genres.map(genreLabel).join(", ")}</strong>, based on your
-        viewing preferences.
+        Favorite genres: <strong>{genres.map(genreLabel).join(", ")}</strong>,
+        based on your viewing preferences.
       </span>
       {onChange && (
         <button className="genre-change" onClick={onChange}>

@@ -241,7 +241,7 @@ export function AnimeCard({
               <button
                 disabled={busy}
                 onClick={onSkip}
-                title="Hide this anime for 7 days. Undo brings it back sooner."
+                title="Not now: hide this anime for 7 days without teaching a dislike. Undo brings it back sooner."
               >
                 <Icon name="skip" />
                 Skip

@@ -2,13 +2,17 @@ import {
   reactionCount,
   RECOMMENDATION_MINIMUM,
 } from "../lib/recommendation-access.js";
+import { RecommendationExposure } from "./RecommendationExposure.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
 import { buildTaste, tasteReadiness } from "../lib/recommend.js";
-import { makeEvidenceExport, downloadEvidenceExport } from "../lib/evidence-export.js";
+import {
+  makeEvidenceExport,
+  downloadEvidenceExport,
+} from "../lib/evidence-export.js";
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover, onPreferences }) {
@@ -124,11 +128,21 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           </p>
         </div>
         <div>
-          <button className="quiet"
-            disabled={state.recommendationsLoading || (!picks.length && !state.recommendationPool?.length)}
-            onClick={() => downloadEvidenceExport(makeEvidenceExport([
-              ...picks.map(p => p.anime), ...(state.recommendationPool || []),
-            ]))}>
+          <button
+            className="quiet"
+            disabled={
+              state.recommendationsLoading ||
+              (!picks.length && !state.recommendationPool?.length)
+            }
+            onClick={() =>
+              downloadEvidenceExport(
+                makeEvidenceExport([
+                  ...picks.map((p) => p.anime),
+                  ...(state.recommendationPool || []),
+                ]),
+              )
+            }
+          >
             Export recommendation candidates for research
           </button>
           <button
@@ -246,7 +260,11 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
               const headingId = `recommendation-heading-${pick.anime.id}`;
               const medal = ["Gold", "Silver", "Bronze"][pick.tier - 1];
               return (
-                <div
+                <RecommendationExposure
+                  animeId={pick.anime.id}
+                  surface="recommendations"
+                  position={pick.tier}
+                  onSeen={store.recordRecommendationExposure}
                   key={pick.anime.id}
                   className={`leaderboard-row ${reacted ? "reacted" : ""} ${medal ? `medal-${pick.tier}` : ""}`}
                 >
@@ -321,7 +339,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                       </>
                     )}
                   </div>
-                </div>
+                </RecommendationExposure>
               );
             })}
           </div>

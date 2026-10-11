@@ -52,13 +52,6 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       [...examples.map((r) => r.anime), ...corpus].map((a) => [a.id, a]),
     ).values(),
   ];
-  const hasCommunity = docs.some(
-    (a) =>
-      Array.isArray(a.communityTaste) &&
-      a.communityTaste.some(
-        (n) => Number.isInteger(n.support) && n.support >= 5,
-      ),
-  );
   const frequency = new Map();
   for (const a of docs)
     for (const t of terms(a)) frequency.set(t, (frequency.get(t) || 0) + 1);
@@ -66,26 +59,6 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
   function features(a) {
     if (cache.has(a)) return cache.get(a);
     const f = [];
-    // A small collaborative feature family. Self features teach each known item;
-    // candidate neighbors carry only aggregate, sufficiently supported correlations.
-    if (hasCommunity && Number.isSafeInteger(a.id))
-      f.push(["community:" + a.id, 0.25]);
-    for (const neighbor of (a.communityTaste || []).slice(0, 20)) {
-      if (
-        !Number.isSafeInteger(neighbor.id) ||
-        neighbor.id === a.id ||
-        !Number.isInteger(neighbor.support) ||
-        neighbor.support < 5 ||
-        !Number.isFinite(neighbor.affinity) ||
-        Math.abs(neighbor.affinity) > 1
-      )
-        continue;
-      f.push([
-        "community:" + neighbor.id,
-        (0.25 * neighbor.affinity) /
-          Math.sqrt(Math.max(1, a.communityTaste.length)),
-      ]);
-    }
     for (const g of a.genres || [])
       // Broad labels should not drown out plot/context differences. In particular,
       // liking one Mecha title is weak evidence for every robot-centered show.
@@ -169,18 +142,18 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
           );
       }
   }
-  const nuanceVector = (a) =>
+  const neighborVector = (a) =>
     new Map(
-      nuancedFeatures(a).features.filter(([k]) => k.startsWith("nuance:")),
+      features(a).filter(([k]) => /^(nuance|text|aspect|genre):/.test(k)),
     );
   const vectors = examples.map((r) => ({
     ...r,
-    vector: new Map(attributedFeatures([...nuanceVector(r.anime)], r.reason)),
+    vector: new Map(attributedFeatures([...neighborVector(r.anime)], r.reason)),
   }));
   const neighborhoodCache = new WeakMap();
   function neighborhood(a) {
     if (neighborhoodCache.has(a)) return neighborhoodCache.get(a);
-    const v = nuanceVector(a),
+    const v = neighborVector(a),
       norm = Math.hypot(...v.values());
     if (!norm || v.size < 2) return { score: 0, matches: [] };
     const matches = vectors
@@ -213,7 +186,9 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       matches: selected.map((r) => ({
         id: r.anime.id,
         contribution: r.sim * (0.65 * r.enjoyment + 0.35 * r.interest),
-        keys: r.shared.map((k) => k.slice(7)),
+        keys: r.shared
+          .filter((k) => k.startsWith("nuance:"))
+          .map((k) => k.slice(7)),
       })),
     };
     neighborhoodCache.set(a, result);
@@ -251,6 +226,58 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
     continuationCache.set(a, result);
     return result;
   }
+  const communityCache = new WeakMap();
+  function community(a) {
+    if (communityCache.has(a)) return communityCache.get(a);
+    const result = {};
+    for (const axis of ["enjoyment", "interest"]) {
+      const seen = new Set();
+      const matches = (a.communityTaste || [])
+        .filter((n) => {
+          const signal = records.get(n.id)?.[axis];
+          if (
+            n.axis !== axis ||
+            n.id === a.id ||
+            seen.has(n.id) ||
+            !Number.isSafeInteger(n.id) ||
+            !Number.isInteger(n.support) ||
+            n.support < 5 ||
+            !Number.isFinite(n.affinity) ||
+            Math.abs(n.affinity) > 1 ||
+            !signal
+          )
+            return false;
+          seen.add(n.id);
+          return true;
+        })
+        .sort((x, y) => Math.abs(y.affinity) - Math.abs(x.affinity))
+        .slice(0, 20);
+      // Affinities are already shrunk by population support on the server.
+      const support = matches.reduce((sum, n) => sum + Math.abs(n.affinity), 0);
+      result[axis] = {
+        weight: Math.min(0.3, support * 0.15),
+        score:
+          matches.reduce(
+            (sum, n) => sum + n.affinity * records.get(n.id)[axis],
+            0,
+          ) / Math.max(1, support),
+        matches,
+      };
+    }
+    communityCache.set(a, result);
+    return result;
+  }
+  function personalScore(a, e, i) {
+    const c = community(a);
+    return (
+      0.65 *
+        ((1 - c.enjoyment.weight) * Math.tanh(e / 2) +
+          c.enjoyment.weight * c.enjoyment.score) +
+      0.35 *
+        ((1 - c.interest.weight) * Math.tanh(i / 2) +
+          c.interest.weight * c.interest.score)
+    );
+  }
   const combinedScore = (e, i) =>
     0.65 * Math.tanh(e / 2) + 0.35 * Math.tanh(i / 2);
   return {
@@ -262,7 +289,7 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       const f = features(a),
         e = dot(enjoyment, f),
         i = dot(interest, f);
-      const baseline = combinedScore(e, i);
+      const baseline = personalScore(a, e, i);
       const groups = new Map();
       const contributions = f.map(([key, value]) => {
         const de = (enjoyment.get(key) || 0) * value;
@@ -270,8 +297,26 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
         const group = key.split(":")[0];
         const sum = groups.get(group) || [0, 0];
         groups.set(group, [sum[0] + de, sum[1] + di]);
-        return { key, contribution: baseline - combinedScore(e - de, i - di) };
+        return {
+          key,
+          contribution: baseline - personalScore(a, e - de, i - di),
+        };
       });
+      const c = community(a);
+      const communityContribution = 0.8 * (baseline - combinedScore(e, i));
+      const neighborIds = new Set(
+        [...c.enjoyment.matches, ...c.interest.matches].map((n) => n.id),
+      );
+      for (const id of neighborIds) {
+        const without = {
+          ...a,
+          communityTaste: (a.communityTaste || []).filter((n) => n.id !== id),
+        };
+        contributions.push({
+          key: "community:" + id,
+          contribution: baseline - personalScore(without, e, i),
+        });
+      }
       return {
         neighbors: neighborhood(a).matches,
         continuations: continuation(a).matches,
@@ -279,12 +324,15 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
           ...c,
           contribution: c.contribution * 0.8,
         })),
-        groups: Object.fromEntries(
-          [...groups].map(([key, [de, di]]) => [
-            key,
-            0.8 * (baseline - combinedScore(e - de, i - di)),
-          ]),
-        ),
+        groups: {
+          ...Object.fromEntries(
+            [...groups].map(([key, [de, di]]) => [
+              key,
+              0.8 * (baseline - personalScore(a, e - de, i - di)),
+            ]),
+          ),
+          community: communityContribution,
+        },
       };
     },
     score(a) {
@@ -292,11 +340,15 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       const enjoymentScore = Math.tanh(dot(enjoyment, f) / 2);
       const interestScore = Math.tanh(dot(interest, f) / 2);
       return {
-        enjoyment: enjoymentScore,
-        interest: interestScore,
+        enjoyment:
+          (1 - community(a).enjoyment.weight) * enjoymentScore +
+          community(a).enjoyment.weight * community(a).enjoyment.score,
+        interest:
+          (1 - community(a).interest.weight) * interestScore +
+          community(a).interest.weight * community(a).interest.score,
         continuation: continuation(a).score,
         score:
-          0.8 * (0.65 * enjoymentScore + 0.35 * interestScore) +
+          0.8 * personalScore(a, dot(enjoyment, f), dot(interest, f)) +
           0.2 * neighborhood(a).score +
           continuation(a).score,
       };

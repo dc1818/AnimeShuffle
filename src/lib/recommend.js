@@ -175,12 +175,20 @@ function similarity(a, b) {
  * Retrieval does not promote a plan to confirmed enjoyment; final ranking keeps
  * the two signals separate and excludes every already-known title. */
 export function recommendationSeeds(reactions, list, preferences) {
-  return [
+  const remaining = [
     ...buildTaste(reactions, list, preferences, [], false).records.values(),
-  ]
-    .filter((r) => r.weight > 0.05 && r.anime.listStatus?.status !== "dropped")
-    .sort((a, b) => b.weight - a.weight || a.anime.id - b.anime.id)
-    .map((r) => r.anime);
+  ].filter((r) => r.weight > 0.05 && r.anime.listStatus?.status !== "dropped");
+  const selected = [];
+  while (remaining.length && selected.length < 50) {
+    const priority = (r) =>
+      r.weight -
+      0.35 * Math.max(0, ...selected.map((a) => similarity(a, r.anime)));
+    remaining.sort(
+      (a, b) => priority(b) - priority(a) || a.anime.id - b.anime.id,
+    );
+    selected.push(remaining.shift().anime);
+  }
+  return selected;
 }
 /** Audience preference is about the title, never an inferred age for the viewer.
  * A general-audience rating, art style or young protagonist is not a Kids tag. */
@@ -281,6 +289,7 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
     if (!initial.includeNonCanonMovies && isNonCanonMovie(a)) return false;
     // Selected viewing genres match any one genre, not every selected genre.
     if (
+      initial.restrictGenres &&
       initial.favoriteGenres.length &&
       !(a.genres || []).some((genre) => initial.favoriteGenres.includes(genre))
     )

@@ -35,7 +35,7 @@ Start with favorite genres and a few anime you like, then browse individual card
 | **Would watch** | Add this to my watchlist.            |
 | **Won't watch** | I'm not interested in watching this. |
 
-Skip a title to hide that exact anime entry from Discover and Recommendations for seven days without treating it as a dislike. Skips are saved per guest/account profile in this browser and survive reloads and preference changes; they do not sync across devices. Undo or **Revisit skipped anime** ends the cooldown early. Good and Bad are disabled for anime that haven't aired yet. Viewing preferences let you choose genres (or Any genre), formats, series lengths, and whether to include ongoing or upcoming releases. Selected genres restrict Discover and Recommendations to anime matching at least one choice. Cards on both pages show a small reminder of active genre selections; Any genre shows no reminder. Genre controls are available in preferences for guests and signed-in users.
+Skip a title to hide that exact anime entry from Discover and Recommendations for seven days without treating it as a dislike. Skips are saved per guest/account profile in this browser and survive reloads and preference changes; they do not sync across devices. Undo or **Revisit skipped anime** ends the cooldown early. Good and Bad are disabled for anime that haven't aired yet. Viewing preferences let you choose genres (or Any genre), formats, series lengths, and whether to include ongoing or upcoming releases. Selected genres are soft preferences. Enable **Only recommend my selected genres** for a hard any-match restriction. Cards on both pages show a small reminder of active genre selections; Any genre shows no reminder. Genre controls are available in preferences for guests and signed-in users.
 
 Watch a trailer inside the Discover card, or open **More about this anime** for separate **Trailers** and **Images** tabs. Return to the cover to pause playback, then reopen it to continue. Media comes from MyAnimeList listings through Tenrai; availability varies by title. The image gallery supports arrow keys, on-screen arrows, and swiping on phones. Trailer lists filter known country restrictions using Cloudflare’s visitor country; videos without regional metadata are hidden.
 
@@ -74,7 +74,7 @@ After a reaction, **Add a reason** lets you identify the part that mattered: cha
 
 Episode flags are checked separately in the background, up to 150 requests per UTC day. Details shows how many episodes were checked and distinguishes partial from complete coverage. Only complete available episode lists contribute a filler-rate feature. Provider filler flags are not a canon judgment, and filler, recaps, slow pacing, and total length remain separate concepts.
 
-**Cloudflare Workers AI** catalog analysis is enabled in `wrangler.jsonc` and runs in a separate persistent background queue. It combines the public synopsis with a bounded, spoiler-permissive sample of completed reviews for private research; no accounts, private lists, ratings, or reviewer identities are sent to the model. Premise traits require cited synopsis sentences; critical traits require at least three independent review authors. Invalid or unsupported output is discarded. The model can select from the full research vocabulary, distinguishing prominence and confidence. Automated profiles stay preliminary and never override owner-imported traits.
+**Cloudflare Workers AI** catalog analysis is optional and disabled by default in `wrangler.jsonc` and runs in a separate persistent background queue. It combines the public synopsis with a bounded, spoiler-permissive sample of completed reviews for private research; no accounts, private lists, ratings, or reviewer identities are sent to the model. Premise traits require cited synopsis sentences; critical traits require at least three independent review authors. Invalid or unsupported output is discarded. The model can select from the full research vocabulary, distinguishing prominence and confidence. Automated profiles stay preliminary and never override owner-imported traits.
 
 There is no default 20-request app cap. `AI_DAILY_REQUEST_LIMIT=0` runs until Cloudflare reports exhaustion; the queue pauses until after the next midnight UTC and resumes automatically. Temporary capacity errors back off separately. Set a positive limit to add an app cap, or `AI_TASTE_ENRICHMENT=false` to turn model work off. The `AI` binding is required. On a Workers Free account, Cloudflare enforces its free allowance. This mode is not a spending cap on a Paid account; choose a positive limit before upgrading if desired. Request counts and reported tokens appear in the dashboard; they are not a remaining-neuron meter.
 
@@ -184,7 +184,7 @@ Access uses an existing account and the server-side `ADMIN_ACCOUNT_IDS` allowlis
 1. Deploy the latest `main` commit to the existing Cloudflare Worker. Keep its existing `BACKEND` binding, stable object name, database migration and authentication secrets.
 2. Sign in to your existing Anime Shuffle account and open `/admin`. The page displays your exact account ID if access has not yet been granted.
 3. In that Worker's **Settings → Variables and Secrets**, add **Secret** `ADMIN_ACCOUNT_IDS` containing that ID. Multiple owner IDs can be comma-separated. Save and deploy, then refresh `/admin`. A username or MAL client ID is not an account ID. No visitor can self-assign admin access.
-4. Confirm Background services shows model enabled, then a successful run or a specific pause reason. The repository enables `AI_TASTE_ENRICHMENT=true` and declares the `AI` binding. Check these in the deployed settings if the dashboard reports disabled.
+4. For optional model enrichment only, confirm Background services shows model enabled, then a successful run or a specific pause reason. The repository defaults to `AI_TASTE_ENRICHMENT=false`; enable it explicitly only if you want optional model enrichment. The `AI` binding is already declared. Check these in the deployed settings if the dashboard reports disabled.
 
 The workspace shows source links, evidence notes, confidence, unknowns, coverage, model attempts/tokens, queue state, and import history. Export pending/catalog inputs for research, manual profiles for backup, or automatic profiles from the export selector. Validate a JSON file first, review the changes, then import. Changed inputs or revision conflicts require a fresh preview. Undo restores the previous manual profiles; automated background results never overwrite those records. Downloads contain public metadata and shared analyses only.
 
@@ -278,3 +278,22 @@ metadata and optional explicitly linked TMDB keywords without scraping or model
 inference. See [setup, coverage limits, caching and import instructions](docs/api-trait-importer.md).
 The output uses the existing Admin research uploader. This is an alternative batch
 tool; it does not switch off an already enabled automatic model worker.
+
+
+### Lightweight hybrid recommendations
+
+The normal recommender needs no LLM, API inference budget, or exhaustive trait profiles. Automatic AI enrichment is off in `wrangler.jsonc`. Existing metadata, synopsis terms, and valid optional traits still work.
+
+- Enjoyment and prospective interest remain separate in both personal learning and community correlations. Community correlations use only other enabled accounts, require at least five overlapping votes on the same axis, and shrink small samples toward zero. Constant popularity supplies no correlation. Community influence grows with supporting connections and is capped at 30% per axis.
+- Nearby-title matching also uses cached lexical synopsis features and genres, so research tags are optional. This is lexical similarity, not semantic embeddings.
+- Candidate expansion rotates across up to four diverse positive seeds and twelve related candidates per shortlist refresh. The faster Discover path has a smaller budget. Related entries remain subject to the same eligibility rules.
+- Favorite genres are soft preferences unless the user enables the explicit restriction. **Skip** means “not now”: a seven-day cooldown, never a dislike.
+- Viewport-visible Discover cards and recommendation rows record exposures, including position, timestamp and model version. Reactions, skips and undo are logged separately. Prefetched/off-screen titles are not counted as exposures. Guest events remain local. Signed-in events use a retryable, account-scoped outbox and authenticated endpoint, capped at 1,000 events per account and 90 days (50,000 server events total). There is no claim that an exposure means the person read the card.
+
+In **Admin → Overview**, choose **Download recommendation evaluation data**. It exports a bounded snapshot of signed-in reactions and exposure events using export-local user keys, without account names, credentials or private MAL lists. Run:
+
+```sh
+node scripts/evaluate-recommendations.mjs anime-shuffle-evaluation.json report.json
+```
+
+The evaluator holds out the latest 20% of dated reactions, trains only on earlier feedback, and excludes the target user and future feedback from community training. It reports enjoyment and interest separately and compares content-only community weighting with hybrid weighting. Unseen titles and skips are not negative examples. Empty metrics mean insufficient labeled evidence, not success. Metadata is current; this is a limited offline replay of later labeled titles, not an unbiased experiment or proof of improvement over a prior deployment. Validate future changes using real outcomes and exposure-aware experiments.

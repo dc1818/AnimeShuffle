@@ -452,3 +452,89 @@ test("filtered candidate route caches Tenrai pages across Worker restarts", asyn
     db.db.close();
   }
 });
+
+test("recommendation events are authenticated, account scoped, idempotent and exported only to the owner", async () => {
+  const db = storage();
+  const app = createCloudApp(db, env, { interval: 0 });
+  const a = browser(() => app),
+    b = browser(() => app, "2.3.4.5");
+  await a.request("/api/session");
+  await b.request("/api/session");
+  assert.equal(
+    (await a.request("/api/recommendation-events", { events: [] })).response
+      .status,
+    401,
+  );
+  await a.request("/api/account/register", {
+    username: "EventsOwner",
+    password: "a secure testing password",
+  });
+  await b.request("/api/account/register", {
+    username: "EventsOther",
+    password: "another secure password",
+  });
+  const event = {
+    eventId: "event-12345678",
+    animeId: 42,
+    kind: "impression",
+    at: Date.now(),
+    surface: "recommendations",
+    position: 2,
+    model: "hybrid-v1",
+  };
+  for (let i = 0; i < 2; i++)
+    assert.equal(
+      (
+        await a.request("/api/recommendation-events", {
+          events: [event],
+          accountId: "EventsOther",
+        })
+      ).response.status,
+      200,
+    );
+  assert.equal(
+    (await a.request("/api/recommendation-events")).body.events.length,
+    1,
+  );
+  assert.equal(
+    (await b.request("/api/recommendation-events")).body.events.length,
+    0,
+  );
+  assert.equal(
+    (
+      await a.request("/api/recommendation-events", {
+        events: [{ ...event, eventId: "bad-12345678", kind: "arbitrary" }],
+      })
+    ).response.status,
+    400,
+  );
+  assert.equal(
+    (await a.request("/api/admin/recommendation-evaluation")).response.status,
+    403,
+  );
+  const owner = db.db
+    .prepare("SELECT id FROM accounts WHERE username=?")
+    .get("EventsOwner").id;
+  const ownerApp = createCloudApp(
+    db,
+    { ...env, ADMIN_ACCOUNT_IDS: owner },
+    { interval: 0 },
+  );
+  const c = browser(() => ownerApp, "3.4.5.6");
+  await c.request("/api/session");
+  await c.request("/api/account/login", {
+    username: "EventsOwner",
+    password: "a secure testing password",
+  });
+  await c.request("/api/account/state", {
+    revision: 0,
+    changes: [{ id: 42, reaction: { anime, action: "good", at: Date.now() } }],
+  });
+  const exported = await c.request("/api/admin/recommendation-evaluation");
+  assert.equal(exported.response.status, 200);
+  assert.equal(exported.body.users[0].events.length, 1);
+  assert.doesNotMatch(
+    JSON.stringify(exported.body),
+    /EventsOwner|EventsOther|password_hash|csrf/,
+  );
+});

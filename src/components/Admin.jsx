@@ -4,7 +4,10 @@ import {
 } from "../lib/research-upload.js";
 import { AdminOperations } from "./AdminOperations.jsx";
 import { TraitTracker } from "./TraitTracker.jsx";
-import { collectEvidenceExport, downloadEvidenceExport } from "../lib/evidence-export.js";
+import {
+  collectEvidenceExport,
+  downloadEvidenceExport,
+} from "../lib/evidence-export.js";
 import { useEffect, useState, useMemo } from "react";
 
 const download = (data, name) => {
@@ -130,15 +133,22 @@ export function Admin() {
       setBusy(false);
     }
   }
-  const exportAllEvidence = () => work(async () => {
-    const data = await collectEvidenceExport(async after => {
-      // Keep large exports within the hosted admin endpoint's request budget.
-      if (after) await new Promise(resolve => setTimeout(resolve, 1200));
-      return api(`/api/admin/export?kind=catalog&limit=100&after=${after}`);
-    }, count => setNotice(`Preparing ${count} titles for the evidence collector…`));
-    downloadEvidenceExport(data);
-    setNotice(`Downloaded ${data.count} titles and ${data.vocabulary.length} traits. In the Python program choose 9 to import this JSON.`);
-  });
+  const exportAllEvidence = () =>
+    work(async () => {
+      const data = await collectEvidenceExport(
+        async (after) => {
+          // Keep large exports within the hosted admin endpoint's request budget.
+          if (after) await new Promise((resolve) => setTimeout(resolve, 1200));
+          return api(`/api/admin/export?kind=catalog&limit=100&after=${after}`);
+        },
+        (count) =>
+          setNotice(`Preparing ${count} titles for the evidence collector…`),
+      );
+      downloadEvidenceExport(data);
+      setNotice(
+        `Downloaded ${data.count} titles and ${data.vocabulary.length} traits. In the Python program choose 9 to import this JSON.`,
+      );
+    });
   const exportPage = () =>
     work(async () => {
       const data = await api(
@@ -250,13 +260,47 @@ export function Admin() {
       )}
       {session?.admin && status && (
         <>
+          <section className="admin-panel" aria-label="Recommendation quality">
+            <h2>Recommendation quality</h2>
+            <button
+              className="outline"
+              disabled={busy}
+              onClick={() =>
+                work(async () => {
+                  download(
+                    await api("/api/admin/recommendation-evaluation"),
+                    "anime-shuffle-evaluation.json",
+                  );
+                })
+              }
+            >
+              Download recommendation evaluation data
+            </button>
+            <p>
+              Saved reactions and recorded recommendation exposures for offline
+              quality checks. No trait research required.
+            </p>
+          </section>
           <section className="admin-panel" aria-label="Download anime list">
             <h2>Download all website anime for your Python program</h2>
-            <p>Export all {status.catalog} known titles with their metadata and the full trait list in one JSON file. There is no 1,000-title limit.</p>
-            <button className="primary" disabled={busy} onClick={exportAllEvidence}>
+            <p>
+              Export all {status.catalog} known titles with their metadata and
+              the full trait list in one JSON file. There is no 1,000-title
+              limit.
+            </p>
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={exportAllEvidence}
+            >
               Download all website titles · Python JSON
             </button>
-            <p>Then open the Python program, choose <strong>9 — Import anime list</strong>, select the downloaded file and an output folder, and choose <strong>5</strong> to gather evidence and run Luna.</p>
+            <p>
+              Then open the Python program, choose{" "}
+              <strong>9 — Import anime list</strong>, select the downloaded file
+              and an output folder, and choose <strong>5</strong> to gather
+              evidence and run Luna.
+            </p>
           </section>
           {status.operationsAvailable && (
             <nav className="admin-tabs" aria-label="Admin sections">
@@ -563,7 +607,11 @@ export function Admin() {
                   </select>
                 </label>
                 <div className="admin-actions">
-                  <button className="soft-button" disabled={busy} onClick={exportAllEvidence}>
+                  <button
+                    className="soft-button"
+                    disabled={busy}
+                    onClick={exportAllEvidence}
+                  >
                     Export all titles for evidence collector
                   </button>
                   <button
@@ -1300,16 +1348,34 @@ export function Admin() {
               </section>
               <section className="admin-panel">
                 <h2>Import history</h2>
-                <p>Clear imported and bundled research profiles to use the existing recommendation algorithm and automatic metadata analysis. Catalog titles, accounts, preferences and reactions stay available. Refresh your picks afterward.</p>
-                <button className="soft-button admin-danger" disabled={busy || !status.profiles}
+                <p>
+                  Clear imported and bundled research profiles to use the
+                  existing recommendation algorithm and automatic metadata
+                  analysis. Catalog titles, accounts, preferences and reactions
+                  stay available. Refresh your picks afterward.
+                </p>
+                <button
+                  className="soft-button admin-danger"
+                  disabled={busy || !status.profiles}
                   onClick={() => {
-                    if (window.confirm(`Clear all ${status.profiles} imported and bundled research profiles? You can undo this until the next research change.`))
+                    if (
+                      window.confirm(
+                        `Clear all ${status.profiles} imported and bundled research profiles? You can undo this until the next research change.`,
+                      )
+                    )
                       void work(async () => {
-                        const result = await api('/api/admin/research/clear-imports', {revision:status.revision});
-                        await reload(); setReport(null);
-                        setNotice(`Cleared ${result.removed} research profiles. Existing algorithm and catalog preserved. Refresh recommendations to recalculate picks.`);
+                        const result = await api(
+                          "/api/admin/research/clear-imports",
+                          { revision: status.revision },
+                        );
+                        await reload();
+                        setReport(null);
+                        setNotice(
+                          `Cleared ${result.removed} research profiles. Existing algorithm and catalog preserved. Refresh recommendations to recalculate picks.`,
+                        );
                       });
-                  }}>
+                  }}
+                >
                   Clear imported research profiles
                 </button>
                 <ul>
@@ -1328,7 +1394,12 @@ export function Admin() {
                 )}
                 <button
                   className="soft-button admin-danger"
-                  disabled={busy || !["import", "clear-imports"].includes(status.history[0]?.kind)}
+                  disabled={
+                    busy ||
+                    !["import", "clear-imports"].includes(
+                      status.history[0]?.kind,
+                    )
+                  }
                   onClick={() => {
                     if (
                       window.confirm(
@@ -1345,7 +1416,9 @@ export function Admin() {
                       });
                   }}
                 >
-                  {status.history[0]?.kind === "clear-imports" ? "Undo profile clear" : "Undo latest import"}
+                  {status.history[0]?.kind === "clear-imports"
+                    ? "Undo profile clear"
+                    : "Undo latest import"}
                 </button>
               </section>
             </div>

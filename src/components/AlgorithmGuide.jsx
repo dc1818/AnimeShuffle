@@ -21,7 +21,7 @@ const checks = [
   ],
   [
     "Nearby examples",
-    "Shows sharing multiple nuanced attributes with positive or negative examples provide a separate similarity signal. This helps preserve different interests, such as thrillers and relaxing comedies.",
+    "Shows sharing synopsis words, genres or supported story attributes with positive or negative examples provide a separate similarity signal. This helps preserve different interests, such as thrillers and relaxing comedies.",
   ],
   [
     "Format, length and studio",
@@ -29,7 +29,7 @@ const checks = [
   ],
   [
     "Community patterns",
-    "When available, a small aggregate signal uses correlations between titles with at least five supporting records. It does not use IP address or location as taste evidence.",
+    "Enjoyment and watch-interest correlations are calculated separately from at least five other accounts. Popularity alone supplies no correlation. Sparse evidence receives less influence, capped at 30% of each personal prediction. It does not use IP address or location as taste evidence.",
   ],
   [
     "Seasons and parts",
@@ -43,9 +43,10 @@ export function AlgorithmGuide() {
       <h2 id="algorithm-guide">How an anime becomes a suggestion</h2>
       <p>
         An anime profile describes the show. A user’s taste profile describes
-        their preferences. The recommender compares the two; the language model
-        enriches anime information in the background, rather than choosing every
-        live recommendation.
+        their preferences. The recommender learns from existing metadata and
+        choices. No language-model call or complete research profile is
+        required. Automatic AI enrichment is disabled by default; validated
+        imports remain optional.
       </p>
       <h3>1. Check whether the anime is eligible</h3>
       <p>
@@ -55,12 +56,13 @@ export function AlgorithmGuide() {
         prerequisite seasons must have been seen.
       </p>
       <p>
-        It also checks selected genres (any selected genre can match), formats,
-        episode-count options, community score range, finished-only preference
-        and the setting for unknown metadata. Adult content, children’s titles
-        and non-canon movies have separate eligibility rules. Children’s titles
-        need both opt-in and evidence of interest. These are eligibility checks,
-        not evidence that someone will enjoy a show.
+        Genres guide ranking unless “Only recommend my selected genres” is
+        enabled. Other filters check formats, episode-count options, community
+        score range, finished-only preference and the setting for unknown
+        metadata. Adult content, children’s titles and non-canon movies have
+        separate eligibility rules. Children’s titles need both opt-in and
+        evidence of interest. These are eligibility checks, not evidence that
+        someone will enjoy a show.
       </p>
       <h3>2. Compare the eligible anime with that user’s evidence</h3>
       <div className="admin-table-scroll">

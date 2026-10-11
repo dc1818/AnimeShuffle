@@ -1,6 +1,6 @@
 import { canonicalGenre } from "./genres.js";
 import { titleFields } from "./titles.js";
-// Selected genres guide ranking and restrict Discover/Recommendations.
+// Favorites guide ranking; restricting candidates is a separate explicit choice.
 export const GENRES = [
   "Action",
   "Adventure",
@@ -68,6 +68,7 @@ export const LENGTH_OPTIONS = [
 ];
 export const defaultPreferences = () => ({
   favoriteGenres: [],
+  restrictGenres: false,
   favoriteAnime: [],
   formats: [],
   lengths: [],
@@ -149,6 +150,7 @@ export function normalizePreferences(value = {}) {
     includeNonCanonMovies: value?.includeNonCanonMovies === true,
     includeNsfw: value?.includeNsfw === true,
     favoriteGenres,
+    restrictGenres: value?.restrictGenres === true,
     favoriteAnime,
     formats: clean(value?.formats, FORMAT_OPTIONS),
     lengths: clean(value?.lengths, LENGTH_OPTIONS),

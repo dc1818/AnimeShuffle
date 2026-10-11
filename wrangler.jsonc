@@ -17,7 +17,7 @@
   "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "ai": { "binding": "AI" },
   "vars": {
-    "AI_TASTE_ENRICHMENT": "true",
+    "AI_TASTE_ENRICHMENT": "false",
     "AI_DAILY_REQUEST_LIMIT": "0",
     "AI_TASTE_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
   },

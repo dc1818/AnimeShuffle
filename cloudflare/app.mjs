@@ -15,6 +15,7 @@ import {
 import { createTrailerService } from "../lib/trailers.mjs";
 import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
+import { createRecommendationEventStore } from "../lib/recommendation-events.mjs";
 import { communitySimilarities } from "../lib/community-taste.mjs";
 import {
   createReviewEnrichment,
@@ -93,6 +94,7 @@ export function createCloudApp(
     waitUntil(scheduled);
     return scheduled;
   };
+  const recommendationEvents = createRecommendationEventStore(storage);
   const research = createResearchStore(storage);
   research.installSeed(RESEARCH_SEED, "2026-10-pilot-v1");
   const operations = createAdminOperations({
@@ -482,7 +484,17 @@ export function createCloudApp(
         let response;
         if (path === "/api/session" && req.method === "GET")
           response = json(info());
-        else if (path === "/api/guest/state" && req.method === "POST") {
+        else if (path === "/api/recommendation-events") {
+          signedIn();
+          if (req.method === "GET")
+            response = json({ events: recommendationEvents.read(account.id) });
+          else {
+            rateLimit("recommendation-events:" + account.id, 60, 60000);
+            response = json(
+              recommendationEvents.write(account.id, await input(req, 32000)),
+            );
+          }
+        } else if (path === "/api/guest/state" && req.method === "POST") {
           if (account)
             throw new AppError(
               "Guest reporting is only available while signed out.",
@@ -508,7 +520,11 @@ export function createCloudApp(
           rateLimit("admin:" + account.id, 60, 60000);
           const adminBody =
             req.method === "POST" ? await input(req, 16 * 1024 * 1024) : null;
-          const result = operations.route(u, req.method, adminBody, account.id);
+          const result =
+            path === "/api/admin/recommendation-evaluation" &&
+            req.method === "GET"
+              ? recommendationEvents.export()
+              : operations.route(u, req.method, adminBody, account.id);
           if (result?.changed) communityCache = null;
           response = json(
             result ?? {
@@ -694,6 +710,7 @@ export function createCloudApp(
                 account.id,
               );
             });
+            communityCache = null;
             response = json({ revision: account.revision + 1 });
           }
         } else if (path === "/auth/start" && req.method === "GET") {

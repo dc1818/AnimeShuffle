@@ -177,10 +177,10 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       document.querySelector(".preference-save-toast").textContent,
       "Preferences saved",
     );
-    assert.match(document.body.textContent, /only anime matching at least/);
+    assert.match(document.body.textContent, /Favorites guide your picks/);
     assert.match(
       document.querySelector('.genre-focus[role="status"]').textContent,
-      /Only Drama anime/,
+      /Favorites: Drama/,
     );
     assert.ok(!document.body.textContent.includes("Avant Garde"));
     const movieSwitch = document.querySelector(

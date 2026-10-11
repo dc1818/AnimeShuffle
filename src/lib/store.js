@@ -1,4 +1,5 @@
 import { nuancedTraits } from "./nuanced-taste.js";
+import { createRecommendationEvents } from "./recommendation-events.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
 import { readCatalogCache, writeCatalogCache } from "./catalog-cache.js";
 import { recommendationsUnlocked } from "./recommendation-access.js";
@@ -131,6 +132,7 @@ export function createAnimeStore({
     error: "",
   };
   let profileKey = "guest";
+  let recommendationEvents = null;
   let skipUntil = {};
   let guestToken = null;
   let guestAnalyticsTimer = null;
@@ -541,7 +543,7 @@ export function createAnimeStore({
     else pool[index] = anime;
   }
   /** Add a bounded set of candidates beyond ranking pages, using only positive taste seeds. */
-  async function expandFromTaste(seedLimit = 2, candidateLimit = 4) {
+  async function expandFromTaste(seedLimit = 4, candidateLimit = 12) {
     const generation = sessionGeneration;
     if (state.preview) return;
     const known = new Set([
@@ -556,49 +558,60 @@ export function createAnimeStore({
     )
       .filter((a) => (expandedSeeds.get(a.id) || 0) < Date.now() - 1800000)
       .slice(0, seedLimit);
-    let added = 0;
+    const queues = [];
+    const fatal = (error) => [401, 429, 502, 503, 504].includes(error.status);
     for (const seed of seeds) {
       if (generation !== sessionGeneration) return;
       try {
         const full = await animeDetails(seed.id);
-        mergePool(full); // Enrich the training example as well as retrieving neighbors.
+        if (generation !== sessionGeneration) return;
+        mergePool(full);
         expandedSeeds.set(seed.id, Date.now());
-        // MAL entry IDs preserve seasons/parts. Follow-ups come before general
-        // neighbors, and final eligibility still checks the candidate's prequels.
-        const relatedIds = [
-          ...new Set([
-            ...(full.sequels || []),
-            ...(full.recommendations || []),
-          ]),
-        ];
-        for (const id of relatedIds) {
-          if (added >= candidateLimit) break;
-          if (
-            !Number.isSafeInteger(id) ||
-            id < 1 ||
-            id > 10000000 ||
-            known.has(id) ||
-            pool.some((a) => a.id === id)
-          )
-            continue;
-          added++;
-          try {
-            mergePool(await animeDetails(id));
-          } catch (error) {
-            if ([401, 429, 502, 503, 504].includes(error.status)) throw error;
-          }
-        }
+        queues.push(
+          [
+            ...new Set([
+              ...(full.sequels || []),
+              ...(full.recommendations || []),
+              ...(full.communityTaste || [])
+                .filter((n) => n.affinity > 0 && n.support >= 5)
+                .map((n) => n.id),
+            ]),
+          ].filter(
+            (id) =>
+              Number.isSafeInteger(id) &&
+              id > 0 &&
+              id <= 10000000 &&
+              !known.has(id) &&
+              !pool.some((a) => a.id === id),
+          ),
+        );
       } catch (error) {
-        if ([401, 429, 502, 503, 504].includes(error.status)) throw error;
-        // Missing/deleted seed metadata should not prevent ordinary discovery.
+        if (fatal(error)) throw error;
+      }
+    }
+    const attempted = new Set();
+    while (attempted.size < candidateLimit && queues.some((q) => q.length)) {
+      for (const queue of queues) {
+        if (generation !== sessionGeneration) return;
+        const id = queue.shift();
+        if (!id || attempted.has(id) || attempted.size >= candidateLimit)
+          continue;
+        attempted.add(id);
+        try {
+          mergePool(await animeDetails(id));
+        } catch (error) {
+          if (fatal(error)) throw error;
+        }
       }
     }
   }
+
   // Send public filters only, never account history or the selected favorite titles.
   function catalogPreferences() {
     const p = state.preferences;
     return {
       favoriteGenres: p.favoriteGenres,
+      restrictGenres: p.restrictGenres,
       formats: p.formats,
       finishedOnly: p.finishedOnly,
       scoreMin: p.scoreMin,
@@ -1033,6 +1046,9 @@ export function createAnimeStore({
           }
         : {}),
     });
+    recommendationEvents?.record(anime.id, action, {
+      surface: target ? "recommendations" : "discover",
+    });
     entry.after = state.reactions[anime.id];
     await persist();
     try {
@@ -1164,6 +1180,7 @@ export function createAnimeStore({
         message = "Local reaction undone. " + error.message;
       }
     }
+    recommendationEvents?.record(entry.anime.id, "undo");
     const reactions = { ...state.reactions };
     if (entry.skip) {
       delete skipUntil[entry.anime.id];
@@ -1199,6 +1216,7 @@ export function createAnimeStore({
       skip: true,
     });
     const id = state.current.id;
+    recommendationEvents?.record(id, "skip", { surface: "discover" });
     skipUntil = {
       ...activeSkipCooldowns(skipUntil, now()),
       [id]: now() + SKIP_COOLDOWN_MS,
@@ -1217,6 +1235,8 @@ export function createAnimeStore({
   /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
   async function adoptSession(session) {
     sessionGeneration++;
+    recommendationEvents?.dispose();
+    recommendationEvents = null;
     clearTimeout(guestAnalyticsTimer);
     guestAnalyticsTimer = null;
     candidateProvider = "tenrai";
@@ -1357,6 +1377,13 @@ export function createAnimeStore({
     if (listWarmup) await listWarmup;
     // Counts become visible only after local, account and MAL data are combined.
     update({ accountDataReady: true });
+    recommendationEvents = createRecommendationEvents({
+      storage,
+      key: "anime-shuffle:" + profileKey + ":recommendation-events",
+      api,
+      now,
+      canSync: () => !!state.session.account && !staticMode && !state.preview,
+    });
     if (profileKey === "guest") await persist(false);
     if (catalogWarmup) {
       update({
@@ -1438,6 +1465,7 @@ export function createAnimeStore({
         });
         return;
       }
+      await refreshTasteMetadata();
       await expandFromTaste();
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
@@ -1887,6 +1915,12 @@ export function createAnimeStore({
       await next();
     },
     react,
+    recordRecommendationExposure(id, context) {
+      if (state.preview || state.reactions[id] || !state.onboardingComplete)
+        return;
+      recommendationEvents?.record(id, "impression", context);
+    },
+    recommendationHistory: () => recommendationEvents?.snapshot() || [],
     dismissReactionReason() {
       update({ lastReactionId: null });
     },

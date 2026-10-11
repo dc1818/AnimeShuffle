@@ -34,6 +34,7 @@ test("candidate query pushes equivalent filters upstream and preserves multi-gen
     query(
       {
         favoriteGenres: ["Action"],
+        restrictGenres: true,
         scoreMin: 7,
         scoreMax: 9,
         finishedOnly: true,

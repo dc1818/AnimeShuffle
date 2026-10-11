@@ -1108,7 +1108,10 @@ test("Discover searches beyond three filtered catalog pages without another clic
     },
   });
   await store.initialize();
-  await store.savePreferences({ favoriteGenres: ["Action"] });
+  await store.savePreferences({
+    favoriteGenres: ["Action"],
+    restrictGenres: true,
+  });
   assert.equal(store.getSnapshot().current?.id, 5);
   assert.equal(pages, 5);
 });
