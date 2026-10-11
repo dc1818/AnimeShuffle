@@ -3881,6 +3881,7 @@ main.wide-main {
   flex: none;
 }
 .feedback-body {
+  flex: 1;
   overflow-y: auto;
   min-height: 0;
   padding: 16px;
@@ -4007,6 +4008,8 @@ main.wide-main {
 }
 
 .feedback-header h2 {
+  line-height: 1.4;
+  padding-block: 2px;
   max-height: 4.5em;
   overflow-y: auto;
 }
