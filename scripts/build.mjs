@@ -33,3 +33,16 @@ await build({
   legalComments: "linked",
 });
 console.log(`React production build ready in ${output}/.`);
+// The isolated layout fixture uses the real components at phone/tablet/desktop
+// viewport widths, without touching accounts or sending test reactions.
+await build({
+  entryPoints: ["test/fixtures/feedback-preview.jsx"],
+  bundle: true,
+  outfile: `${output}/feedback-preview.js`,
+  format: "esm",
+  platform: "browser",
+  target: ["es2022"],
+  jsx: "automatic",
+  define: { "process.env.NODE_ENV": '"production"' },
+  minify: true,
+});

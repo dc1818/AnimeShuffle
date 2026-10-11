@@ -1,3 +1,4 @@
+import { feedbackExamples } from "./reaction-feedback.js";
 import { attributedFeatures } from "./reaction-reasons.js";
 import { nuancedFeatures } from "./nuanced-taste.js";
 import { reviewFeatures } from "./taste-traits.js";
@@ -115,8 +116,13 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
     interest = new Map();
   const training = examples.map((r) => ({
     ...r,
-    features: attributedFeatures(features(r.anime), r.reason),
+    features: attributedFeatures(
+      features(r.anime),
+      r.feedback ? null : r.reason,
+    ),
   }));
+  for (const r of examples)
+    training.push(...feedbackExamples(features(r.anime), r.feedback, r.action));
   for (const genre of favoriteGenres)
     training.push({
       features: [["genre:" + genre, 1]],
@@ -148,7 +154,12 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
     );
   const vectors = examples.map((r) => ({
     ...r,
-    vector: new Map(attributedFeatures([...neighborVector(r.anime)], r.reason)),
+    vector: new Map(
+      attributedFeatures(
+        [...neighborVector(r.anime)],
+        r.feedback ? null : r.reason,
+      ),
+    ),
   }));
   const neighborhoodCache = new WeakMap();
   function neighborhood(a) {

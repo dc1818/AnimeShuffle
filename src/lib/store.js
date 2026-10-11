@@ -1,3 +1,4 @@
+import { normalizeFeedback } from "./reaction-feedback.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { createRecommendationEvents } from "./recommendation-events.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
@@ -1923,6 +1924,28 @@ export function createAnimeStore({
     recommendationHistory: () => recommendationEvents?.snapshot() || [],
     dismissReactionReason() {
       update({ lastReactionId: null });
+    },
+    async setReactionFeedback(id, input) {
+      const before = state.reactions[id];
+      if (!before)
+        throw new Error(
+          "This reaction was removed. Choose the anime again to add feedback.",
+        );
+      const after = {
+        ...before,
+        feedback: normalizeFeedback(input, before.action),
+      };
+      delete after.reason;
+      update({ reactions: { ...state.reactions, [id]: after } });
+      for (const entry of history)
+        if (entry.anime.id === Number(id) && sameReaction(entry.after, before))
+          entry.after = after;
+      const saved = await persist();
+      if (!saved)
+        throw new Error(
+          "Feedback is in this tab but could not be saved. Please retry.",
+        );
+      return true;
     },
     async setReactionReason(id, input) {
       const reason = normalizeReactionReason(input),

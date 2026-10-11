@@ -1,3 +1,4 @@
+import { ReactionHistory } from "./ReactionHistory.jsx";
 import { useMemo, useState } from "react";
 import { profileTaste } from "../lib/profile-taste.js";
 import { coverUrl } from "./AnimeCard.jsx";
@@ -109,7 +110,7 @@ function Constellation({ taste }) {
     </section>
   );
 }
-export function Profile({ state, onDiscover }) {
+export function Profile({ state, onDiscover, onSaveFeedback }) {
   const taste = useMemo(
     () => profileTaste(state),
     [state.reactions, state.list, state.preferences, state.recommendationPool],
@@ -146,6 +147,7 @@ export function Profile({ state, onDiscover }) {
           </div>
         </div>
       </header>
+      <ReactionHistory reactions={state.reactions} onSave={onSaveFeedback} />
       <div className="profile-section-heading">
         <div>
           <h2>The different sides of your taste</h2>

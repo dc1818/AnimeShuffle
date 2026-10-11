@@ -1,7 +1,7 @@
 const checks = [
   [
     "Your reactions",
-    "Good and Bad teach enjoyment. Would Watch and Won’t Watch teach interest. An optional reason focuses learning on that part of the show; one dislike is not a ban on every shared genre.",
+    "Good and Bad teach enjoyment. Would Watch and Won’t Watch teach interest. Optional reasons record what you liked or disliked. Where matching information is available, they refine learning about that aspect. Unselected reasons mean nothing, and notes are not analyzed.",
   ],
   [
     "Your MyAnimeList history",

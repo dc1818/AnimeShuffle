@@ -344,7 +344,11 @@ export function App({ store }) {
         }
       >
         {view === "profile" ? (
-          <Profile state={state} onDiscover={() => setView("discover")} />
+          <Profile
+            state={state}
+            onDiscover={() => setView("discover")}
+            onSaveFeedback={store.setReactionFeedback}
+          />
         ) : view === "recommendations" ? (
           <Recommendations
             state={state}
@@ -492,6 +496,18 @@ export function App({ store }) {
             )}
           </section>
         )}
+        {!dialog &&
+          !details &&
+          view !== "profile" &&
+          state.reactions[state.lastReactionId] && (
+            <ReactionFeedback
+              key={`${state.lastReactionId}:${state.reactions[state.lastReactionId].at}`}
+              reaction={state.reactions[state.lastReactionId]}
+              onOpenChange={setFeedbackOpen}
+              onSave={store.setReactionFeedback}
+              onDismiss={store.dismissReactionReason}
+            />
+          )}
       </main>
       <footer>
         <span>
@@ -544,20 +560,6 @@ export function App({ store }) {
       {state.message && (
         <div id="toast" role="status" aria-live="polite">
           {state.message}
-          {!dialog && (
-            <ReactionFeedback
-              reaction={state.reactions[state.lastReactionId]}
-              onOpen={() => setFeedbackOpen(true)}
-              onReason={(id, reason) => {
-                setFeedbackOpen(false);
-                store.setReactionReason(id, reason);
-              }}
-              onDismiss={() => {
-                setFeedbackOpen(false);
-                store.dismissReactionReason();
-              }}
-            />
-          )}
         </div>
       )}
       <Dialogs

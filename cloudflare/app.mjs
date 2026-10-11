@@ -1,3 +1,4 @@
+import { normalizeFeedback } from "../src/lib/reaction-feedback.js";
 import { createAdminOperations } from "../lib/admin-operations.mjs";
 import { guestId } from "../lib/guest-analytics.mjs";
 import {
@@ -677,6 +678,9 @@ export function createCloudApp(
                   anime: entry.anime,
                   at: entry.addedAt,
                   action: r.action,
+                  ...(r.feedback
+                    ? { feedback: normalizeFeedback(r.feedback, r.action) }
+                    : {}),
                   ...(normalizeReactionReason(r.reason)
                     ? { reason: normalizeReactionReason(r.reason) }
                     : {}),

@@ -1,3 +1,4 @@
+import { normalizeFeedback } from "./reaction-feedback.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
 import { isNonCanonMovie } from "./movie-continuity.js";
 import { primaryTitle, englishTitle } from "./titles.js";
@@ -102,6 +103,9 @@ export function buildTaste(
       source: "reaction",
       action: r.action,
       reason: normalizeReactionReason(r.reason),
+      feedback: r.feedback
+        ? normalizeFeedback(r.feedback, r.action)
+        : undefined,
     });
   }
   const genres = new Map(),

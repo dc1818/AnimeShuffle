@@ -538,3 +538,54 @@ test("recommendation events are authenticated, account scoped, idempotent and ex
     /EventsOwner|EventsOther|password_hash|csrf/,
   );
 });
+
+test("optional feedback round trips through account sync with axis validation and note limits", async () => {
+  const db = storage();
+  try {
+    const app = createCloudApp(db, env, { interval: 0 });
+    const a = browser(() => app);
+    await a.request("/api/session");
+    await a.request("/api/account/register", {
+      username: "FeedbackViewer",
+      password: "testing feedback password",
+    });
+    const response = await a.request("/api/account/state", {
+      revision: 0,
+      changes: [
+        {
+          id: 42,
+          reaction: {
+            anime,
+            at: Date.now(),
+            action: "watch",
+            feedback: {
+              aspects: [
+                { key: "artwork", sentiment: "liked" },
+                { key: "animation", sentiment: "disliked" },
+              ],
+              note: "n".repeat(600),
+            },
+          },
+        },
+      ],
+    });
+    assert.equal(response.response.status, 200);
+    const saved = (await a.request("/api/account/state")).body.reactions[42];
+    assert.deepEqual(saved.feedback.aspects, [
+      { key: "artwork", sentiment: "liked" },
+    ]);
+    assert.equal(saved.feedback.note.length, 500);
+    const b = browser(() => app, "2.3.4.5");
+    await b.request("/api/session");
+    await b.request("/api/account/login", {
+      username: "FeedbackViewer",
+      password: "testing feedback password",
+    });
+    assert.deepEqual(
+      (await b.request("/api/account/state")).body.reactions[42].feedback,
+      saved.feedback,
+    );
+  } finally {
+    db.db.close();
+  }
+});
