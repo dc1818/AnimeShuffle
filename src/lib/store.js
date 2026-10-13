@@ -180,6 +180,13 @@ export function createAnimeStore({
     ]);
   }
   const rankingState = () => ({ ...state, skipped: activeSkips() });
+  const recommendationRankingState = () => ({
+    ...rankingState(),
+    skipped: new Set([
+      ...activeSkips(),
+      ...(state.current ? [state.current.id] : []),
+    ]),
+  });
   const pendingReads = new Map();
   async function api(url, data) {
     if (staticMode)
@@ -1548,25 +1555,6 @@ export function createAnimeStore({
         });
         return;
       }
-      // A returning visitor can explore verified cached picks immediately,
-      // even if we still need to retrieve more candidates for the full list.
-      if (!state.recommendationPicks.length) {
-        const ready = pool.filter(
-          (a) => state.preview || details.get(a.id)?.expires > Date.now(),
-        );
-        const initial = rankRecommendations(ready, {
-          ...rankingState(),
-          metadata: pool,
-        });
-        if (initial.length) {
-          initial.slice(0, 3).forEach(({ anime }) => warmPreview(anime));
-          update({
-            recommendationPicks: initial,
-            recommendationPool: ready,
-            recommendationPreferences: state.preferences,
-          });
-        }
-      }
       // Cached analysis is an enhancer: an unavailable snapshot must not hold
       // the entire leaderboard behind an optional request.
       // Give an already-cached server snapshot a short head start, including a
@@ -1579,18 +1567,18 @@ export function createAnimeStore({
           resolve();
         });
       });
-      // Sparse catalogs still need neighbor retrieval. With enough candidates,
-      // do this later through normal background look-ahead.
-      if (eligibleCandidates(pool, rankingState()).length < 25)
-        await expandFromTaste();
+      // Reuse whole catalog pages before fetching individual taste neighbors.
       if (!state.preview)
         for (let n = 0; n < 3; n++) {
           if (
-            eligibleCandidates(pool, rankingState()).length >= 25 ||
+            eligibleCandidates(pool, recommendationRankingState()).length >=
+              25 ||
             !(await refill())
           )
             break;
         }
+      if (eligibleCandidates(pool, recommendationRankingState()).length < 25)
+        await expandFromTaste();
       if (generation !== sessionGeneration) return;
       const candidates = new Map(pool.map((a) => [a.id, a]));
       for (const a of state.list)
@@ -1599,7 +1587,7 @@ export function createAnimeStore({
         if (r.action === "watch") candidates.set(r.anime.id, r.anime);
       const finishRank = diagnostics.start("recommendations_rank");
       const ranked = rankRecommendations([...candidates.values()], {
-        ...rankingState(),
+        ...recommendationRankingState(),
         limit: 75,
       });
       finishRank();
@@ -1611,15 +1599,18 @@ export function createAnimeStore({
       // Three concurrent detail reads shorten the network wait without flooding MAL.
       // Settle a whole batch before continuing; retain ranking order regardless of
       // response order, and never leave requests running after releasing busy.
-      let batchSize = 1;
+      let batchSize = 3;
       for (
         let offset = 0;
         offset < ranked.length &&
-        eligibleCandidates(verified, rankingState()).length < 25;
+        eligibleCandidates(verified, recommendationRankingState()).length < 25;
         offset += batchSize
       ) {
-        eligibleCount = eligibleCandidates(verified, rankingState()).length;
-        batchSize = Math.min(verified.length ? 3 : 1, 25 - eligibleCount);
+        eligibleCount = eligibleCandidates(
+          verified,
+          recommendationRankingState(),
+        ).length;
+        batchSize = Math.min(3, 25 - eligibleCount);
         const batch = ranked.slice(offset, offset + batchSize);
         if (verified.length < 3)
           batch.forEach(({ anime }) => warmPreview(anime));
@@ -1652,27 +1643,25 @@ export function createAnimeStore({
           }
           checked++;
         }
-        eligibleCount = eligibleCandidates(verified, rankingState()).length;
+        eligibleCount = eligibleCandidates(
+          verified,
+          recommendationRankingState(),
+        ).length;
         update({
           recommendationProgress: Math.floor((checked / ranked.length) * 100),
-          recommendationPicks: rankRecommendations(verified, {
-            ...rankingState(),
-            metadata: pool,
-          }),
-          recommendationPreferences: state.preferences,
-          recommendationPool: verified.slice(),
         });
         await yieldToBrowser();
       }
       if (generation !== sessionGeneration) return;
       update({
         recommendationPicks: rankRecommendations(verified, {
-          ...rankingState(),
+          ...recommendationRankingState(),
           metadata: pool,
         }),
         recommendationPreferences: state.preferences,
         recommendationPool: verified,
         recommendationsReady: true,
+        recommendationsLoading: false,
         recommendationError: failures
           ? "Some anime details could not be checked. Try refreshing your picks."
           : "",
@@ -1715,7 +1704,7 @@ export function createAnimeStore({
         const used = new Set(state.recommendationPicks.map((p) => p.anime.id));
         const candidates = rankRecommendations(
           pool.filter((a) => !used.has(a.id) && !attempted.has(a.id)),
-          { ...rankingState(), limit: 1 },
+          { ...recommendationRankingState(), limit: 1 },
         );
         if (!candidates.length) {
           if (!filled && !state.preview) {
@@ -1743,7 +1732,7 @@ export function createAnimeStore({
         )
           continue;
         const pick = rankRecommendations([anime], {
-          ...rankingState(),
+          ...recommendationRankingState(),
           metadata: pool,
         })[0];
         if (!pick) continue;

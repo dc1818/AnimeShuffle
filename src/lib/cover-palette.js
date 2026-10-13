@@ -25,10 +25,17 @@ export function paletteFromPixels(pixels) {
     }))
     .sort((a, b) => b.weight - a.weight);
   if (!colors.length) return null;
-  const primary = colors[0];
+  // White/gray cover lettering and borders should not drown out actual cover hues.
+  const chromatic = colors.filter(
+    ({ rgb, count }) =>
+      (Math.max(...rgb) - Math.min(...rgb)) / Math.max(1, ...rgb) >= 0.22 &&
+      count >= Math.max(1, colors[0].count * 0.03),
+  );
+  const representatives = chromatic.length ? chromatic : colors;
+  const primary = representatives[0];
   const distance = (c) =>
     c.rgb.reduce((sum, n, i) => sum + (n - primary.rgb[i]) ** 2, 0);
-  const secondary = colors
+  const secondary = representatives
     .filter((c) => c.count >= Math.max(1, primary.count * 0.05))
     .sort(
       (a, b) =>

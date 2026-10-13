@@ -92,6 +92,19 @@ test("Discover replaces a matching loaded row without moving other rows or setti
   }
   seedRecommendationHistory(store);
   await store.loadRecommendations();
+  // The initial Discover card is intentionally excluded. Advance Discover into
+  // the already-loaded shortlist to exercise later cross-feed replacement.
+  for (
+    let i = 0;
+    i < 40 &&
+    !store
+      .getSnapshot()
+      .recommendationPicks.some(
+        (p) => p.anime.id === store.getSnapshot().current?.id,
+      );
+    i++
+  )
+    await store.skip();
   const current = store.getSnapshot().current;
   const before = store.getSnapshot().recommendationPicks;
   const removed = before.find((p) => p.anime.id === current.id);

@@ -95,10 +95,11 @@ export function ReactionFeedback({
     setPending(null);
     void save({ ...draft.current, aspects });
   }
-  const rows =
-    pending && !selected.some((a) => a.key === pending)
-      ? [...selected, { key: pending }]
-      : selected;
+  // Opening the add flow never chooses a reason or opinion. Existing votes live
+  // in a separate saved list and are edited only after an explicit click.
+  const rows = pending
+    ? [selected.find((a) => a.key === pending) || { key: pending }]
+    : [];
   return (
     <section
       className="feedback-editor"
@@ -179,13 +180,10 @@ export function ReactionFeedback({
               {options.map((a) => (
                 <button
                   key={a.key}
-                  aria-pressed={
-                    pending === a.key || selected.some((s) => s.key === a.key)
-                  }
+                  aria-pressed={pending === a.key}
                   onClick={() => choose(a.key)}
                 >
                   {a.label}
-                  {selected.some((s) => s.key === a.key) ? " ✓" : ""}
                 </button>
               ))}
             </div>
@@ -239,6 +237,49 @@ export function ReactionFeedback({
             </fieldset>
           ))}
         </div>
+        {selected.length > 0 && (
+          <section className="feedback-saved" aria-label="Saved reasons">
+            <h4>Saved reasons</h4>
+            <ul>
+              {selected.map((a) => (
+                <li key={a.key}>
+                  <span>
+                    {FEEDBACK_BY_KEY.get(a.key)?.label} ·{" "}
+                    {a.sentiment === "liked"
+                      ? seen
+                        ? "Liked"
+                        : "Appealed to me"
+                      : seen
+                        ? "Disliked"
+                        : "Put me off"}
+                  </span>
+                  <button
+                    className="quiet"
+                    onClick={() => choose(a.key)}
+                    aria-label={`Edit ${FEEDBACK_BY_KEY.get(a.key)?.label}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="quiet"
+                    aria-label={`Delete saved ${FEEDBACK_BY_KEY.get(a.key)?.label}`}
+                    onClick={() => {
+                      if (pending === a.key) setPending(null);
+                      void save({
+                        ...draft.current,
+                        aspects: draft.current.aspects.filter(
+                          (s) => s.key !== a.key,
+                        ),
+                      });
+                    }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
       <footer className="feedback-footer">
         <span role="status">

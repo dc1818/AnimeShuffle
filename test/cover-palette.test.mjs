@@ -25,6 +25,16 @@ test("cover palette retains blue, finds representative colors and ignores transp
     "110, 110, 110",
   ]);
   assert.equal(paletteFromPixels([255, 255, 255, 0]), null);
+  assert.equal(
+    paletteFromPixels(
+      [
+        ...Array(100).fill([200, 200, 200, 255]),
+        ...Array(10).fill([40, 70, 210, 255]),
+      ].flat(),
+    )[0],
+    "40, 70, 210",
+    "Gray borders do not drown out the cover's blue accent",
+  );
 });
 
 test("dynamic background updates for new covers, cached covers and expanded recommendation cards", async () => {
@@ -91,6 +101,7 @@ test("dynamic background updates for new covers, cached covers and expanded reco
     assert.equal(cool(), "190, 60, 30");
     await act(async () => render(2, false));
     assert.equal(cool(), "20, 55, 70");
+    assert.equal(document.body.style.getPropertyValue("--anime-cover"), "none");
     Object.defineProperty(window.HTMLImageElement.prototype, "complete", {
       get: () => true,
       configurable: true,
@@ -106,8 +117,32 @@ test("dynamic background updates for new covers, cached covers and expanded reco
       "35, 160, 85",
       "Cached recommendation cover updates without a new load event",
     );
+    assert.match(
+      document.body.style.getPropertyValue("--anime-cover"),
+      /anime\/3\//,
+    );
+    window.HTMLCanvasElement.prototype.getContext = () => {
+      throw Error("Canvas access blocked");
+    };
+    await act(async () => render(4, true, true));
+    assert.match(
+      document.body.style.getPropertyValue("--anime-cover"),
+      /anime\/4\//,
+      "The background still follows the current cover if canvas is blocked",
+    );
+    await act(async () =>
+      document
+        .querySelector("img.poster")
+        .dispatchEvent(new window.Event("error")),
+    );
+    assert.equal(
+      document.body.style.getPropertyValue("--anime-cover"),
+      "none",
+      "A failed cover never leaves the previous anime's artwork",
+    );
   } finally {
     await act(async () => root.unmount());
+    assert.equal(document.body.style.getPropertyValue("--anime-cover"), "");
     dom.window.close();
     await rm(folder, { recursive: true, force: true });
   }

@@ -167,7 +167,7 @@ for (const staticMode of [false, true])
         document.querySelector(".recommendations-unlock-toast"),
         null,
       );
-      // Saved picks no longer reappear in recommendations.
+      // Saved picks and the current Discover card do not reappear in recommendations.
       // Discovery and recommendations intentionally yield to the browser. Wait
       // for the completed state instead of assuming a single React flush is enough.
       for (
@@ -178,7 +178,7 @@ for (const staticMode of [false, true])
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 10));
         });
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
       assert.equal(
         document
           .querySelector(".leaderboard-number")
@@ -214,7 +214,7 @@ for (const staticMode of [false, true])
         document.querySelector(".ranked-card .reaction.nope").click(),
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "nope");
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
       assert.equal(
         document.querySelectorAll(".leaderboard-row.reacted").length,
         1,
@@ -224,7 +224,7 @@ for (const staticMode of [false, true])
         document.querySelectorAll(".leaderboard-row.reacted").length,
         0,
       );
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 6);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
 
       await act(async () =>
         document.querySelector(".ranked-card .reaction.watch").click(),
@@ -259,7 +259,7 @@ for (const staticMode of [false, true])
         document.querySelectorAll(".leaderboard-row.reacted").length,
         0,
       );
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 4);
       assert.equal(
         document.getElementById(`recommendation-heading-${firstId}`),
         null,

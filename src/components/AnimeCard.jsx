@@ -73,7 +73,23 @@ export function AnimeCard({
       : ["20, 55, 70", "55, 38, 61"];
     document.body.style.setProperty("--cool", palette[0]);
     document.body.style.setProperty("--warm", palette[1]);
-  }, [sampled, dynamic, anime.palette, coverKey]);
+    // The cover layer also follows the active card when canvas sampling is blocked.
+    document.body.style.setProperty(
+      "--anime-cover",
+      dynamic && anime.image && !failed
+        ? `url(${JSON.stringify(coverUrl(anime))})`
+        : "none",
+    );
+  }, [sampled, dynamic, anime.palette, coverKey, failed]);
+  useEffect(
+    () => () => {
+      // A collapsed card or another page must not keep the previous anime's theme.
+      document.body.style.removeProperty("--anime-cover");
+      document.body.style.removeProperty("--cool");
+      document.body.style.removeProperty("--warm");
+    },
+    [],
+  );
   function imageLoaded() {
     setFailed(false);
     // Pixel access can fail when a browser blocks canvas; the default theme remains usable.
@@ -548,9 +564,7 @@ export function AnimeDetails({
                     className="primary"
                     onClick={() => setEditingId(recent.anime.id)}
                   >
-                    {recent.feedback?.aspects?.length
-                      ? "Edit reasons for this reaction"
-                      : "Add reasons for this reaction"}
+                    Add a reason for this reaction
                   </button>
                   <p className="feedback-hint">
                     About{" "}

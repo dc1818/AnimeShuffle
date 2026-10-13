@@ -44,7 +44,7 @@ test("skip persists across reloads and preference edits and excludes both discov
   const before = structuredClone(store.getSnapshot().reactions);
   await store.loadRecommendations();
   assert.ok(
-    store.getSnapshot().recommendationPicks.some((p) => p.anime.id === id),
+    !store.getSnapshot().recommendationPicks.some((p) => p.anime.id === id),
   );
   await store.skip();
   assert.notEqual(store.getSnapshot().current?.id, id);

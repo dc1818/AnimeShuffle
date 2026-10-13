@@ -27,12 +27,13 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
   );
   const picks = state.recommendationPicks.filter(
     (pick) =>
+      pick.anime.id !== state.current?.id &&
       state.reactions[pick.anime.id]?.action !== "watch" &&
       !savedIds.has(pick.anime.id),
   );
   const [opened, setOpened] = useState(undefined);
   useEffect(() => {
-    // Keep a preview open while later verified rows arrive or change rank.
+    // Open the first row only after the complete verified batch is published.
     if (opened === undefined && picks.length) setOpened(picks[0].anime.id);
   }, [opened, picks[0]?.anime.id]);
   useEffect(() => {
@@ -199,7 +200,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           detail={
             state.recommendationProgress === null
               ? "Gathering anime for your shortlist"
-              : "Candidate checks completed · your picks appear when ready"
+              : "Checking matches · the completed shortlist will appear together"
           }
         />
       ) : !hasTaste && !picks.length ? (
@@ -220,7 +221,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
               compact
               progress={state.recommendationProgress}
               label="Finishing your shortlist…"
-              detail="You can explore previews while the remaining matches are checked."
+              detail="Your previous picks stay visible until the replacement batch is ready."
             />
           )}
           {state.recommendationError && (

@@ -17,8 +17,8 @@ html {
   font-size: 16px;
 }
 body {
-  --cool: 18, 102, 130;
-  --warm: 138, 36, 65;
+  --cool: 20, 55, 70;
+  --warm: 55, 38, 61;
   --surface: #0c161df5;
   --line: #304a58;
   --text: #eff4f8;
@@ -123,6 +123,17 @@ svg.icon {
     ),
     #0b1217;
   transition: background 1s;
+}
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: -15%;
+  background-image: var(--anime-cover, none);
+  background-position: center;
+  background-size: cover;
+  filter: blur(80px) saturate(1.45);
+  opacity: 0.24;
+  pointer-events: none;
 }
 .ambient i {
   position: absolute;
@@ -4270,4 +4281,23 @@ main.wide-main {
 }
 .database-usage > p {
   line-height: 1.65;
+}
+
+.feedback-saved {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+}
+.feedback-saved ul {
+  list-style: none;
+  padding: 0;
+}
+.feedback-saved li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+.feedback-saved li > span {
+  flex: 1 1 150px;
 }

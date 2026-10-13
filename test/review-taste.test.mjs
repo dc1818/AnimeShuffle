@@ -406,8 +406,8 @@ test("explicit denials lower support; compact SQL action rows retain collaborati
 test("fresh review snapshots affect manual refresh, while revisiting a loaded batch does not fetch or replace it", async () => {
   const good = analyzeReviews(sample("Fluid animation."));
   const bad = analyzeReviews(sample("Limited animation."));
-  const seed = anime(100, good);
-  const pool = [anime(1), anime(2)];
+  const seed = { ...anime(100, good), recommendations: [1, 2] };
+  const pool = [anime(3)]; // Keep Discover separate from the two ranking candidates.
   const values = new Map();
   let swapped = false,
     reads = 0;
@@ -440,7 +440,9 @@ test("fresh review snapshots affect manual refresh, while revisiting a loaded ba
         return Response.json(
           Number(url.split("/").pop()) === 100
             ? seed
-            : pool.find((a) => a.id === Number(url.split("/").pop())),
+            : [anime(1, good), anime(2, bad), ...pool].find(
+                (a) => a.id === Number(url.split("/").pop()),
+              ),
         );
       throw Error(url);
     },

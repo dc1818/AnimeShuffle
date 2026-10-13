@@ -81,7 +81,7 @@ test("optional UI asks only applicable viewing questions and requires an explici
       document.querySelector(".why-feedback-entry").textContent,
       /Cowboy Bebop/,
     );
-    await click("Add reasons for this reaction");
+    await click("Add a reason for this reaction");
     assert.equal(
       document.querySelectorAll("dialog").length,
       1,
@@ -93,6 +93,11 @@ test("optional UI asks only applicable viewing questions and requires an explici
       "editor replaces anime details",
     );
     assert.equal(document.querySelector("h2").textContent, "Cowboy Bebop");
+    assert.equal(
+      document.querySelector('.feedback-editor [aria-pressed="true"]'),
+      null,
+      "No reason or opinion is preselected",
+    );
     assert.equal(document.querySelector("textarea"), null);
     assert.ok(!document.body.textContent.includes("personal note"));
     assert.ok(!document.body.textContent.includes("Romance"));
@@ -130,18 +135,38 @@ test("optional UI asks only applicable viewing questions and requires an explici
     );
     assert.equal(
       document.activeElement.textContent,
-      "Add reasons for this reaction",
+      "Add a reason for this reaction",
     );
     await act(async () =>
       root.render(
         React.createElement(AnimeDetails, {
           ...props,
-          reactions: { 1: { ...reaction, action: "watch" } },
+          reactions: {
+            1: {
+              ...reaction,
+              action: "watch",
+              feedback: { aspects: [{ key: "artwork", sentiment: "liked" }] },
+            },
+          },
         }),
       ),
     );
-    await click("Add reasons for this reaction");
+    await click("Add a reason for this reaction");
     assert.ok(document.body.textContent.includes("What caught your eye?"));
+    assert.equal(
+      document.querySelector('.feedback-editor [aria-pressed="true"]'),
+      null,
+      "Previously saved Artwork is not selected in the add flow",
+    );
+    assert.match(
+      document.querySelector(".feedback-saved").textContent,
+      /Artwork.*Appealed to me/,
+    );
+    assert.equal(
+      saves.length,
+      2,
+      "Reopening existing feedback does not invent or overwrite votes",
+    );
     assert.ok(!document.body.textContent.includes("Animation"));
     assert.ok(document.body.textContent.includes("Artwork"));
     assert.ok(!document.body.textContent.includes("Villain"));

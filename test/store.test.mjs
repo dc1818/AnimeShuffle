@@ -368,7 +368,7 @@ for (const setup of ["settings", "onboarding"])
     );
   });
 
-test("loading reports completed work and publishes verified recommendations progressively", async () => {
+test("loading reports completed work and publishes verified recommendations together", async () => {
   const snapshots = [];
   const store = createAnimeStore({ storage: memory(), staticMode: true });
   store.subscribe(() => snapshots.push(store.getSnapshot()));
@@ -385,9 +385,16 @@ test("loading reports completed work and publishes verified recommendations prog
   await store.loadRecommendations();
   const loading = snapshots.filter((s) => s.recommendationsLoading);
   assert.ok(loading.length > 0);
-  // Verified picks become available before the complete batch settles.
+  // No cached or partial shortlist is exposed while checks are still running.
   const partial = loading.filter((s) => !s.recommendationsReady);
-  assert.ok(partial.some((s) => s.recommendationPicks.length > 0));
+  assert.ok(partial.every((s) => s.recommendationPicks.length === 0));
+  assert.ok(
+    store
+      .getSnapshot()
+      .recommendationPicks.every(
+        (p) => p.anime.id !== store.getSnapshot().current.id,
+      ),
+  );
   assert.ok(loading.some((s) => Number.isFinite(s.recommendationProgress)));
   assert.equal(store.getSnapshot().recommendationsLoading, false);
   assert.equal(store.getSnapshot().recommendationsReady, true);
@@ -680,7 +687,8 @@ test("saving viewing filters updates Discover but keeps a loaded batch until exp
   await store.loadRecommendations({ force: true });
   assert.deepEqual(
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
-    [10],
+    [],
+    "The only matching title is already displayed in Discover",
   );
   await store.savePreferences({ ...filters, formats: ["movies"] });
   assert.equal(store.getSnapshot().current.id, 14);
@@ -688,7 +696,8 @@ test("saving viewing filters updates Discover but keeps a loaded batch until exp
   await store.loadRecommendations({ force: true });
   assert.deepEqual(
     store.getSnapshot().recommendationPicks.map((p) => p.anime.id),
-    [14],
+    [],
+    "The current Discover movie is excluded too",
   );
 });
 
@@ -757,8 +766,9 @@ test("account polling and preference changes preserve a loaded batch until expli
         return ok(remote);
       }
       if (url.startsWith("/api/catalog"))
-        return ok({ data: [anime], nextOffset: null });
-      if (url === "/api/anime/1") return ok(anime);
+        return ok({ data: [anime, { ...anime, id: 2 }], nextOffset: null });
+      if (url.startsWith("/api/anime/"))
+        return ok({ ...anime, id: Number(url.split("/").pop()) });
       throw Error("Unexpected request " + url);
     },
   });
@@ -1345,7 +1355,21 @@ test("shortlist detail checks overlap with a three-request cap and reuse the loa
   await store.savePreferences({ favoriteGenres: ["Action"] });
   const current = store.getSnapshot().current;
   seedRecommendationHistory(store);
+  const publishedSizes = [];
+  const stop = store.subscribe(() =>
+    publishedSizes.push(store.getSnapshot().recommendationPicks.length),
+  );
   await store.loadRecommendations();
+  stop();
+  assert.ok(
+    publishedSizes.every((n) => n === 0 || n === 25),
+    "No partial network batch is published",
+  );
+  assert.ok(
+    store
+      .getSnapshot()
+      .recommendationPicks.every((p) => p.anime.id !== current.id),
+  );
   assert.equal(peak, 3);
   assert.equal(active, 0);
   const picks = store.getSnapshot().recommendationPicks;

@@ -54,7 +54,10 @@ for (const source of ["discover", "recommendations"]) {
       await store.savePreferences({ favoriteGenres: ["Drama"] });
       seedRecommendationHistory(store);
       await store.loadRecommendations();
-      const chosen = source === "discover" ? store.getSnapshot().current : kimi;
+      const chosen =
+        source === "discover"
+          ? store.getSnapshot().current
+          : store.getSnapshot().recommendationPicks[0].anime;
       await store.react(action, source === "recommendations" ? chosen : null);
       assert.equal(store.getSnapshot().reactions[chosen.id].action, action);
       assert.equal(
@@ -92,14 +95,15 @@ test("failed MAL auto-add cannot remove a Would watch save from the site or allo
   await store.savePreferences({ favoriteGenres: ["Drama"] });
   seedRecommendationHistory(store);
   await store.loadRecommendations();
+  const chosen = store.getSnapshot().recommendationPicks[0].anime;
   store.setSettings({ autoAdd: true });
-  await store.react("watch", kimi);
+  await store.react("watch", chosen);
   assert.equal(
     combinedWatchlist(
       store.getSnapshot().reactions,
       store.getSnapshot().list,
     )[0].anime.id,
-    kimi.id,
+    chosen.id,
   );
   assert.match(store.getSnapshot().malSyncError, /MAL unavailable/);
   const restored = createAnimeStore(options);
@@ -109,7 +113,7 @@ test("failed MAL auto-add cannot remove a Would watch save from the site or allo
       restored.getSnapshot().reactions,
       restored.getSnapshot().list,
     )[0].anime.id,
-    kimi.id,
+    chosen.id,
   );
-  assert.notEqual(restored.getSnapshot().current?.id, kimi.id);
+  assert.notEqual(restored.getSnapshot().current?.id, chosen.id);
 });
