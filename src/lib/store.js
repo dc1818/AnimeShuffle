@@ -1457,7 +1457,7 @@ export function createAnimeStore({
     }
     if (listWarmup) await listWarmup;
     // Counts become visible only after local, account and MAL data are combined.
-    update({ accountDataReady: true });
+    update({ accountDataReady: true, ready: true });
     recommendationEvents = createRecommendationEvents({
       storage,
       key: "anime-shuffle:" + profileKey + ":recommendation-events",

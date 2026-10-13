@@ -22,7 +22,13 @@ export class AnimeBackend extends DurableObject {
   fetch(request) {
     // Public metadata uses its own cache and MAL throttle, with no session writes.
     // Keep account mutations and token refreshes serialized as before.
-    if (isPublicMetadataRequest(request))
+    const path = new URL(request.url).pathname;
+    const localRead =
+      request.method === "GET" &&
+      ["/api/session", "/api/account/state"].includes(path);
+    // These local reads contain no network await or account mutation. A slow
+    // MAL list/token request must not delay session checks for other visitors.
+    if (isPublicMetadataRequest(request) || localRead)
       return this.app.fetch(request).then((response) => {
         if (request.headers.get("X-AnimeShuffle-Debug") === "1")
           response.headers.append("Server-Timing", "coordinator_queue;dur=0.0");

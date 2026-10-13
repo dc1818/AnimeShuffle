@@ -1262,6 +1262,7 @@ export function Admin() {
             <div className="admin-columns">
               <section className="admin-panel">
                 <h2>Background services</h2>
+                <DatabaseUsage usage={status.databaseUsage} api={api} />
                 <dl className="admin-diagnostics">
                   {[
                     ["Review provider", status.enrichment.reviews.provider],
@@ -1479,3 +1480,4 @@ export function Admin() {
     </main>
   );
 }
+import { DatabaseUsage } from "./DatabaseUsage.jsx";

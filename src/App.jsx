@@ -30,7 +30,12 @@ export function App({ store }) {
   if (!state.ready)
     return (
       <div className="service-start" role="status">
-        Connecting to Anime Shuffle…
+        <LoadingIndicator
+          label={state.discoveryStage || "Connecting to Anime Shuffle…"}
+          detail={
+            state.discoveryWork || "Restoring your session and saved choices."
+          }
+        />
       </div>
     );
   return <ConnectedApp store={store} state={state} />;

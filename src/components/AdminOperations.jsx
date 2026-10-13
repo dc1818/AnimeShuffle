@@ -186,6 +186,7 @@ export function AdminOperations({ section, api, currentAccount }) {
       {busy && <p role="status">Loading…</p>}
       {data && section === "overview" && (
         <>
+          <DatabaseUsage usage={data.databaseUsage} api={api} />
           <Stats
             values={[
               ["Accounts", data.accounts],
@@ -1185,3 +1186,4 @@ export function AdminOperations({ section, api, currentAccount }) {
     </div>
   );
 }
+import { DatabaseUsage } from "./DatabaseUsage.jsx";

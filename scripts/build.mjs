@@ -6,6 +6,7 @@ import { cp, mkdir, rm, readFile, writeFile } from "node:fs/promises";
 const pages = process.argv.includes("--pages");
 const output = pages ? "docs" : "dist";
 await mkdir(output, { recursive: true });
+await rm(`${output}/chunks`, { recursive: true, force: true });
 for (const legacy of ["recommend.js", "demo.js"])
   await rm(`${output}/${legacy}`, { force: true });
 await cp("public", output, { recursive: true });
@@ -22,7 +23,10 @@ if (pages) {
 await build({
   entryPoints: ["src/main.jsx"],
   bundle: true,
-  outfile: `${output}/app.js`,
+  outdir: output,
+  entryNames: "app",
+  chunkNames: "chunks/[name]-[hash]",
+  splitting: true,
   format: "esm",
   platform: "browser",
   target: ["es2022"],

@@ -1,11 +1,13 @@
-import { Admin } from "./components/Admin.jsx";
 import { browserLocalStorage } from "./lib/browser-storage.js";
-import { StrictMode } from "react";
+import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.jsx";
 import { ServiceUnavailable } from "./components/ServiceUnavailable.jsx";
 import { createDiagnostics } from "./lib/diagnostics.js";
 import { createAnimeStore } from "./lib/store.js";
+const Admin = lazy(() =>
+  import("./components/Admin.jsx").then((m) => ({ default: m.Admin })),
+);
 
 // A single store survives component remounts. Secrets and OAuth tokens remain
 // in server.mjs; this entry point only calls our same-origin API routes.
@@ -49,7 +51,15 @@ createRoot(document.getElementById("root")).render(
     {new URLSearchParams(location.search).get("preview") === "unavailable" ? (
       <ServiceUnavailable preview />
     ) : location.pathname.replace(/\/$/, "") === "/admin" ? (
-      <Admin />
+      <Suspense
+        fallback={
+          <div className="service-start" role="status">
+            Loading admin tools…
+          </div>
+        }
+      >
+        <Admin />
+      </Suspense>
     ) : (
       <App store={store} />
     )}

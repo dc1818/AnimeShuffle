@@ -21,6 +21,8 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     target: "es2022",
   });
   let tokenRedirect = false,
+    releaseList,
+    listStarted = false,
     releaseMetadata,
     metadataStarted = false;
   const requests = [];
@@ -44,6 +46,13 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       outboundService: async (request) => {
         const url = new URL(request.url);
         requests.push(url.hostname + url.pathname);
+        if (url.pathname === "/v2/users/@me/animelist") {
+          listStarted = true;
+          await new Promise((resolve) => {
+            releaseList = resolve;
+          });
+          return WorkerResponse.json({ data: [] });
+        }
         if (url.pathname === "/v2/anime/999") {
           metadataStarted = true;
           await new Promise((resolve) => {
@@ -183,6 +192,25 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     const session = await (await call("/api/session")).json();
     assert.equal(session.account.name, "RuntimeViewer");
     assert.equal(session.connected, true);
+    const pendingList = call("/api/list?offset=0");
+    for (let i = 0; !listStarted && i < 100; i++)
+      await new Promise((r) => setTimeout(r, 20));
+    assert.ok(listStarted);
+    try {
+      const fast = await Promise.race([
+        Promise.all([call("/api/session"), call("/api/account/state")]),
+        new Promise((resolve) => setTimeout(() => resolve(null), 1200)),
+      ]);
+      assert.ok(
+        fast,
+        "Signed-in session and account reads must not queue behind a stalled private MAL request",
+      );
+      assert.equal((await fast[0].json()).account.name, "RuntimeViewer");
+      assert.equal(fast[1].status, 200);
+    } finally {
+      releaseList();
+      await pendingList;
+    }
     const timed = await mf.dispatchFetch(
       "https://shuffle.example/api/anime/1",
       { headers: { "X-AnimeShuffle-Debug": "1" } },

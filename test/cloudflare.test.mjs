@@ -77,6 +77,33 @@ const anime = {
   status: "finished_airing",
   nsfw: "white",
 };
+test("database background budget pauses all enrichment queues without blocking anime metadata", async () => {
+  const s = storage();
+  const app = createCloudApp(
+    s,
+    { ...env, DB_BACKGROUND_READ_LIMIT: "0" },
+    {
+      interval: 0,
+      fetcher: async () =>
+        Response.json({
+          id: 42,
+          title: "Budget fixture",
+          nsfw: "white",
+          media_type: "tv",
+          num_episodes: 12,
+        }),
+    },
+  );
+  const response = await app.fetch(
+    new Request(env.PUBLIC_ORIGIN + "/api/anime/42"),
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).title, "Budget fixture");
+  for (const table of ["review_jobs", "episode_jobs", "model_catalog_jobs"])
+    assert.equal(s.db.prepare(`SELECT COUNT(*) n FROM ${table}`).get().n, 0);
+  assert.equal(app.rowUsage.diagnostics().backgroundPaused, true);
+  s.db.close();
+});
 test("rated-title eligibility and cache expiry use indexes instead of full table scans", () => {
   const s = storage();
   createCloudApp(s, env, { interval: 0 });

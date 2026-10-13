@@ -1,4 +1,5 @@
 import { createAiBudget, TASTE_MODEL } from "../lib/ai-budget.mjs";
+import { createRowUsage, usageRoute } from "../lib/row-usage.mjs";
 import { createSemanticAnalyzer } from "../lib/semantic-enrichment.mjs";
 import { normalizeFeedback } from "../src/lib/reaction-feedback.js";
 import { createAdminOperations } from "../lib/admin-operations.mjs";
@@ -67,6 +68,11 @@ export function createCloudApp(
   env,
   { fetcher = fetch, interval = 700, waitUntil = () => {} } = {},
 ) {
+  const rowUsage = createRowUsage(storage, {
+    backgroundReads: env.DB_BACKGROUND_READ_LIMIT ?? 3500000,
+    backgroundWrites: env.DB_BACKGROUND_WRITE_LIMIT ?? 70000,
+  });
+  storage = rowUsage.storage;
   const sql = storage.sql;
   const all = (query, ...args) => Array.from(sql.exec(query, ...args));
   const one = (query, ...args) => all(query, ...args)[0];
@@ -95,14 +101,28 @@ export function createCloudApp(
   sql.exec(
     "CREATE INDEX IF NOT EXISTS public_mal_cache_expiry ON public_mal_cache(expires)",
   );
+  let alarmTarget = Infinity,
+    alarmUpdate = null;
   const scheduleEnrichment = (at) => {
-    const scheduled = (async () => {
-      if (!storage.setAlarm) return;
-      const current = await storage.getAlarm();
-      if (current === null || current > at) await storage.setAlarm(at);
-    })();
-    waitUntil(scheduled);
-    return scheduled;
+    if (!storage.setAlarm) return Promise.resolve();
+    if (!rowUsage.allowed())
+      at = (Math.floor(Date.now() / DAY) + 1) * DAY + 60000;
+    alarmTarget = Math.min(alarmTarget, at);
+    if (!alarmUpdate) {
+      alarmUpdate = (async () => {
+        while (Number.isFinite(alarmTarget)) {
+          const wanted = alarmTarget;
+          alarmTarget = Infinity;
+          const current = await storage.getAlarm();
+          if (current === null || current > wanted)
+            await storage.setAlarm(wanted);
+        }
+      })().finally(() => {
+        alarmUpdate = null;
+      });
+      waitUntil(alarmUpdate);
+    }
+    return alarmUpdate;
   };
   const recommendationEvents = createRecommendationEventStore(storage);
   const research = createResearchStore(storage);
@@ -117,20 +137,14 @@ export function createCloudApp(
     sql,
     fetcher,
     schedule: scheduleEnrichment,
+    canEnrich: rowUsage.allowed,
   });
   const reviews = createReviewEnrichment({
     store: reviewStore(sql),
     fetcher,
     enabled: (env.REVIEW_ENRICHMENT ?? env.JIKAN_REVIEWS) !== "false",
-    schedule: (at) => {
-      const scheduled = (async () => {
-        if (!storage.setAlarm) return;
-        const current = await storage.getAlarm();
-        if (current === null || current > at) await storage.setAlarm(at);
-      })();
-      waitUntil(scheduled);
-      return scheduled;
-    },
+    canEnrich: rowUsage.allowed,
+    schedule: scheduleEnrichment,
     log: (event) => {
       if (env.RECOMMENDATION_DEBUG === "true")
         console.log(JSON.stringify(event));
@@ -180,6 +194,7 @@ export function createCloudApp(
     fullScan: false,
     eligible: modelEligible,
     eligibleIds: eligibleModelIds,
+    canEnrich: rowUsage.allowed,
     semanticAnalyzer:
       env.AI_TASTE_ENRICHMENT === "true" && env.AI?.run
         ? createSemanticAnalyzer(aiBudget)
@@ -196,6 +211,22 @@ export function createCloudApp(
       Math.min(40, Number(env.AI_DAILY_REQUEST_LIMIT) || 40),
     ),
   });
+  let tasteDiagnostics = null,
+    tasteDiagnosticsAt = 0;
+  const sharedTasteDiagnostics = () => {
+    if (!tasteDiagnostics || Date.now() - tasteDiagnosticsAt >= 60000) {
+      tasteDiagnostics = {
+        ...reviews.diagnostics(),
+        episodes: episodes.diagnostics(),
+        model: {
+          ...catalogModel.diagnostics(),
+          budget: aiBudget.diagnostics(),
+        },
+      };
+      tasteDiagnosticsAt = Date.now();
+    }
+    return tasteDiagnostics;
+  };
   const attachTaste = (anime, priority = 0) => {
     catalogModel.enqueue(anime, priority);
     const enriched = research.attach(
@@ -204,6 +235,8 @@ export function createCloudApp(
     const semantic = catalogModel.semantic(anime.id);
     return semantic ? { ...enriched, semanticTaste: semantic } : enriched;
   };
+  let cacheMaintenanceAt = 0,
+    cacheWrites = 0;
   const publicStore = {
     get(path) {
       const row = one(
@@ -219,17 +252,22 @@ export function createCloudApp(
       }
     },
     set(path, entry) {
-      sql.exec("DELETE FROM public_mal_cache WHERE expires<=?", Date.now());
       sql.exec(
         "INSERT OR REPLACE INTO public_mal_cache VALUES (?, ?, ?)",
         path,
         entry.expires,
         JSON.stringify(entry.data),
       );
-      // Bound storage even when many users browse unrelated titles.
-      sql.exec(
-        "DELETE FROM public_mal_cache WHERE path IN (SELECT path FROM public_mal_cache ORDER BY expires DESC LIMIT -1 OFFSET 500)",
-      );
+      // Amortize cache pruning across writes instead of scanning 500 entries
+      // on every stored response. At most 50 new entries between prunes.
+      if (++cacheWrites >= 50 || Date.now() - cacheMaintenanceAt > 60000) {
+        sql.exec("DELETE FROM public_mal_cache WHERE expires<=?", Date.now());
+        sql.exec(
+          "DELETE FROM public_mal_cache WHERE path IN (SELECT path FROM public_mal_cache ORDER BY expires DESC LIMIT -1 OFFSET 500)",
+        );
+        cacheWrites = 0;
+        cacheMaintenanceAt = Date.now();
+      }
     },
   };
   const trailers = createTrailerService({ fetcher, publicStore });
@@ -396,12 +434,18 @@ export function createCloudApp(
     }
     return response;
   }
-  return {
+  const app = {
     alarm: async () => {
+      if (!rowUsage.allowed()) {
+        await scheduleEnrichment(
+          (Math.floor(Date.now() / DAY) + 1) * DAY + 60000,
+        );
+        return;
+      }
       operations.cleanup();
       await reviews.run();
-      await episodes.run();
-      await catalogModel.run();
+      if (rowUsage.allowed()) await episodes.run();
+      if (rowUsage.allowed()) await catalogModel.run();
     },
     async fetch(req) {
       const startedAt = performance.now();
@@ -453,6 +497,7 @@ export function createCloudApp(
           );
           if (found) session = encryption.open(found.payload);
         }
+        const originalSession = JSON.stringify(session);
         function rotate(accountId = null) {
           if (sessionHash)
             sql.exec("DELETE FROM sessions WHERE hash=?", sessionHash);
@@ -491,6 +536,7 @@ export function createCloudApp(
         tokenSession = {
           tokens: account?.tokens ? encryption.open(account.tokens) : null,
         };
+        const originalTokens = JSON.stringify(tokenSession.tokens);
         const auth = () => {
           if (!tokenSession.tokens)
             throw new AppError(
@@ -573,13 +619,15 @@ export function createCloudApp(
           const adminBody =
             req.method === "POST" ? await input(req, 16 * 1024 * 1024) : null;
           const result =
-            path === "/api/admin/recommendation-evaluation" &&
-            req.method === "GET"
-              ? recommendationEvents.export()
-              : operations.route(u, req.method, adminBody, account.id);
+            path === "/api/admin/database-usage" && req.method === "GET"
+              ? { databaseUsage: rowUsage.diagnostics() }
+              : path === "/api/admin/recommendation-evaluation" &&
+                  req.method === "GET"
+                ? recommendationEvents.export()
+                : operations.route(u, req.method, adminBody, account.id);
           if (result?.changed) communityCache = null;
-          response = json(
-            result ?? {
+          response = json({
+            ...(result ?? {
               ...researchAdminRoute(
                 research,
                 u,
@@ -598,8 +646,15 @@ export function createCloudApp(
               ...(path === "/api/admin/status"
                 ? { operationsAvailable: true }
                 : {}),
-            },
-          );
+            }),
+            ...([
+              "/api/admin/status",
+              "/api/admin/overview",
+              "/api/admin/insights",
+            ].includes(path)
+              ? { databaseUsage: rowUsage.diagnostics() }
+              : {}),
+          });
           if (
             path === "/api/admin/research/requirements" &&
             req.method === "POST"
@@ -983,14 +1038,7 @@ export function createCloudApp(
             ? communitySnapshot(session.accountId)
             : {};
           response = json({
-            enrichment: {
-              ...reviews.diagnostics(),
-              episodes: episodes.diagnostics(),
-              model: {
-                ...catalogModel.diagnostics(),
-                budget: aiBudget.diagnostics(),
-              },
-            },
+            enrichment: sharedTasteDiagnostics(),
             episodes: Object.fromEntries(
               ids.map((id) => [id, episodes.cached(id)]).filter(([, p]) => p),
             ),
@@ -1082,7 +1130,7 @@ export function createCloudApp(
           delete session.receipts[b.receipt];
           response = json({ removed: true });
         } else throw new AppError("Not found.", 404);
-        if (account) {
+        if (account && JSON.stringify(tokenSession.tokens) !== originalTokens) {
           // Refresh-token rotations survive deploys and are shared by this account's devices.
           const encrypted = tokenSession.tokens
             ? encryption.seal(tokenSession.tokens)
@@ -1099,12 +1147,13 @@ export function createCloudApp(
               account.id,
             );
         }
-        sql.exec(
-          "INSERT INTO sessions VALUES (?,?,?) ON CONFLICT(hash) DO UPDATE SET payload=excluded.payload,expires=excluded.expires",
-          sessionHash,
-          encryption.seal(session),
-          session.expires,
-        );
+        if (JSON.stringify(session) !== originalSession)
+          sql.exec(
+            "INSERT INTO sessions VALUES (?,?,?) ON CONFLICT(hash) DO UPDATE SET payload=excluded.payload,expires=excluded.expires",
+            sessionHash,
+            encryption.seal(session),
+            session.expires,
+          );
         sql.exec("DELETE FROM sessions WHERE expires<?", Date.now());
         sql.exec("DELETE FROM limits WHERE expires<?", Date.now());
         if (setCookie) response.headers.set("Set-Cookie", setCookie);
@@ -1157,6 +1206,29 @@ export function createCloudApp(
           duration: performance.now() - startedAt,
         });
         return secure(response);
+      }
+    },
+  };
+  return {
+    ...app,
+    rowUsage,
+    async fetch(req) {
+      try {
+        return await rowUsage.run(usageRoute(req), () => app.fetch(req));
+      } finally {
+        try {
+          rowUsage.flush();
+        } catch {}
+      }
+    },
+    async alarm() {
+      try {
+        return await rowUsage.run("Background enrichment", () => app.alarm());
+      } finally {
+        tasteDiagnostics = null;
+        try {
+          rowUsage.flush();
+        } catch {}
       }
     },
   };

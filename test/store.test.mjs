@@ -18,6 +18,58 @@ function memory() {
     setItem: (key, value) => values.set(key, value),
   };
 }
+test("signed-in startup becomes ready after account sync while catalog loading continues", async () => {
+  let releaseCatalog;
+  const waitCatalog = new Promise((resolve) => {
+    releaseCatalog = resolve;
+  });
+  const store = createAnimeStore({
+    storage: memory(),
+    browserBackup: null,
+    request: async (url) => {
+      if (url === "/api/session")
+        return Response.json({
+          configured: true,
+          connected: false,
+          cloudSync: true,
+          csrf: "test",
+          account: { id: "local:test", provider: "local" },
+          preferences: {},
+          onboardingComplete: true,
+        });
+      if (url === "/api/account/state")
+        return Response.json({
+          revision: 0,
+          reactions: {},
+          preferences: {},
+          settings: {},
+          onboardingComplete: true,
+        });
+      if (url.startsWith("/api/catalog")) {
+        await waitCatalog;
+        return Response.json({ data: [], nextOffset: null });
+      }
+      if (url.startsWith("/api/taste")) return Response.json({});
+      return Response.json({});
+    },
+  });
+  const initializing = store.initialize();
+  try {
+    for (let i = 0; i < 50 && !store.getSnapshot().accountDataReady; i++)
+      await new Promise((r) => setTimeout(r, 5));
+    assert.equal(store.getSnapshot().accountDataReady, true);
+    assert.equal(store.getSnapshot().ready, true);
+    assert.equal(
+      store.getSnapshot().current,
+      null,
+      "No pick is shown before metadata verification",
+    );
+    assert.equal(store.getSnapshot().session.account.id, "local:test");
+  } finally {
+    releaseCatalog();
+    await initializing;
+  }
+});
 test("failed startup shows outage state without changing saved data or retrying in the background", async () => {
   const storage = memory();
   const saved = JSON.stringify({ reactions: { 123: { action: "good" } } });

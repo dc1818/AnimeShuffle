@@ -782,6 +782,27 @@ test("legacy failed jobs are restored once within the queue bound and scheduled 
   );
 });
 
+test("enqueueing a catalog page does not scan the entire review retry queue per title", () => {
+  const s = database();
+  let retryScans = 0;
+  const sql = {
+    exec(query, ...args) {
+      if (query.includes("SELECT MIN(CASE")) retryScans++;
+      return s.sql.exec(query, ...args);
+    },
+  };
+  const service = createReviewEnrichment({
+    store: reviewStore(sql),
+    schedule: () => {},
+    now: () => 10000,
+  });
+  const before = retryScans;
+  for (let id = 1; id <= 100; id++) service.enqueue(id);
+  assert.equal(retryScans, before);
+  assert.equal(service.diagnostics().queued, 100);
+  s.db.close();
+});
+
 test("switching from Jikan clears its outage cooldown but keeps the daily budget and queued titles", async () => {
   const { sql } = database();
   const store = reviewStore(sql);

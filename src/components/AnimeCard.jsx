@@ -291,16 +291,6 @@ export function AnimeDetails({
     "Why this pick?",
   ];
   const [activeTab, setActiveTab] = useState(0);
-  useEffect(() => {
-    if (!mediaEnabled) return;
-    // Warm small metadata responses while the synopsis is being read. Actual
-    // pictures and video players still load only in their respective media views.
-    const timer = setTimeout(() => {
-      loadMedia(anime.id, "trailer").catch(() => {});
-      loadMedia(anime.id, "pictures").catch(() => {});
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [anime.id, mediaEnabled]);
   // Each anime starts at its synopsis, including when a parent reuses this panel.
   useEffect(() => {
     setActiveTab(0);
@@ -436,6 +426,15 @@ export function AnimeDetails({
                   aria-controls={`${tabId}-panel-${index}`}
                   aria-selected={activeTab === index}
                   tabIndex={activeTab === index ? 0 : -1}
+                  onPointerEnter={() => {
+                    const kind =
+                      label === "Trailers"
+                        ? "trailer"
+                        : label === "Images"
+                          ? "pictures"
+                          : null;
+                    if (kind) void loadMedia(anime.id, kind).catch(() => {});
+                  }}
                   onClick={() => setActiveTab(index)}
                   onKeyDown={(event) => changeTab(event, index)}
                 >

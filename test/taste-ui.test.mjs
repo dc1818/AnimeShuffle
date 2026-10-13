@@ -380,6 +380,9 @@ test("recommendation details and page markup stay stable after equivalent backgr
   const root = createRoot(document.getElementById("root"));
   const anime = {
     id: 1,
+    // Keep this identity/render regression independent of asynchronous media I/O.
+    previewVideoId: "abcdefghijk",
+    previewRegionChecked: true,
     title: "One",
     genres: ["Action"],
     format: "tv",
