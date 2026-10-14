@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon.jsx";
 import { englishTitle, primaryTitle } from "../lib/titles.js";
 import {
   FEEDBACK_GROUPS,
@@ -209,6 +210,7 @@ export function ReactionFeedback({
                   <span className="reason-label">
                     {FEEDBACK_BY_KEY.get(key).label}
                   </span>
+                  <Icon name="thumbUp" />
                   {flashes[key] && (
                     <span className="reason-confirmation" aria-hidden="true">
                       ✓ Liked
