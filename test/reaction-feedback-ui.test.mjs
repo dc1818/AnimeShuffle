@@ -54,7 +54,7 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
   };
   const click = async (text) => {
     const button = [...document.querySelectorAll("button")].find(
-      (b) => b.textContent === text,
+      (b) => b.getAttribute("aria-label") === text || b.textContent === text,
     );
     assert.ok(button, text);
     await act(async () => button.click());
@@ -119,6 +119,14 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
       { key: "villain", sentiment: "liked" },
       { key: "animation", sentiment: "liked" },
     ]);
+    await click("Animation");
+    assert.deepEqual(saves.at(-1)[1].aspects, [{ key: "villain", sentiment: "liked" }]);
+    const animationButton = document.querySelector('button[aria-label="Animation"]');
+    assert.equal(animationButton.getAttribute("aria-pressed"), "false");
+    assert.match(animationButton.textContent, /Unliked/);
+    assert.ok(!document.querySelector(".feedback-saved").textContent.includes("Animation"));
+    await click("Animation");
+    assert.equal(animationButton.getAttribute("aria-pressed"), "true");
     assert.equal(document.querySelector(".feedback-dislike"), null);
     assert.equal(
       document.querySelector('.feedback-saved [aria-label^="Edit"]'),
@@ -189,7 +197,7 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
     );
     assert.equal(
       saves.length,
-      4,
+      6,
       "Reopening existing feedback does not invent or overwrite votes",
     );
     assert.ok(!document.body.textContent.includes("Animation"));

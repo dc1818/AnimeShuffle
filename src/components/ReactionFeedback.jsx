@@ -83,8 +83,9 @@ export function ReactionFeedback({
   function like(key) {
     const existing = draft.current.aspects.find((a) => a.key === key);
     if (!existing && !room()) return;
-    setChosen((keys) => [...new Set([...keys, key])]);
-    setFlashes((all) => ({ ...all, [key]: true }));
+    const removing = chosen.includes(key);
+    setChosen((keys) => removing ? keys.filter((item) => item !== key) : [...new Set([...keys, key])]);
+    setFlashes((all) => ({ ...all, [key]: removing ? "Unliked" : "Liked" }));
     clearTimeout(timers.current.get(key));
     timers.current.set(
       key,
@@ -97,7 +98,7 @@ export function ReactionFeedback({
       ...draft.current,
       aspects: [
         ...draft.current.aspects.filter((a) => a.key !== key),
-        { key, sentiment: "liked" },
+        ...(removing ? [] : [{ key, sentiment: "liked" }]),
       ],
     });
   }
@@ -208,7 +209,7 @@ export function ReactionFeedback({
                   onClick={() => like(key)}
                 >
                   <span className="reason-label">
-                    {flashes[key] ? "Liked" : FEEDBACK_BY_KEY.get(key).label}
+                    {flashes[key] || FEEDBACK_BY_KEY.get(key).label}
                   </span>
                   <Icon name="thumbUp" />
 
