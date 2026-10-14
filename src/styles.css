@@ -135,29 +135,37 @@ svg.icon {
   opacity: 0.24;
   pointer-events: none;
 }
+/* Large soft aurora layers use the active anime palette, with no network calls. */
+.ambient { pointer-events: none; }
 .ambient i {
   position: absolute;
-  width: 110vw;
-  height: 60vw;
-  min-height: 650px;
-  border: 1px solid #86d4e720;
-  border-radius: 48%;
-  transform: rotate(28deg);
-  left: -60%;
-  top: 30%;
-  background: linear-gradient(115deg, transparent 45%, #162a3730);
+  inset: -25%;
+  border-radius: 45%;
+  background: radial-gradient(ellipse at 25% 35%, rgba(var(--cool), .48), transparent 55%);
+  filter: blur(45px);
+  animation: aurora-drift 32s ease-in-out infinite alternate;
 }
 .ambient i:nth-child(2) {
-  left: 68%;
-  top: -30%;
-  transform: rotate(-38deg);
-  border-color: #a1d4e92c;
+  background: radial-gradient(ellipse at 75% 65%, rgba(var(--warm), .43), transparent 52%);
+  animation-duration: 39s;
+  animation-delay: -17s;
+  animation-direction: alternate-reverse;
 }
 .ambient i:nth-child(3) {
-  left: 40%;
-  top: 70%;
-  background: #0c162c17;
-  transform: rotate(-45deg);
+  background: radial-gradient(ellipse at 55% 25%, rgba(var(--cool), .25), transparent 45%);
+  animation-duration: 27s;
+  animation-delay: -9s;
+}
+@keyframes aurora-drift {
+  from { transform: translate3d(-4%, -3%, 0) rotate(-8deg) scale(1); opacity: .65; }
+  to { transform: translate3d(5%, 4%, 0) rotate(9deg) scale(1.12); opacity: 1; }
+}
+.ambient[data-paused="true"] i { animation-play-state: paused; }
+.ambient[data-enabled="false"] { background: #0b1217; }
+.ambient[data-enabled="false"]::before,
+.ambient[data-enabled="false"] i { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ambient i { animation: none; }
 }
 .topbar {
   min-height: 83px;
@@ -4302,18 +4310,18 @@ main.wide-main {
   flex: 1 1 150px;
 }
 
-/* Categories reveal choices; bright green reasons save a preference. */
+/* Categories and available reasons are blue; selected reasons are green. */
 .feedback-reasons button {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: #68edb4;
-  border-color: #68edb4;
-  color: #08251d;
-  font-size: 12px;
-  font-weight: 650;
+  background: #132630;
+  border-color: #456171;
+  color: #effaff;
+  font-size: 13px;
+  font-weight: 700;
   min-width: 0;
   text-align: left;
 }
@@ -4332,29 +4340,10 @@ main.wide-main {
   height: 19px;
   stroke-width: 2.4;
 }
-.reason-confirmation {
-  position: absolute;
-  inset: 0 32px 0 0;
-  display: grid;
-  place-content: center;
-  background: #68edb4;
-  border-radius: inherit;
-  font-weight: 700;
-}
-.reason-flash .reason-confirmation {
-  animation: reason-confirm 1s ease-out;
-}
-@keyframes reason-confirm {
-  0% {
-    opacity: 0;
-  }
-  15%,
-  80% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+.feedback-reasons .reason-label {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
 }
 .feedback-custom {
   margin-top: 18px;
@@ -4385,10 +4374,5 @@ main.wide-main {
 @media (min-width: 1100px) {
   .feedback-categories {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .reason-flash .reason-confirmation {
-    animation: none;
   }
 }

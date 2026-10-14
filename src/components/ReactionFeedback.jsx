@@ -208,14 +208,10 @@ export function ReactionFeedback({
                   onClick={() => like(key)}
                 >
                   <span className="reason-label">
-                    {FEEDBACK_BY_KEY.get(key).label}
+                    {flashes[key] ? "Liked" : FEEDBACK_BY_KEY.get(key).label}
                   </span>
                   <Icon name="thumbUp" />
-                  {flashes[key] && (
-                    <span className="reason-confirmation" aria-hidden="true">
-                      ✓ Liked
-                    </span>
-                  )}
+
                 </button>
               ))}
             </div>

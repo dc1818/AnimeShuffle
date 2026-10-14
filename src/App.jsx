@@ -1,3 +1,4 @@
+import { AmbientBackground } from "./components/AmbientBackground.jsx";
 import { RecommendationExposure } from "./components/RecommendationExposure.jsx";
 import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
@@ -215,11 +216,7 @@ function ConnectedApp({ store, state }) {
   const savedCount = combinedWatchlist(state.reactions, state.list).length;
   return (
     <div className="app-layout" data-layout="familiar">
-      <div className="ambient" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </div>
+      <AmbientBackground enabled={state.settings.dynamic !== false} />
       {state.malSyncProgress && (
         <div className="notice" role="status">
           Adding saved shows to MAL · {state.malSyncProgress.done} of{" "}

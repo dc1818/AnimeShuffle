@@ -1,3 +1,4 @@
+import { AmbientBackground } from "../../src/components/AmbientBackground.jsx";
 // Isolated responsive fixture: sample titles, in-memory feedback, no account,
 // analytics, recommendations requests, or changes to the visitor's profile.
 import React, { useState } from "react";
@@ -31,7 +32,7 @@ function Fixture() {
   };
   return (
     <>
-      <div className="ambient" aria-hidden="true" />
+      <AmbientBackground enabled={dynamic} />
       <header className="topbar">
         <a className="brand">Anime Shuffle</a>
         <nav>

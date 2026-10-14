@@ -111,7 +111,7 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
       { key: "villain", sentiment: "liked" },
     ]);
     assert.match(
-      document.querySelector(".reason-confirmation").textContent,
+      document.querySelector(".reason-flash .reason-label").textContent,
       /Liked/,
     );
     await click("Animation");

@@ -305,14 +305,14 @@ export function Dialogs({
       )}
       <div className="setting-row">
         <div>
-          <strong>Cover-inspired background</strong>
-          <p>Let each anime set the mood.</p>
+          <strong>Dynamic aurora background</strong>
+          <p>Animate the background with the current anime’s colors. Turn off for a plain background.</p>
         </div>
         <input
           type="checkbox"
           role="switch"
-          aria-label="Cover-inspired background"
-          checked={state.settings.dynamic}
+          aria-label="Dynamic aurora background"
+          checked={state.settings.dynamic !== false}
           onChange={(event) =>
             store.setSettings({ dynamic: event.target.checked })
           }
