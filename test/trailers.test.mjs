@@ -144,3 +144,9 @@ test("pictures are cached independently and concurrent requests share a fetch", 
   await service.pictures(42);
   assert.equal(calls, 1);
 });
+
+test("pictures prefer a large WebP over a standard JPEG", () => {
+  const small = "https://cdn.myanimelist.net/images/anime/4/19644.jpg";
+  const large = "https://cdn.myanimelist.net/images/anime/4/19644l.webp";
+  assert.deepEqual(normalizePictures({data: [{jpg: {image_url: small}, webp: {large_image_url: large}}]}), {pictures: [{image: large, thumbnail: small}]});
+});

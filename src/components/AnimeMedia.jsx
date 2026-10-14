@@ -183,7 +183,7 @@ function ImageGallery({ anime, pictures, active }) {
       <p className="media-note">
         {view === "gallery"
           ? "Artwork from MyAnimeList. Select an image to view it."
-          : "Artwork from MyAnimeList. Use the arrows or swipe to browse."}
+          : "Full artwork, fitted without enlargement. Use the arrows or swipe to browse."}
       </p>
       {view === "gallery" ? (
         <div className="media-gallery">

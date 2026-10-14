@@ -347,6 +347,18 @@ export function AnimeDetails({
       document.body.style.overflow = overflow;
     };
   }, [overlay]);
+  useEffect(() => {
+    if (overlay) return;
+    const outside = (event) => {
+      if (panel.current?.contains(event.target)) return;
+      // Keep the opening toggle and any foreground dialog in charge of their own clicks.
+      if (event.target.closest?.('#details-toggle, dialog, [role="dialog"]')) return;
+      if (document.querySelector('dialog[open], [role="dialog"]')) return;
+      onClose();
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [overlay, onClose]);
   const Panel = overlay ? "dialog" : "aside";
   const ratingLabels = {
     g: "G · All ages",

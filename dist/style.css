@@ -2968,11 +2968,19 @@ main.wide-main {
 }
 .image-carousel-stage .media-image {
   height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 .image-carousel-stage img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  /* Fit the full artwork, shrinking large sources without enlarging small ones. */
+  object-fit: scale-down;
+  object-position: center;
   user-select: none;
 }
 .image-carousel-controls {

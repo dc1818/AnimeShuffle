@@ -11,6 +11,7 @@ function Dialog({
   welcome = false,
   dismissable = true,
   busy = false,
+  closeOnOutside = false,
 }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -21,6 +22,11 @@ function Dialog({
     <dialog
       ref={ref}
       className={`dialog ${welcome ? "welcome" : ""}`}
+      onClick={(event) => {
+        if (!closeOnOutside || !dismissable || busy || event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
+      }}
       onCancel={(event) => {
         event.preventDefault();
         if (dismissable && !busy) onClose();
@@ -99,6 +105,7 @@ export function Dialogs({
       <Dialog
         busy={!state.onboardingComplete && state.busy}
         dismissable={state.onboardingComplete}
+        closeOnOutside
         onClose={onClose}
       >
         <ViewingPreferences state={state} store={store} onComplete={onClose} />
