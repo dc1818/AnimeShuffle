@@ -7,7 +7,7 @@ import path from "node:path";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 
-test("optional UI asks only applicable viewing questions and requires an explicit aspect opinion", async () => {
+test("feedback supports multiple categories, one-click likes, custom reasons and remove-only saved rows", async () => {
   const folder = await mkdtemp(path.resolve(".feedback-ui-"));
   await build({
     entryPoints: ["src/components/AnimeCard.jsx"],
@@ -102,30 +102,55 @@ test("optional UI asks only applicable viewing questions and requires an explici
     assert.ok(!document.body.textContent.includes("personal note"));
     assert.ok(!document.body.textContent.includes("Romance"));
     await click("Characters");
-    await click("Villain / antagonist");
-    assert.equal(
-      saves.length,
-      0,
-      "category/detail selection alone is not a vote",
-    );
-    await click("Liked");
-    assert.deepEqual(saves.at(-1), [
-      1,
-      {
-        version: 1,
-        aspects: [{ key: "villain", sentiment: "liked" }],
-        note: "",
-      },
-    ]);
     await click("Visuals");
-    await click("Animation");
-    const dislike = [...document.querySelectorAll("fieldset")]
-      .find((f) => f.textContent.includes("Animation"))
-      .querySelector(".feedback-dislike");
-    await act(async () => dislike.click());
+    assert.equal(saves.length, 0, "Opening categories does not add votes");
+    assert.ok(document.querySelector("#feedback-group-characters"));
+    assert.ok(document.querySelector("#feedback-group-visuals"));
+    await click("Villain / antagonist");
     assert.deepEqual(saves.at(-1)[1].aspects, [
       { key: "villain", sentiment: "liked" },
-      { key: "animation", sentiment: "disliked" },
+    ]);
+    assert.match(
+      document.querySelector(".reason-confirmation").textContent,
+      /Liked/,
+    );
+    await click("Animation");
+    assert.deepEqual(saves.at(-1)[1].aspects, [
+      { key: "villain", sentiment: "liked" },
+      { key: "animation", sentiment: "liked" },
+    ]);
+    assert.equal(document.querySelector(".feedback-dislike"), null);
+    assert.equal(
+      document.querySelector('.feedback-saved [aria-label^="Edit"]'),
+      null,
+    );
+    const input = document.querySelector(".feedback-custom input");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      ).set.call(input, "The quiet moments between battles");
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      document
+        .querySelector(".feedback-custom")
+        .dispatchEvent(
+          new window.Event("submit", { bubbles: true, cancelable: true }),
+        ),
+    );
+    assert.deepEqual(saves.at(-1)[1].customReasons, [
+      "The quiet moments between battles",
+    ]);
+    assert.match(
+      document.querySelector(".feedback-saved").textContent,
+      /The quiet moments between battles/,
+    );
+    await act(async () =>
+      document.querySelector('[aria-label="Remove Animation"]').click(),
+    );
+    assert.deepEqual(saves.at(-1)[1].aspects, [
+      { key: "villain", sentiment: "liked" },
     ]);
     await click("Done");
     assert.equal(document.querySelector(".feedback-editor"), null);
@@ -160,11 +185,11 @@ test("optional UI asks only applicable viewing questions and requires an explici
     );
     assert.match(
       document.querySelector(".feedback-saved").textContent,
-      /Artwork.*Appealed to me/,
+      /Artwork.*Liked/,
     );
     assert.equal(
       saves.length,
-      2,
+      4,
       "Reopening existing feedback does not invent or overwrite votes",
     );
     assert.ok(!document.body.textContent.includes("Animation"));

@@ -2,20 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { englishTitle, primaryTitle } from "../lib/titles.js";
 import {
   FEEDBACK_GROUPS,
-  FEEDBACK_ASPECTS,
   FEEDBACK_BY_KEY,
   INTEREST_ASPECTS,
   FEEDBACK_LIMIT,
+  CUSTOM_REASON_LENGTH,
   isSeenReaction,
   normalizeFeedback,
 } from "../lib/reaction-feedback.js";
-
 export const reactionLabel = (action) =>
   ({ good: "Good", bad: "Bad", watch: "Would watch", nope: "Won’t watch" })[
     action
   ];
 
-// Embedded in AnimeDetails: the existing responsive panel owns its modality.
+// Optional viewer opinions: categories only reveal choices; reasons require a click.
 export function ReactionFeedback({
   reaction,
   onSave,
@@ -23,31 +22,43 @@ export function ReactionFeedback({
   onClose,
   headingId,
 }) {
-  const [group, setGroup] = useState(null);
-  const [pending, setPending] = useState(null);
-  const [query, setQuery] = useState("");
+  const [groups, setGroups] = useState([]);
+  const [custom, setCustom] = useState("");
   const [feedback, setFeedback] = useState(() =>
     normalizeFeedback(reaction.feedback, reaction.action),
   );
+  const [chosen, setChosen] = useState([]);
+  const [flashes, setFlashes] = useState({});
   const [status, setStatus] = useState("");
   const [saveFailed, setSaveFailed] = useState(false);
   const draft = useRef(feedback),
     sequence = useRef(0),
-    back = useRef(null);
+    back = useRef(null),
+    timers = useRef(new Map()),
+    saves = useRef(Promise.resolve());
   useEffect(() => {
     back.current?.focus();
+    return () => {
+      for (const timer of timers.current.values()) clearTimeout(timer);
+    };
   }, []);
   const seen = isSeenReaction(reaction.action);
   const title = englishTitle(reaction.anime) || primaryTitle(reaction.anime);
   const actionLabel = reactionLabel(reaction.action);
-  async function save(next) {
+  async function save(input) {
+    const next = normalizeFeedback(input, reaction.action);
     draft.current = next;
     setFeedback(next);
     const version = ++sequence.current;
     setStatus("Saving…");
     setSaveFailed(false);
+    // Rapid selections retain their order and the latest complete set of reasons.
+    const job = saves.current
+      .catch(() => {})
+      .then(() => onSave(reaction.anime.id, next));
+    saves.current = job;
     try {
-      await onSave(reaction.anime.id, next);
+      await job;
       if (version === sequence.current) setStatus("Saved on this device");
     } catch (error) {
       if (version === sequence.current) {
@@ -56,50 +67,69 @@ export function ReactionFeedback({
       }
     }
   }
-  const selected = feedback.aspects;
-  const allowed = seen
-    ? FEEDBACK_ASPECTS.filter((a) =>
-        FEEDBACK_GROUPS.some((g) => g.items.includes(a.key)),
-      )
-    : INTEREST_ASPECTS.map((k) => FEEDBACK_BY_KEY.get(k));
-  const options = query.trim()
-    ? allowed
-        .filter((a) =>
-          (a.label + " " + a.key)
-            .toLowerCase()
-            .includes(query.trim().toLowerCase()),
-        )
-        .slice(0, 8)
-    : seen
-      ? (FEEDBACK_GROUPS.find((g) => g.key === group)?.items || []).map((k) =>
-          FEEDBACK_BY_KEY.get(k),
-        )
-      : allowed;
-  function choose(key) {
+  function room() {
     if (
-      !selected.some((a) => a.key === key) &&
-      selected.length >= FEEDBACK_LIMIT
+      draft.current.aspects.length +
+        (draft.current.customReasons?.length || 0) <
+      FEEDBACK_LIMIT
+    )
+      return true;
+    setStatus(
+      `Choose up to ${FEEDBACK_LIMIT} reasons. Remove one to add another.`,
+    );
+    return false;
+  }
+  function like(key) {
+    const existing = draft.current.aspects.find((a) => a.key === key);
+    if (!existing && !room()) return;
+    setChosen((keys) => [...new Set([...keys, key])]);
+    setFlashes((all) => ({ ...all, [key]: true }));
+    clearTimeout(timers.current.get(key));
+    timers.current.set(
+      key,
+      setTimeout(() => {
+        setFlashes((all) => ({ ...all, [key]: false }));
+        timers.current.delete(key);
+      }, 1000),
+    );
+    void save({
+      ...draft.current,
+      aspects: [
+        ...draft.current.aspects.filter((a) => a.key !== key),
+        { key, sentiment: "liked" },
+      ],
+    });
+  }
+  function addCustom(event) {
+    event.preventDefault();
+    const text = custom.replace(/\s+/g, " ").trim();
+    if (!text) return;
+    if (
+      (draft.current.customReasons || []).some(
+        (r) => r.toLocaleLowerCase() === text.toLocaleLowerCase(),
+      )
     ) {
-      setStatus(
-        `Choose up to ${FEEDBACK_LIMIT} reasons. Remove one to add another.`,
-      );
+      setStatus("That reason is already saved.");
       return;
     }
-    setPending(key);
+    if (!room()) return;
+    void save({
+      ...draft.current,
+      customReasons: [...(draft.current.customReasons || []), text],
+    });
+    setCustom("");
   }
-  function opinion(key, sentiment) {
-    const aspects = [
-      ...draft.current.aspects.filter((a) => a.key !== key),
-      { key, sentiment },
-    ];
-    setPending(null);
-    void save({ ...draft.current, aspects });
-  }
-  // Opening the add flow never chooses a reason or opinion. Existing votes live
-  // in a separate saved list and are edited only after an explicit click.
-  const rows = pending
-    ? [selected.find((a) => a.key === pending) || { key: pending }]
-    : [];
+  const sections = seen
+    ? FEEDBACK_GROUPS.filter((g) => groups.includes(g.key))
+    : [
+        {
+          key: "interest",
+          label: "What appealed to you?",
+          items: INTEREST_ASPECTS,
+        },
+      ];
+  const selected = feedback.aspects;
+  const customReasons = feedback.customReasons || [];
   return (
     <section
       className="feedback-editor"
@@ -128,116 +158,92 @@ export function ReactionFeedback({
         </button>
       </header>
       <div className="feedback-body">
-        <h3>
-          {seen
-            ? "What shaped your opinion?"
-            : reaction.action === "nope"
-              ? "What put you off?"
-              : "What caught your eye?"}
-        </h3>
+        <h3>{seen ? "What shaped your opinion?" : "What caught your eye?"}</h3>
         <p className="feedback-hint">
-          {seen
-            ? "Optional · Choose only what mattered."
-            : "Optional · You don’t need to have seen it."}
+          Optional · Tap a reason to mark it Liked.
+          {["bad", "nope"].includes(reaction.action)
+            ? " You can like individual parts even with a negative overall reaction."
+            : " Choose only what mattered."}
         </p>
         {seen && (
-          <div className="feedback-options" aria-label="Feedback categories">
+          <div
+            className="feedback-options feedback-categories"
+            aria-label="Feedback categories"
+          >
             {FEEDBACK_GROUPS.map((g) => (
               <button
                 key={g.key}
-                aria-pressed={group === g.key && !query}
-                onClick={() => {
-                  setGroup(group === g.key ? null : g.key);
-                  setQuery("");
-                }}
+                aria-pressed={groups.includes(g.key)}
+                aria-expanded={groups.includes(g.key)}
+                aria-controls={`feedback-group-${g.key}`}
+                onClick={() =>
+                  setGroups((open) =>
+                    open.includes(g.key)
+                      ? open.filter((key) => key !== g.key)
+                      : [...open, g.key],
+                  )
+                }
               >
                 {g.label}
               </button>
             ))}
           </div>
         )}
-        <label className="feedback-search">
-          Find another reason
-          <input
-            type="search"
-            placeholder={
-              seen ? "Search reasons, e.g. romance" : "Search artwork, premise…"
-            }
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
-        {(options.length > 0 || query) && (
-          <section className="feedback-detail" aria-label="Available reasons">
-            <h4>
-              {query
-                ? "Matching reasons"
-                : seen
-                  ? FEEDBACK_GROUPS.find((g) => g.key === group)?.label
-                  : "What influenced your choice?"}
-            </h4>
-            <div className="feedback-options">
-              {options.map((a) => (
+        {sections.map((g) => (
+          <section
+            key={g.key}
+            id={`feedback-group-${g.key}`}
+            className="feedback-detail"
+            aria-label={`${g.label} reasons`}
+          >
+            <h4>{g.label}</h4>
+            <div className="feedback-options feedback-reasons">
+              {g.items.map((key) => (
                 <button
-                  key={a.key}
-                  aria-pressed={pending === a.key}
-                  onClick={() => choose(a.key)}
+                  key={key}
+                  className={flashes[key] ? "reason-flash" : ""}
+                  aria-label={FEEDBACK_BY_KEY.get(key).label}
+                  aria-pressed={chosen.includes(key)}
+                  onClick={() => like(key)}
                 >
-                  {a.label}
+                  <span className="reason-label">
+                    {FEEDBACK_BY_KEY.get(key).label}
+                  </span>
+                  {flashes[key] && (
+                    <span className="reason-confirmation" aria-hidden="true">
+                      ✓ Liked
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
-            {!options.length && (
-              <p className="feedback-hint">
-                No matching reason. Try another search or choose a category.
-              </p>
-            )}
           </section>
-        )}
-        <div className="feedback-selected">
-          {rows.map((a) => (
-            <fieldset key={a.key} className="feedback-opinion">
-              <legend>{FEEDBACK_BY_KEY.get(a.key)?.label}</legend>
-              <div className="feedback-opinion-controls">
-                <button
-                  className="feedback-like"
-                  aria-pressed={a.sentiment === "liked"}
-                  onClick={() => opinion(a.key, "liked")}
-                >
-                  {a.sentiment === "liked" ? "✓ " : ""}
-                  {seen ? "Liked" : "Appealed to me"}
-                </button>
-                <button
-                  className="feedback-dislike"
-                  aria-pressed={a.sentiment === "disliked"}
-                  onClick={() => opinion(a.key, "disliked")}
-                >
-                  {a.sentiment === "disliked" ? "✓ " : ""}
-                  {seen ? "Disliked" : "Put me off"}
-                </button>
-                <button
-                  className="feedback-remove"
-                  aria-label={`Remove ${FEEDBACK_BY_KEY.get(a.key)?.label}`}
-                  onClick={() => {
-                    setPending(null);
-                    void save({
-                      ...draft.current,
-                      aspects: draft.current.aspects.filter(
-                        (s) => s.key !== a.key,
-                      ),
-                    });
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-              {!a.sentiment && (
-                <small>Choose an opinion to save this reason.</small>
-              )}
-            </fieldset>
-          ))}
-        </div>
-        {selected.length > 0 && (
+        ))}
+        <form className="feedback-custom" onSubmit={addCustom}>
+          <label className="feedback-search">
+            Type your own reason
+            <input
+              type="text"
+              maxLength={CUSTOM_REASON_LENGTH}
+              placeholder="What stood out to you?"
+              value={custom}
+              onChange={(event) => setCustom(event.target.value)}
+            />
+          </label>
+          <div className="feedback-custom-actions">
+            <small>
+              {custom.length}/{CUSTOM_REASON_LENGTH}
+            </small>
+            <button
+              className="feedback-add"
+              disabled={!custom.trim()}
+              type="submit"
+            >
+              Add reason
+            </button>
+          </div>
+        </form>
+        {(selected.length > 0 || customReasons.length > 0) && (
           <section className="feedback-saved" aria-label="Saved reasons">
             <h4>Saved reasons</h4>
             <ul>
@@ -245,33 +251,39 @@ export function ReactionFeedback({
                 <li key={a.key}>
                   <span>
                     {FEEDBACK_BY_KEY.get(a.key)?.label} ·{" "}
-                    {a.sentiment === "liked"
-                      ? seen
-                        ? "Liked"
-                        : "Appealed to me"
-                      : seen
-                        ? "Disliked"
-                        : "Put me off"}
+                    {a.sentiment === "liked" ? "Liked" : "Disliked"}
                   </span>
                   <button
                     className="quiet"
-                    onClick={() => choose(a.key)}
-                    aria-label={`Edit ${FEEDBACK_BY_KEY.get(a.key)?.label}`}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="quiet"
-                    aria-label={`Delete saved ${FEEDBACK_BY_KEY.get(a.key)?.label}`}
+                    aria-label={`Remove ${FEEDBACK_BY_KEY.get(a.key)?.label}`}
                     onClick={() => {
-                      if (pending === a.key) setPending(null);
+                      setChosen((keys) => keys.filter((key) => key !== a.key));
                       void save({
                         ...draft.current,
                         aspects: draft.current.aspects.filter(
-                          (s) => s.key !== a.key,
+                          (item) => item.key !== a.key,
                         ),
                       });
                     }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+              {customReasons.map((text) => (
+                <li key={text}>
+                  <span>{text}</span>
+                  <button
+                    className="quiet"
+                    aria-label={`Remove custom reason: ${text}`}
+                    onClick={() =>
+                      void save({
+                        ...draft.current,
+                        customReasons: draft.current.customReasons.filter(
+                          (r) => r !== text,
+                        ),
+                      })
+                    }
                   >
                     Remove
                   </button>
@@ -284,9 +296,9 @@ export function ReactionFeedback({
       <footer className="feedback-footer">
         <span role="status">
           {status ||
-            (selected.length
-              ? `${selected.length} reasons saved`
-              : "Optional · Saved automatically")}
+            (selected.length + customReasons.length
+              ? `${selected.length + customReasons.length} reasons saved`
+              : "Optional · Nothing selected")}
         </span>
         {saveFailed && (
           <button onClick={() => void save(draft.current)}>Retry</button>

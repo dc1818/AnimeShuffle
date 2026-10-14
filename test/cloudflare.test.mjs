@@ -610,6 +610,7 @@ test("optional feedback round trips through account sync with axis validation an
             at: Date.now(),
             action: "watch",
             feedback: {
+              customReasons: ["Nuanced character chemistry"],
               aspects: [
                 { key: "artwork", sentiment: "liked" },
                 { key: "animation", sentiment: "disliked" },
@@ -624,6 +625,9 @@ test("optional feedback round trips through account sync with axis validation an
     const saved = (await a.request("/api/account/state")).body.reactions[42];
     assert.deepEqual(saved.feedback.aspects, [
       { key: "artwork", sentiment: "liked" },
+    ]);
+    assert.deepEqual(saved.feedback.customReasons, [
+      "Nuanced character chemistry",
     ]);
     assert.equal(saved.feedback.note.length, 500);
     const b = browser(() => app, "2.3.4.5");

@@ -100,6 +100,7 @@ test("feedback survives a guest reload and does not invalidate Undo", async () =
       { key: "animation", sentiment: "disliked" },
     ],
     note: "Mixed feelings.",
+    customReasons: ["The quiet moments between battles"],
   });
   assert.equal(store.getSnapshot().reactions[id].feedback.aspects.length, 2);
   const reloaded = createAnimeStore({
@@ -112,6 +113,41 @@ test("feedback survives a guest reload and does not invalidate Undo", async () =
     reloaded.getSnapshot().reactions[id].feedback.note,
     "Mixed feelings.",
   );
+  assert.deepEqual(
+    reloaded.getSnapshot().reactions[id].feedback.customReasons,
+    ["The quiet moments between battles"],
+  );
   await store.undo();
   assert.equal(store.getSnapshot().reactions[id], undefined);
+});
+
+test("custom reasons are bounded, deduplicated and never treated as catalog facts", () => {
+  const feedback = normalizeFeedback(
+    {
+      customReasons: [
+        "  One   reason ",
+        "one reason",
+        "",
+        42,
+        "x".repeat(500),
+        "<img src=x onerror=alert(1)>",
+      ],
+    },
+    "good",
+  );
+  assert.equal(feedback.customReasons.length, 3);
+  assert.equal(feedback.customReasons[0], "One reason");
+  assert.equal(feedback.customReasons[1].length, 200);
+  assert.deepEqual(
+    feedbackExamples([["genre:Action", 1]], feedback, "good"),
+    [],
+  );
+  const bounded = normalizeFeedback(
+    {
+      aspects: [{ key: "animation", sentiment: "liked" }],
+      customReasons: Array.from({ length: 20 }, (_, i) => `Reason ${i}`),
+    },
+    "good",
+  );
+  assert.equal(bounded.aspects.length + bounded.customReasons.length, 12);
 });

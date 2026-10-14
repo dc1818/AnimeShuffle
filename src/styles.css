@@ -4301,3 +4301,80 @@ main.wide-main {
 .feedback-saved li > span {
   flex: 1 1 150px;
 }
+
+/* Compact reason chips keep 44px touch targets and wrap at narrow widths. */
+.feedback-options button {
+  background: #123a2e;
+  border-color: #368267;
+  color: #d9ffed;
+}
+.feedback-options button[aria-pressed="true"] {
+  background: #1b6248;
+  border-color: #6bf0b3;
+  color: #f1fff8;
+}
+.feedback-reasons button {
+  position: relative;
+  font-size: 12px;
+  min-width: 0;
+}
+.reason-confirmation {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  background: #267353;
+  border-radius: inherit;
+  font-weight: 700;
+}
+.reason-flash .reason-confirmation {
+  animation: reason-confirm 1s ease-out;
+}
+@keyframes reason-confirm {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.feedback-custom {
+  margin-top: 18px;
+}
+.feedback-custom .feedback-search {
+  margin-bottom: 8px;
+}
+.feedback-custom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.feedback-add {
+  background: #185139;
+  border: 1px solid #6fc99e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-height: 44px;
+}
+.feedback-saved li > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.feedback-detail h4 {
+  margin: 18px 0 8px;
+}
+@media (min-width: 1100px) {
+  .feedback-categories {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reason-flash .reason-confirmation {
+    animation: none;
+  }
+}
