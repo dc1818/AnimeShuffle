@@ -4718,6 +4718,8 @@ dialog.details-card.details-modal[open] {
 }
 dialog.details-card.details-modal::backdrop {
   background: #030912b8;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .details-modal .details-header {
   padding: 24px 24px 0;
@@ -4750,5 +4752,31 @@ dialog.details-card.details-modal::backdrop {
   .details-modal .details-header h2 {
     font-size: 24px;
     overflow-wrap: anywhere;
+  }
+}
+
+.watchlist-jump {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: 20;
+  background: #153245;
+  border-color: #6591a8;
+  box-shadow: 0 8px 28px #0008;
+}
+.watchlist-jump svg {
+  transform: rotate(90deg);
+}
+.watchlist-bottom {
+  height: 72px;
+}
+@media (max-width: 700px) {
+  .watchlist-jump {
+    position: static;
+    margin-left: auto;
+    box-shadow: none;
+  }
+  .watchlist-bottom {
+    height: 16px;
   }
 }

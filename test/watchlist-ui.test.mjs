@@ -21,6 +21,10 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
   window.HTMLDialogElement.prototype.close = function () {
     this.removeAttribute("open");
   };
+  let scrolledTo;
+  window.HTMLElement.prototype.scrollIntoView = function () {
+    scrolledTo = this;
+  };
   const observers = [];
   globalThis.IntersectionObserver = class {
     constructor(callback, options) {
@@ -191,6 +195,16 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
     );
     await act(async () => more.click());
     assert.equal(document.querySelectorAll(".saved-card").length, 120);
+    const jump = [...document.querySelectorAll("button")].find((b) =>
+      b.textContent.includes("Jump to bottom"),
+    );
+    await act(async () => jump.click());
+    await act(
+      async () =>
+        new Promise((resolve) => window.requestAnimationFrame(resolve)),
+    );
+    assert.equal(document.querySelectorAll(".saved-card").length, 218);
+    assert.equal(scrolledTo, document.querySelector(".watchlist-bottom"));
 
     const picks = list
       .slice(0, 2)

@@ -61,6 +61,22 @@ export function Watchlist({ state, store, onDiscover }) {
   const [ranking, setRanking] = useState(null);
   const [rankingFailed, setRankingFailed] = useState(false);
   const [visibleCount, setVisibleCount] = useState(60);
+  const bottom = useRef(null);
+  const [jumpRequested, setJumpRequested] = useState(false);
+  useEffect(() => {
+    if (!jumpRequested) return;
+    const frame = window.requestAnimationFrame(() => {
+      bottom.current?.scrollIntoView({
+        behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")
+          .matches
+          ? "instant"
+          : "smooth",
+        block: "end",
+      });
+      setJumpRequested(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [jumpRequested, visibleCount]);
   const inputsMatch =
     ranking?.reactions === state.reactions &&
     ranking?.list === state.list &&
@@ -235,6 +251,17 @@ export function Watchlist({ state, store, onDiscover }) {
         </label>
       </div>
       <div className="watchlist-actions">
+        {items.length > 8 && (
+          <button
+            className="outline watchlist-jump"
+            onClick={() => {
+              setVisibleCount(items.length);
+              setJumpRequested(true);
+            }}
+          >
+            Jump to bottom <Icon name="chevron" />
+          </button>
+        )}
         <button
           className="quiet"
           onClick={() => {
@@ -531,6 +558,7 @@ export function Watchlist({ state, store, onDiscover }) {
           </button>
         </div>
       )}
+      <div ref={bottom} className="watchlist-bottom" />
     </section>
   );
 }
