@@ -352,12 +352,14 @@ export function AnimeDetails({
     const outside = (event) => {
       if (panel.current?.contains(event.target)) return;
       // Keep the opening toggle and any foreground dialog in charge of their own clicks.
-      if (event.target.closest?.('#details-toggle, dialog, [role="dialog"]')) return;
+      if (event.target.closest?.('.details-toggle, dialog, [role="dialog"]')) return;
       if (document.querySelector('dialog[open], [role="dialog"]')) return;
       onClose();
     };
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
+    // Wait for click: closing on pointerdown reflows the card before pointerup,
+    // so the original reaction button can lose its click. React handlers run first.
+    document.addEventListener("click", outside);
+    return () => document.removeEventListener("click", outside);
   }, [overlay, onClose]);
   const Panel = overlay ? "dialog" : "aside";
   const ratingLabels = {

@@ -18,7 +18,7 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
     jsx: "automatic",
     packages: "external",
   });
-  const { AnimeDetails } = await import(
+  const { AnimeDetails, AnimeCard } = await import(
     pathToFileURL(path.join(folder, "ui.mjs"))
   );
   const dom = new JSDOM('<div id="root"></div>', { pretendToBeVisual: true });
@@ -212,6 +212,23 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
       "removed reaction cannot still be edited",
     );
     assert.equal(document.querySelector(".why-feedback-entry"), null);
+    // An outside press must not reflow the card before the button gets its click.
+    const events = [];
+    await act(async () => root.render(React.createElement(React.Fragment, null,
+      React.createElement(AnimeCard, { anime: reaction.anime, detailsOpen: true, canUndo: true, onReact: (action) => events.push(action), onSkip: () => events.push("skip"), onUndo: () => events.push("undo") }),
+      React.createElement(AnimeDetails, { ...props, responsive: false, onClose: () => events.push("close") })
+    )));
+    for (const [selector, expected] of [[".reaction.good", "good"], [".reaction.bad", "bad"], [".reaction.watch", "watch"], [".reaction.nope", "nope"], [".secondary-actions button:last-child", "skip"], [".secondary-actions button:first-child", "undo"]]) {
+      events.length = 0;
+      const button = document.querySelector(selector);
+      await act(async () => button.dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true })));
+      assert.deepEqual(events, [], "Pressing down must leave the button in place");
+      await act(async () => button.click());
+      assert.deepEqual(events, [expected, "close"], "The card action fires before outside dismissal");
+    }
+    events.length = 0;
+    await act(async () => document.querySelector('#details-card [role="tab"]').click());
+    assert.deepEqual(events, [], "Clicks inside Details keep it open");
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
