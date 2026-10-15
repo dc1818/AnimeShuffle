@@ -17,7 +17,7 @@ function Fixture() {
     [long, setLong] = useState(false),
     [feedback, setFeedback] = useState(null),
     [details, setDetails] = useState(
-      !location.search.includes("surface=recommendations"),
+      !location.search.includes("surface=recommendations") && !location.search.includes("background-options"),
     ),
     [compact, setCompact] = useState(
       location.search.includes("surface=recommendations"),
@@ -178,7 +178,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src="?frame=1"
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}
