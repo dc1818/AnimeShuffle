@@ -1,3 +1,4 @@
+import { BackgroundOptions } from "../../src/components/BackgroundOptions.jsx";
 import { AmbientBackground } from "../../src/components/AmbientBackground.jsx";
 // Isolated responsive fixture: sample titles, in-memory feedback, no account,
 // analytics, recommendations requests, or changes to the visitor's profile.
@@ -22,7 +23,8 @@ function Fixture() {
       location.search.includes("surface=recommendations"),
     ),
     [displayed, setDisplayed] = useState(1),
-    [dynamic, setDynamic] = useState(true);
+    [dynamic, setDynamic] = useState(true),
+    [backgroundStyle, setBackgroundStyle] = useState("aurora");
   const anime = {
     ...demo[0],
     title: long
@@ -32,7 +34,7 @@ function Fixture() {
   };
   return (
     <>
-      <AmbientBackground enabled={dynamic} />
+      <AmbientBackground enabled={dynamic} style={backgroundStyle} />
       <header className="topbar">
         <a className="brand">Anime Shuffle</a>
         <nav>
@@ -98,8 +100,32 @@ function Fixture() {
           />
           Dynamic background
         </label>
+        <label>
+          Background style{" "}
+          <select
+            aria-label="Background style"
+            value={backgroundStyle}
+            onChange={(e) => setBackgroundStyle(e.target.value)}
+          >
+            <option value="aurora">Aurora ribbons</option>
+            <option value="liquid">Liquid light</option>
+            <option value="comet">Comet drift</option>
+          </select>
+        </label>
         <small>Layout preview · No profile changes</small>
       </div>
+      {location.search.includes("background-options") && (
+        <div className="background-options-fixture">
+          <BackgroundOptions
+            settings={{ dynamic, backgroundStyle }}
+            onChange={(patch) => {
+              setDynamic(patch.dynamic);
+              if (patch.backgroundStyle)
+                setBackgroundStyle(patch.backgroundStyle);
+            }}
+          />
+        </div>
+      )}
       <main>
         <div
           className={

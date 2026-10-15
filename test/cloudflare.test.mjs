@@ -602,6 +602,7 @@ test("optional feedback round trips through account sync with axis validation an
     });
     const response = await a.request("/api/account/state", {
       revision: 0,
+      settings: { dynamic: true, backgroundStyle: "comet" },
       changes: [
         {
           id: 42,
@@ -622,7 +623,9 @@ test("optional feedback round trips through account sync with axis validation an
       ],
     });
     assert.equal(response.response.status, 200);
-    const saved = (await a.request("/api/account/state")).body.reactions[42];
+    const synced = (await a.request("/api/account/state")).body;
+    assert.equal(synced.settings.backgroundStyle, "comet");
+    const saved = synced.reactions[42];
     assert.deepEqual(saved.feedback.aspects, [
       { key: "artwork", sentiment: "liked" },
     ]);

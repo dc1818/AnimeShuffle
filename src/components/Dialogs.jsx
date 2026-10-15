@@ -1,3 +1,4 @@
+import { BackgroundOptions } from "./BackgroundOptions.jsx";
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { missingMalPlans } from "../lib/watchlist.js";
 import { useEffect, useRef } from "react";
@@ -23,9 +24,21 @@ function Dialog({
       ref={ref}
       className={`dialog ${welcome ? "welcome" : ""}`}
       onClick={(event) => {
-        if (!closeOnOutside || !dismissable || busy || event.target !== event.currentTarget) return;
+        if (
+          !closeOnOutside ||
+          !dismissable ||
+          busy ||
+          event.target !== event.currentTarget
+        )
+          return;
         const rect = event.currentTarget.getBoundingClientRect();
-        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose();
+        if (
+          event.clientX < rect.left ||
+          event.clientX > rect.right ||
+          event.clientY < rect.top ||
+          event.clientY > rect.bottom
+        )
+          onClose();
       }}
       onCancel={(event) => {
         event.preventDefault();
@@ -310,21 +323,10 @@ export function Dialogs({
           )}
         </>
       )}
-      <div className="setting-row">
-        <div>
-          <strong>Dynamic aurora background</strong>
-          <p>Animate the background with the current anime’s colors. Turn off for a plain background.</p>
-        </div>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label="Dynamic aurora background"
-          checked={state.settings.dynamic !== false}
-          onChange={(event) =>
-            store.setSettings({ dynamic: event.target.checked })
-          }
-        />
-      </div>
+      <BackgroundOptions
+        settings={state.settings}
+        onChange={store.setSettings}
+      />
       <div className="setting-row">
         <div>
           <strong>Keyboard shortcuts</strong>

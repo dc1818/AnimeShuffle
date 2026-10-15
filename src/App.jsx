@@ -216,7 +216,10 @@ function ConnectedApp({ store, state }) {
   const savedCount = combinedWatchlist(state.reactions, state.list).length;
   return (
     <div className="app-layout" data-layout="familiar">
-      <AmbientBackground enabled={state.settings.dynamic !== false} />
+      <AmbientBackground
+        enabled={state.settings.dynamic !== false}
+        style={state.settings.backgroundStyle}
+      />
       {state.malSyncProgress && (
         <div className="notice" role="status">
           Adding saved shows to MAL · {state.malSyncProgress.done} of{" "}
