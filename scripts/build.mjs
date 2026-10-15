@@ -50,3 +50,14 @@ await build({
   define: { "process.env.NODE_ENV": '"production"' },
   minify: true,
 });
+
+// Standalone same-origin worker keeps Watchlist ranking off the UI thread.
+await build({
+  entryPoints: ["src/lib/watchlist-worker.js"],
+  outfile: `${output}/watchlist-worker.js`,
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: ["es2022"],
+  minify: true,
+});

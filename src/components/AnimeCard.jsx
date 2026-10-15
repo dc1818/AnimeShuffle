@@ -272,6 +272,9 @@ export function AnimeDetails({
   reasons,
   onClose,
   responsive = false,
+  modal = false,
+  loading = false,
+  error = "",
   reactions = {},
   onSaveFeedback,
 }) {
@@ -335,7 +338,7 @@ export function AnimeDetails({
     media.addEventListener("change", changed);
     return () => media.removeEventListener("change", changed);
   }, []);
-  const overlay = responsive && narrow;
+  const overlay = modal || (responsive && narrow);
   useEffect(() => {
     if (!overlay) return;
     const element = panel.current;
@@ -352,7 +355,8 @@ export function AnimeDetails({
     const outside = (event) => {
       if (panel.current?.contains(event.target)) return;
       // Keep the opening toggle and any foreground dialog in charge of their own clicks.
-      if (event.target.closest?.('.details-toggle, dialog, [role="dialog"]')) return;
+      if (event.target.closest?.('.details-toggle, dialog, [role="dialog"]'))
+        return;
       if (document.querySelector('dialog[open], [role="dialog"]')) return;
       onClose();
     };
@@ -410,7 +414,7 @@ export function AnimeDetails({
           : undefined
       }
       id="details-card"
-      className={`details-card${editing ? " feedback-active" : ""}`}
+      className={`details-card${modal ? " details-modal" : ""}${editing ? " feedback-active" : ""}`}
       aria-labelledby="details-heading"
     >
       {editing ? (
@@ -436,6 +440,8 @@ export function AnimeDetails({
             <h2 id="details-heading">
               <AnimeTitle anime={anime} />
             </h2>
+            {loading && <p role="status">Loading full details…</p>}
+            {error && <p role="alert">{error}</p>}
             {!!anime.prequels?.length && (
               <p className="runtime-estimate">
                 This is a separate entry in a series. Your reaction and

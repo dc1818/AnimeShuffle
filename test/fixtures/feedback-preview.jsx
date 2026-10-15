@@ -1,3 +1,5 @@
+import { Watchlist } from "../../src/components/Watchlist.jsx";
+import { normalizePreferences } from "../../src/lib/preferences.js";
 import { BackgroundOptions } from "../../src/components/BackgroundOptions.jsx";
 import { AmbientBackground } from "../../src/components/AmbientBackground.jsx";
 // Isolated responsive fixture: sample titles, in-memory feedback, no account,
@@ -17,7 +19,8 @@ function Fixture() {
     [long, setLong] = useState(false),
     [feedback, setFeedback] = useState(null),
     [details, setDetails] = useState(
-      !location.search.includes("surface=recommendations") && !location.search.includes("background-options"),
+      !location.search.includes("surface=recommendations") &&
+        !location.search.includes("background-options"),
     ),
     [compact, setCompact] = useState(
       location.search.includes("surface=recommendations"),
@@ -32,6 +35,32 @@ function Fixture() {
       : demo[0].title,
     englishTitle: "",
   };
+  if (location.search.includes("surface=watchlist")) {
+    const list = Array.from({ length: 218 }, (_, i) => ({
+      ...demo[i % demo.length],
+      id: i + 10000,
+      listStatus: { status: "plan_to_watch" },
+    }));
+    return (
+      <main className="page-shell">
+        <Watchlist
+          state={{
+            list,
+            reactions: {},
+            preferences: normalizePreferences(),
+            session: {},
+            settings: {},
+            busy: false,
+          }}
+          store={{
+            getAnimeDetails: async (anime) => anime,
+            removeSaved: async () => ({ removed: false }),
+          }}
+          onDiscover={() => {}}
+        />
+      </main>
+    );
+  }
   return (
     <>
       <AmbientBackground enabled={dynamic} style={backgroundStyle} />
@@ -178,7 +207,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

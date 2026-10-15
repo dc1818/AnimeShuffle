@@ -1,7 +1,11 @@
+import {
+  rankWatchlist,
+  cachedWatchlistScores,
+} from "../lib/watchlist-ranking.js";
 import { genreLabel } from "../lib/genres.js";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { primaryTitle, englishTitle } from "../lib/titles.js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   orderWatchlist,
   watchlistTimestamp,
@@ -20,11 +24,13 @@ import {
 } from "../lib/preferences.js";
 import { releaseLabel } from "../lib/release.js";
 import { Icon } from "./Icon.jsx";
-import { coverUrl } from "./AnimeCard.jsx";
+import { AnimeDetails } from "./AnimeCard.jsx";
+import { WatchlistCover } from "./WatchlistCover.jsx";
 
 /** Show site saves and MAL plans together while keeping their origin explicit. */
 export function Watchlist({ state, store, onDiscover }) {
   const [removing, setRemoving] = useState(null);
+  const [detailsAnime, setDetailsAnime] = useState(null);
   const importFile = useRef(null);
   async function remove(anime, confirmed = false) {
     const result = await store.removeSaved(anime.id, confirmed);
@@ -41,19 +47,66 @@ export function Watchlist({ state, store, onDiscover }) {
   const [release, setRelease] = useState("all");
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [genre, setGenre] = useState("all");
-  const combined = combinedWatchlist(state.reactions, state.list);
-  const source = combined.filter(
-    (entry) => tab === "all" || (tab === "mal" ? entry.mal : entry.site),
+  const combined = useMemo(
+    () => combinedWatchlist(state.reactions, state.list),
+    [state.reactions, state.list],
   );
-  const items = orderWatchlist(source, {
-    ...state,
-    preferences,
-    tastePreferences: state.preferences,
-    genre,
-    sort,
-    query,
-    release,
-  });
+  const source = useMemo(
+    () =>
+      combined.filter(
+        (entry) => tab === "all" || (tab === "mal" ? entry.mal : entry.site),
+      ),
+    [combined, tab],
+  );
+  const [ranking, setRanking] = useState(null);
+  const [rankingFailed, setRankingFailed] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(60);
+  const inputsMatch =
+    ranking?.reactions === state.reactions &&
+    ranking?.list === state.list &&
+    ranking?.preferences === state.preferences;
+  const scores = inputsMatch
+    ? ranking.scores
+    : cachedWatchlistScores(state.reactions, state.list, state.preferences);
+  useEffect(() => {
+    if (!combined.length || sort !== "match") return;
+    let active = true;
+    setRankingFailed(false);
+    rankWatchlist(state.reactions, state.list, state.preferences).then(
+      (scores) => {
+        if (active)
+          setRanking({
+            reactions: state.reactions,
+            list: state.list,
+            preferences: state.preferences,
+            scores,
+          });
+      },
+      () => {
+        if (active) setRankingFailed(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [state.reactions, state.list, state.preferences, combined.length, sort]);
+  useEffect(() => {
+    setVisibleCount(60);
+  }, [tab, sort, query, release, preferences, genre]);
+  // Render saved titles immediately, then apply personalized ordering when ready.
+  const effectiveSort = sort === "match" && !scores ? "newest" : sort;
+  const items = useMemo(
+    () =>
+      orderWatchlist(source, {
+        preferences,
+        genre,
+        sort: effectiveSort,
+        query,
+        release,
+        scores,
+      }),
+    [source, preferences, genre, effectiveSort, query, release, scores],
+  );
   return (
     <section aria-labelledby="watchlist-heading">
       <div className="section-heading">
@@ -218,7 +271,8 @@ export function Watchlist({ state, store, onDiscover }) {
                 ...state,
                 preferences: defaultPreferences(),
                 tastePreferences: state.preferences,
-                sort,
+                sort: effectiveSort,
+                scores,
               });
               const url = URL.createObjectURL(
                 new Blob(
@@ -358,73 +412,107 @@ export function Watchlist({ state, store, onDiscover }) {
           onConfirm={() => remove(removing, true)}
         />
       )}
+      {sort === "match" && !scores && combined.length > 0 && (
+        <p role="status">
+          {rankingFailed
+            ? "Best-match sorting is unavailable. Showing newest saves first."
+            : "Updating best matches… Your saved anime are ready below."}
+        </p>
+      )}
+      {detailsAnime && (
+        <WatchlistDetails
+          key={detailsAnime.id}
+          anime={detailsAnime}
+          state={state}
+          store={store}
+          onClose={() => setDetailsAnime(null)}
+        />
+      )}
       <div className="watchlist-grid">
-        {items.map(({ anime, addedAt, site, mal }) => (
-          <article className="saved-card" key={anime.id}>
-            <div className="saved-image">
-              <img src={coverUrl(anime)} alt={anime.title} loading="lazy" />
-            </div>
-            <div className="saved-content">
-              <h3>
-                <AnimeTitle anime={anime} />
-              </h3>
-              <p>{anime.genres?.slice(0, 3).map(genreLabel).join(" · ")}</p>
-              <p>
-                {releaseLabel(anime)} · {runtimeLabel(anime)}
-              </p>
-              <small>
-                {addedAt
-                  ? `Added ${new Date(addedAt).toLocaleDateString()}`
-                  : "Date added unknown"}
-              </small>
-              {mal &&
-                Number.isFinite(Date.parse(anime.listStatus?.updated_at)) && (
-                  <small>
-                    MAL last updated{" "}
-                    {watchlistTimestamp(anime.listStatus.updated_at)}
-                  </small>
-                )}
-              <div className="saved-footer">
-                <a
-                  href={`https://myanimelist.net/anime/${anime.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View on MAL ↗
-                </a>
+        {items
+          .slice(0, visibleCount)
+          .map(({ anime, addedAt, site, mal }, index) => (
+            <article className="saved-card" key={anime.id}>
+              <WatchlistCover
+                key={anime.image}
+                anime={anime}
+                priority={index < 8}
+              />
+              <div className="saved-content">
+                <h3>
+                  <AnimeTitle anime={anime} />
+                </h3>
+                <p>{anime.genres?.slice(0, 3).map(genreLabel).join(" · ")}</p>
+                <p>
+                  {releaseLabel(anime)} · {runtimeLabel(anime)}
+                </p>
                 <small>
-                  {site && mal
-                    ? "Found on Anime Shuffle · MAL Plan to Watch"
-                    : mal
-                      ? "MAL Plan to Watch"
-                      : "Found on Anime Shuffle"}
+                  {addedAt
+                    ? `Added ${new Date(addedAt).toLocaleDateString()}`
+                    : "Date added unknown"}
                 </small>
-                <button
-                  className="quiet"
-                  disabled={state.busy}
-                  onClick={() => (mal ? setRemoving(anime) : remove(anime))}
-                >
-                  Remove
-                </button>
-                {site && (
-                  <>
-                    {state.session.connected &&
-                      !state.list.some((a) => a.id === anime.id) && (
-                        <button
-                          className="outline"
-                          disabled={state.busy}
-                          onClick={() => store.saveToMal(anime)}
-                        >
-                          Add to MAL
-                        </button>
-                      )}
-                  </>
-                )}
+                {mal &&
+                  Number.isFinite(Date.parse(anime.listStatus?.updated_at)) && (
+                    <small>
+                      MAL last updated{" "}
+                      {watchlistTimestamp(anime.listStatus.updated_at)}
+                    </small>
+                  )}
+                <div className="saved-footer">
+                  <button
+                    className="outline details-toggle"
+                    onClick={() => setDetailsAnime(anime)}
+                  >
+                    More details <Icon name="chevron" />
+                  </button>
+                  <a
+                    href={`https://myanimelist.net/anime/${anime.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View on MAL ↗
+                  </a>
+                  <small>
+                    {site && mal
+                      ? "Found on Anime Shuffle · MAL Plan to Watch"
+                      : mal
+                        ? "MAL Plan to Watch"
+                        : "Found on Anime Shuffle"}
+                  </small>
+                  <button
+                    className="quiet"
+                    disabled={state.busy}
+                    onClick={() => (mal ? setRemoving(anime) : remove(anime))}
+                  >
+                    Remove
+                  </button>
+                  {site && (
+                    <>
+                      {state.session.connected &&
+                        !state.list.some((a) => a.id === anime.id) && (
+                          <button
+                            className="outline"
+                            disabled={state.busy}
+                            onClick={() => store.saveToMal(anime)}
+                          >
+                            Add to MAL
+                          </button>
+                        )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))}
       </div>
+      {items.length > visibleCount && (
+        <button
+          className="outline"
+          onClick={() => setVisibleCount((count) => count + 60)}
+        >
+          Show more ({visibleCount} of {items.length})
+        </button>
+      )}
       {!items.length && (
         <div className="empty">
           <Icon name="bookmark" />
@@ -480,5 +568,46 @@ function RemoveWatchlistDialog({ anime, busy, onCancel, onConfirm }) {
         Cancel
       </button>
     </dialog>
+  );
+}
+
+/** Open saved metadata immediately, then hydrate this exact title from the shared cache. */
+function WatchlistDetails({ anime, state, store, onClose }) {
+  const [full, setFull] = useState(anime);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    Promise.resolve()
+      .then(() => store.getAnimeDetails(anime))
+      .then(
+        (details) => {
+          if (active) setFull({ ...anime, ...details });
+        },
+        () => {
+          if (active)
+            setError(
+              "Full details could not be loaded. Showing saved information.",
+            );
+        },
+      )
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [anime, store]);
+  return (
+    <AnimeDetails
+      anime={full}
+      modal
+      loading={loading}
+      error={error}
+      onClose={onClose}
+      reason="This anime is saved on your watchlist."
+      reactions={state.reactions}
+      onSaveFeedback={store.setReactionFeedback}
+    />
   );
 }

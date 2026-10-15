@@ -88,8 +88,6 @@ export function createAnimeStore({
   let startupFilterKey = "";
   let watchlistSyncPending = null;
   const detailRequests = new Map();
-  let replacementSlots = [];
-  let replacementRunning = false;
   let preferenceWrites = Promise.resolve();
   let preferenceVersion = 0;
   let preferencesUnsynced = false;
@@ -1107,20 +1105,6 @@ export function createAnimeStore({
         [anime.id]: { action, anime, at: Date.now() },
       },
     });
-    if (!target) {
-      const removed = state.recommendationPicks.find(
-        (pick) => pick.anime.id === anime.id,
-      );
-      if (removed) {
-        replacementSlots.push(removed.tier);
-        update({
-          recommendationPicks: state.recommendationPicks.filter(
-            (pick) => pick.anime.id !== anime.id,
-          ),
-        });
-        void replaceDecidedRecommendations();
-      }
-    }
     update({
       lastReactionId: anime.id,
       ...(action === "watch"
@@ -1304,12 +1288,6 @@ export function createAnimeStore({
       ...activeSkipCooldowns(skipUntil, now()),
       [id]: now() + SKIP_COOLDOWN_MS,
     };
-    if (state.recommendationPicks.some((pick) => pick.anime.id === id))
-      update({
-        recommendationPicks: state.recommendationPicks.filter(
-          (pick) => pick.anime.id !== id,
-        ),
-      });
     // Save immediately, before fetching the next card or leaving the page.
     void persist(false);
     recent = [...recent, state.current].slice(-10);
@@ -1329,7 +1307,6 @@ export function createAnimeStore({
     preparedDiscovery = [];
     refillPending = null;
     watchlistSyncPending = null;
-    replacementSlots = [];
     preferenceVersion++;
     preferencesUnsynced = false;
     viewingPreferencesBefore = null;
@@ -1525,9 +1502,9 @@ export function createAnimeStore({
   /** Fetch verified details for a bounded shortlist, never render unverified MAL list stubs. */
   async function loadRecommendations({ force = false } = {}) {
     if (
-      !recommendationsUnlocked(state.reactions) ||
+      (!recommendationsUnlocked(state.reactions) &&
+        !state.recommendationsReady) ||
       state.recommendationsLoading ||
-      replacementRunning ||
       !state.onboardingComplete
     )
       return;
@@ -1537,7 +1514,6 @@ export function createAnimeStore({
     )
       return;
     const generation = sessionGeneration;
-    replacementSlots = [];
     const finishTiming = diagnostics.start("recommendations_total");
     update({
       recommendationError: "",
@@ -1680,97 +1656,7 @@ export function createAnimeStore({
         recommendationsLoading: false,
         recommendationProgress: null,
       });
-      replacementSlots = [];
       schedulePrefetch();
-    }
-  }
-  async function replaceDecidedRecommendations() {
-    if (
-      replacementRunning ||
-      state.recommendationsLoading ||
-      !replacementSlots.length
-    )
-      return;
-    const generation = sessionGeneration;
-    replacementRunning = true;
-    const attempted = new Set();
-    try {
-      let checked = 0;
-      let filled = false;
-      while (
-        replacementSlots.length &&
-        checked < 30 &&
-        generation === sessionGeneration
-      ) {
-        const used = new Set(state.recommendationPicks.map((p) => p.anime.id));
-        const candidates = rankRecommendations(
-          pool.filter((a) => !used.has(a.id) && !attempted.has(a.id)),
-          { ...recommendationRankingState(), limit: 1 },
-        );
-        if (!candidates.length) {
-          if (!filled && !state.preview) {
-            filled = true;
-            if (await refill()) continue;
-          }
-          break;
-        }
-        const candidate = candidates[0];
-        attempted.add(candidate.anime.id);
-        checked++;
-        const anime = state.preview
-          ? candidate.anime
-          : await animeDetails(candidate.anime.id);
-        if (generation !== sessionGeneration) return;
-        if (
-          !isEligible(
-            anime,
-            state.reactions,
-            state.list,
-            activeSkips(),
-            false,
-            state.preferences,
-          )
-        )
-          continue;
-        const pick = rankRecommendations([anime], {
-          ...recommendationRankingState(),
-          metadata: pool,
-        })[0];
-        if (!pick) continue;
-        const tier = replacementSlots.shift();
-        update({
-          recommendationPool: [
-            ...state.recommendationPool.filter((a) => a.id !== anime.id),
-            anime,
-          ],
-          recommendationPicks: [
-            ...state.recommendationPicks,
-            {
-              ...pick,
-              tier,
-              detailReason: detailedExplanation(
-                anime,
-                buildTaste(
-                  state.reactions,
-                  state.list,
-                  state.preferences,
-                  pool,
-                ),
-                { mode: "recommendations" },
-              ),
-            },
-          ].sort((a, b) => a.tier - b.tier),
-        });
-        await yieldToBrowser();
-      }
-    } catch (error) {
-      if (generation === sessionGeneration)
-        update({
-          recommendationError:
-            "A replacement could not be loaded. Refresh picks to try again.",
-        });
-    } finally {
-      replacementRunning = false;
     }
   }
   function buildRecommendationTaste() {
@@ -1896,6 +1782,9 @@ export function createAnimeStore({
       return (await api("/api/search?q=" + encodeURIComponent(term))).data;
     },
     getSnapshot: () => state,
+    getAnimeDetails(anime) {
+      return state.preview ? Promise.resolve(anime) : animeDetails(anime.id);
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

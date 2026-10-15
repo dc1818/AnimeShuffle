@@ -54,9 +54,14 @@ export function orderWatchlist(
     sort = "match",
     query = "",
     release = "all",
+    scores,
   } = {},
 ) {
-  const taste = buildTaste(reactions, list, tastePreferences);
+  // Non-personal sorts never need to train a model. The UI supplies worker scores.
+  const taste =
+    sort === "match" && !scores && entries.length
+      ? buildTaste(reactions, list, tastePreferences)
+      : null;
   const knownFirst = (a, b, direction) =>
     a == null ? (b == null ? 0 : 1) : b == null ? -1 : direction * (a - b);
   return entries
@@ -72,7 +77,9 @@ export function orderWatchlist(
     )
     .map((entry) => ({
       ...entry,
-      score: scoreAnime(entry.anime, taste),
+      score:
+        scores?.[entry.anime.id] ??
+        (taste ? scoreAnime(entry.anime, taste) : 0),
       // MAL community ratings are separate from the personalized match score.
       malScore:
         Number.isFinite(entry.anime.score) &&

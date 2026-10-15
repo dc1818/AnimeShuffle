@@ -1031,7 +1031,7 @@ footer button {
 }
 .watchlist-grid {
   max-width: 1140px;
-  margin: auto;
+  margin: 20px auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 22px;
@@ -4698,5 +4698,57 @@ main.wide-main {
   .background-choice-label {
     font-size: 12px;
     padding-inline: 8px;
+  }
+}
+
+/* The same anime Details content, centered when opened from a saved card. */
+dialog.details-card.details-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(600px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  color: var(--text);
+  overflow: hidden;
+}
+dialog.details-card.details-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+dialog.details-card.details-modal::backdrop {
+  background: #030912b8;
+}
+.details-modal .details-header {
+  padding: 24px 24px 0;
+  flex: none;
+}
+.details-modal .details-body {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.details-modal .full-synopsis {
+  max-height: none;
+  overflow: visible;
+}
+.cover-unavailable {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #aebcc9;
+  padding: 12px;
+}
+@media (max-width: 480px) {
+  .details-modal .details-header {
+    padding: 20px 16px 0;
+  }
+  .details-modal .details-body {
+    padding: 16px;
+  }
+  .details-modal .details-header h2 {
+    font-size: 24px;
+    overflow-wrap: anywhere;
   }
 }

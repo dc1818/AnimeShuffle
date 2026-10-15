@@ -18,19 +18,10 @@ import {
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover, onPreferences }) {
   const count = reactionCount(state.reactions);
-  const unlocked = count >= RECOMMENDATION_MINIMUM;
-  // Keep the batch stable, but a saved title belongs only on the watchlist.
-  const savedIds = new Set(
-    state.list
-      .filter((a) => a.listStatus?.status === "plan_to_watch")
-      .map((a) => a.id),
-  );
-  const picks = state.recommendationPicks.filter(
-    (pick) =>
-      pick.anime.id !== state.current?.id &&
-      state.reactions[pick.anime.id]?.action !== "watch" &&
-      !savedIds.has(pick.anime.id),
-  );
+  const unlocked =
+    count >= RECOMMENDATION_MINIMUM || state.recommendationsReady;
+  // A session batch is a snapshot: decisions mute rows; only Refresh replaces it.
+  const picks = state.recommendationPicks;
   const [opened, setOpened] = useState(undefined);
   useEffect(() => {
     // Open the first row only after the complete verified batch is published.
@@ -129,8 +120,9 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
             fewer than 25 picks while we learn your taste or when eligible
             titles run low. React to more anime in Discover to help shape fresh
             suggestions. A loaded shortlist stays in place until you choose
-            Refresh picks, including after changing preferences. Choices made in
-            Discover replace matching recommendations automatically.
+            Refresh picks, including after changing preferences. Reacted cards
+            stay greyed out in their original positions, with Undo available for
+            your recent choices.
           </p>
         </div>
         <div>
