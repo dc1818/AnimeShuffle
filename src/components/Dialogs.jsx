@@ -233,7 +233,7 @@ export function Dialogs({
       </Dialog>
     );
   return (
-    <Dialog onClose={onClose}>
+    <Dialog closeOnOutside onClose={onClose}>
       <span className="eyebrow">Make it yours</span>
       <h2>Settings</h2>
       {state.session.cloudSync && state.session.account && (
