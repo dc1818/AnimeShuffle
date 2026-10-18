@@ -10,7 +10,15 @@ test("local accounts persist with salted hashes; login and preferences stay isol
   t.after(() => rm(directory, { recursive: true, force: true }));
   const db = createAccountStore(directory),
     password = "A long testing passphrase";
-  const first = await db.register("Viewer_One", password);
+  const first = await db.register("Viewer_One", password, {
+    preferences: { requiredThemes: ["Mecha"] },
+    onboardingComplete: true,
+  });
+  assert.deepEqual(
+    (await db.preferences(first.id)).preferences.requiredThemes,
+    ["Mecha"],
+  );
+  assert.equal((await db.preferences(first.id)).onboardingComplete, true);
   const second = await db.register("Viewer_Two", password);
   assert.equal(first.provider, "local");
   assert.equal(first.hash, undefined);

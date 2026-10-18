@@ -418,6 +418,8 @@ function ConnectedApp({ store, state }) {
                       key={state.current.id}
                       anime={state.current}
                       selectedGenres={state.preferences.favoriteGenres}
+                      restrictGenres={state.preferences.restrictGenres}
+                      selectedThemes={state.preferences.requiredThemes}
                       onPreferences={() => setDialog("preferences")}
                       busy={state.busy}
                       reactionDisabled={

@@ -308,7 +308,7 @@ const server = http.createServer(async (req, res) => {
       limitLogin();
       const input = await body(req);
       const account = u.pathname.endsWith("register")
-        ? await accounts.register(input.username, input.password)
+        ? await accounts.register(input.username, input.password, input)
         : await accounts.login(input.username, input.password);
       sessions.delete(s.id);
       const fresh = newSession(res);

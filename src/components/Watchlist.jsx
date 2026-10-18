@@ -157,13 +157,13 @@ export function Watchlist({ state, store, onDiscover }) {
             </option>
           </select>
         </label>
-        <label>
-          Search titles
+        <label className="watchlist-search">
+          Search your watchlist
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Find a saved anime"
+            placeholder="Search all saved anime by title…"
           />
         </label>
         <label>

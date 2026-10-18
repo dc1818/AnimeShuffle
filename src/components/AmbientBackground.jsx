@@ -1,3 +1,4 @@
+import { supportsBackgroundMotion } from "../lib/background-performance.js";
 import { useEffect, useId, useState } from "react";
 
 export const BACKGROUND_STYLES = [
@@ -6,8 +7,23 @@ export const BACKGROUND_STYLES = [
   ["comet", "Comet drift"],
 ];
 
-/** Decorative only: bounded layers, compositor animation, no requests or timers. */
-export function AmbientBackground({ enabled = true, style = "aurora" }) {
+let accelerated;
+/** Decorative motion is optional; static anime colors remain on slower devices. */
+export function AmbientBackground({
+  enabled = true,
+  style = "aurora",
+  preview = false,
+}) {
+  const [motion, setMotion] = useState(false);
+  useEffect(() => {
+    if (preview || !enabled || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    accelerated ??= supportsBackgroundMotion();
+    const update = () => setMotion(accelerated && !media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [enabled, preview]);
   const id = useId().replace(/:/g, "");
   const mode = BACKGROUND_STYLES.some(([key]) => key === style)
     ? style
@@ -20,15 +36,48 @@ export function AmbientBackground({ enabled = true, style = "aurora" }) {
     document.addEventListener("visibilitychange", update);
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
+  useEffect(() => {
+    if (!motion || paused || preview || !enabled) return;
+    let frame,
+      previous = 0,
+      start = 0,
+      frames = 0,
+      slow = 0,
+      badWindows = 0;
+    const sample = (time) => {
+      if (previous) {
+        frames++;
+        if (time - previous > 28) slow++;
+      }
+      previous = time;
+      start ||= time;
+      if (time - start >= 2000) {
+        badWindows = slow / Math.max(1, frames) > 0.35 ? badWindows + 1 : 0;
+        if (badWindows >= 2) {
+          accelerated = false;
+          setMotion(false);
+          return;
+        }
+        start = time;
+        frames = 0;
+        slow = 0;
+      }
+      frame = requestAnimationFrame(sample);
+    };
+    frame = requestAnimationFrame(sample);
+    return () => cancelAnimationFrame(frame);
+  }, [motion, paused, preview, enabled]);
+  const showLayers = enabled && (motion || preview);
   return (
     <div
       className="ambient"
       data-style={mode}
       data-enabled={enabled}
       data-paused={paused}
+      data-motion={motion && !preview}
       aria-hidden="true"
     >
-      {enabled && mode === "aurora" && (
+      {showLayers && mode === "aurora" && (
         <svg
           className="aurora-ribbons"
           viewBox="0 0 1440 1000"
@@ -76,17 +125,17 @@ export function AmbientBackground({ enabled = true, style = "aurora" }) {
           ))}
         </svg>
       )}
-      {enabled && mode === "liquid" && (
+      {showLayers && mode === "liquid" && (
         <div className="liquid-field">
           {[0, 1, 2, 3].map((n) => (
             <i className={`liquid-ring ring-${n}`} key={n} />
           ))}
         </div>
       )}
-      {enabled && mode === "comet" && (
+      {showLayers && mode === "comet" && (
         <div className="comet-field">
           <span className="comet-stars" />
-          {Array.from({ length: 10 }, (_, n) => (
+          {Array.from({ length: 6 }, (_, n) => (
             <i className="comet-trail" key={n} style={{ "--n": n }} />
           ))}
         </div>

@@ -131,7 +131,7 @@ svg.icon {
   background-image: var(--anime-cover, none);
   background-position: center;
   background-size: cover;
-  filter: blur(80px) saturate(1.45);
+  filter: blur(32px);
   opacity: 0.24;
   pointer-events: none;
 }
@@ -158,12 +158,12 @@ svg.icon {
 .ribbon-halo {
   stroke-width: 110px;
   opacity: 0.32;
-  filter: blur(16px);
+  filter: none;
 }
 .ribbon-core {
   stroke-width: 24px;
   opacity: 0.85;
-  filter: blur(3px);
+  filter: none;
 }
 .ribbon-edge {
   stroke: rgba(var(--cool), 0.85);
@@ -4778,5 +4778,107 @@ dialog.details-card.details-modal::backdrop {
   }
   .watchlist-bottom {
     height: 16px;
+  }
+}
+
+/* Keep the anime palette when motion is unavailable without costly blurred artwork. */
+.ambient[data-motion="false"]::before {
+  display: none;
+}
+.ambient[data-motion="false"] * {
+  animation: none !important;
+}
+.aurora-ribbon,
+.liquid-ring,
+.comet-trail {
+  will-change: transform, opacity;
+}
+.ambient[data-motion="false"] * {
+  will-change: auto;
+}
+.watchlist-controls .watchlist-search {
+  flex: 1 1 300px;
+  min-width: min(100%, 250px);
+}
+.watchlist-controls .watchlist-search input {
+  min-height: 48px;
+  border: 2px solid #7cb8e6;
+  background: #10293b;
+  box-shadow: 0 0 0 3px #59aaff12;
+  font-size: 16px;
+  width: 100%;
+}
+.watchlist-search input:focus {
+  outline: 3px solid #aad9ff;
+  outline-offset: 2px;
+}
+.genre-groups {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+.genre-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.genre-group-label {
+  flex: 0 0 60px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #b8cede;
+}
+.genre-group .genres {
+  margin: 0;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.genre-group .genre {
+  font-size: 11px;
+  padding: 4px 7px;
+}
+.genre-group-genres .genre {
+  background: #173344;
+  border-color: #4988ad;
+  color: #c5e9ff;
+}
+.genre-group-other .genre {
+  background: #28333e;
+  border-color: #6b7f91;
+  color: #dbe5ef;
+}
+.genre-group-themes .genre {
+  background: #302b4a;
+  border-color: #8474ad;
+  color: #e5daff;
+}
+.genre-group-audience .genre {
+  background: #263737;
+  border-color: #618b83;
+  color: #c6e8de;
+}
+.genre-group-content .genre {
+  background: #432f27;
+  border-color: #a58458;
+  color: #ffdfa4;
+}
+.theme-preferences {
+  margin-top: 16px;
+}
+.theme-preferences summary {
+  cursor: pointer;
+  color: #b9dcff;
+  min-height: 44px;
+  padding: 12px 0;
+}
+@media (max-width: 420px) {
+  .genre-group {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .genre-group-label {
+    flex-basis: 100%;
   }
 }

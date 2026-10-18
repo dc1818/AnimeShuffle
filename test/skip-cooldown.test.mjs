@@ -108,7 +108,9 @@ test("Undo and explicit Revisit clear the persisted cooldown early", async () =>
   assert.deepEqual(f.saved().skipUntil, {});
   await store.loadRecommendations({ force: true });
   assert.ok(
-    store.getSnapshot().recommendationPicks.some((p) => p.anime.id === id),
+    store.getSnapshot().current?.id === id ||
+      store.getSnapshot().recommendationPicks.some((p) => p.anime.id === id),
+    "A revisited title is eligible in Discover or recommendations; the current card is excluded from the shortlist",
   );
 });
 

@@ -80,7 +80,7 @@ test("Discover accepts choices while recommendations run and the published batch
   assert.equal(store.getSnapshot().reactions[current.id].action, "watch");
 });
 
-test("Discover replaces a matching loaded row without moving other rows or setting the recommendation loading state", async () => {
+test("Discover reactions preserve the loaded shortlist and mark its matching card without reloading", async () => {
   const { store } = fixture();
   await store.initialize();
   const random = Math.random;
@@ -93,7 +93,7 @@ test("Discover replaces a matching loaded row without moving other rows or setti
   seedRecommendationHistory(store);
   await store.loadRecommendations();
   // The initial Discover card is intentionally excluded. Advance Discover into
-  // the already-loaded shortlist to exercise later cross-feed replacement.
+  // the already-loaded shortlist to exercise cross-feed reaction state.
   for (
     let i = 0;
     i < 40 &&
@@ -114,7 +114,12 @@ test("Discover replaces a matching loaded row without moving other rows or setti
   await store.react("bad");
   await waitFor(() => store.getSnapshot().recommendationPicks.length === 25);
   const after = store.getSnapshot().recommendationPicks;
-  assert.ok(!after.some((p) => p.anime.id === current.id));
+  assert.equal(
+    after,
+    before,
+    "All loaded cards and tiers remain stable until Refresh picks",
+  );
+  assert.equal(store.getSnapshot().reactions[current.id].action, "bad");
   for (const pick of before.filter((p) => p !== removed))
     assert.equal(
       after.find((p) => p.anime.id === pick.anime.id),

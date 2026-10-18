@@ -164,7 +164,24 @@ function Fixture() {
           }
         >
           <AnimeCard
-            anime={demo[displayed]}
+            anime={{
+              ...demo[displayed],
+              ...(location.search.includes("genre-labels")
+                ? {
+                    genres: [
+                      "Drama",
+                      "Sci-Fi",
+                      "Suspense",
+                      "Psychological",
+                      "Time Travel",
+                    ],
+                  }
+                : {}),
+            }}
+            selectedGenres={
+              location.search.includes("genre-labels") ? ["Sci-Fi"] : []
+            }
+            restrictGenres={location.search.includes("genre-labels")}
             compact={compact}
             onReact={() => {}}
             onSkip={() => {}}
@@ -207,7 +224,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

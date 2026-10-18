@@ -120,11 +120,19 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
       { key: "animation", sentiment: "liked" },
     ]);
     await click("Animation");
-    assert.deepEqual(saves.at(-1)[1].aspects, [{ key: "villain", sentiment: "liked" }]);
-    const animationButton = document.querySelector('button[aria-label="Animation"]');
+    assert.deepEqual(saves.at(-1)[1].aspects, [
+      { key: "villain", sentiment: "liked" },
+    ]);
+    const animationButton = document.querySelector(
+      'button[aria-label="Animation"]',
+    );
     assert.equal(animationButton.getAttribute("aria-pressed"), "false");
     assert.match(animationButton.textContent, /Unliked/);
-    assert.ok(!document.querySelector(".feedback-saved").textContent.includes("Animation"));
+    assert.ok(
+      !document
+        .querySelector(".feedback-saved")
+        .textContent.includes("Animation"),
+    );
     await click("Animation");
     assert.equal(animationButton.getAttribute("aria-pressed"), "true");
     assert.equal(document.querySelector(".feedback-dislike"), null);
@@ -214,21 +222,107 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
     assert.equal(document.querySelector(".why-feedback-entry"), null);
     // An outside press must not reflow the card before the button gets its click.
     const events = [];
-    await act(async () => root.render(React.createElement(React.Fragment, null,
-      React.createElement(AnimeCard, { anime: reaction.anime, detailsOpen: true, canUndo: true, onReact: (action) => events.push(action), onSkip: () => events.push("skip"), onUndo: () => events.push("undo") }),
-      React.createElement(AnimeDetails, { ...props, responsive: false, onClose: () => events.push("close") })
-    )));
-    for (const [selector, expected] of [[".reaction.good", "good"], [".reaction.bad", "bad"], [".reaction.watch", "watch"], [".reaction.nope", "nope"], [".secondary-actions button:last-child", "skip"], [".secondary-actions button:first-child", "undo"]]) {
+    await act(async () =>
+      root.render(
+        React.createElement(
+          React.Fragment,
+          null,
+          React.createElement(AnimeCard, {
+            anime: reaction.anime,
+            detailsOpen: true,
+            canUndo: true,
+            onReact: (action) => events.push(action),
+            onSkip: () => events.push("skip"),
+            onUndo: () => events.push("undo"),
+          }),
+          React.createElement(AnimeDetails, {
+            ...props,
+            responsive: false,
+            onClose: () => events.push("close"),
+          }),
+        ),
+      ),
+    );
+    for (const [selector, expected] of [
+      [".reaction.good", "good"],
+      [".reaction.bad", "bad"],
+      [".reaction.watch", "watch"],
+      [".reaction.nope", "nope"],
+      [".secondary-actions button:last-child", "skip"],
+      [".secondary-actions button:first-child", "undo"],
+    ]) {
       events.length = 0;
       const button = document.querySelector(selector);
-      await act(async () => button.dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true })));
-      assert.deepEqual(events, [], "Pressing down must leave the button in place");
+      await act(async () =>
+        button.dispatchEvent(
+          new window.MouseEvent("pointerdown", { bubbles: true }),
+        ),
+      );
+      assert.deepEqual(
+        events,
+        [],
+        "Pressing down must leave the button in place",
+      );
       await act(async () => button.click());
-      assert.deepEqual(events, [expected, "close"], "The card action fires before outside dismissal");
+      assert.deepEqual(
+        events,
+        [expected, "close"],
+        "The card action fires before outside dismissal",
+      );
     }
     events.length = 0;
-    await act(async () => document.querySelector('#details-card [role="tab"]').click());
+    await act(async () =>
+      document.querySelector('#details-card [role="tab"]').click(),
+    );
     assert.deepEqual(events, [], "Clicks inside Details keep it open");
+    await act(async () =>
+      root.render(
+        React.createElement(AnimeDetails, {
+          ...props,
+          responsive: false,
+          reactions: { 1: reaction },
+          onClose: () => events.push("close"),
+        }),
+      ),
+    );
+    await click("Why this pick?");
+    await click("Add a reason for this reaction");
+    assert.deepEqual(
+      events,
+      [],
+      "Replacing a clicked feedback button must not dismiss Details",
+    );
+    delete document.documentElement.dataset.hosting;
+    window.matchMedia = () => ({
+      matches: false,
+      addEventListener() {},
+      removeEventListener() {},
+    });
+    const oldFetch = globalThis.fetch;
+    globalThis.fetch = async () =>
+      Response.json({ pictures: [{ image: "https://example.com/art.jpg" }] });
+    try {
+      await act(async () =>
+        root.render(
+          React.createElement(AnimeDetails, {
+            ...props,
+            key: "gallery",
+            responsive: false,
+            onClose: () => events.push("close"),
+          }),
+        ),
+      );
+      await click("Images");
+      await click("View image 1 of 1");
+      assert.ok(document.querySelector(".image-carousel-stage"));
+      assert.deepEqual(
+        events,
+        [],
+        "Replacing a gallery thumbnail must not dismiss Details",
+      );
+    } finally {
+      globalThis.fetch = oldFetch;
+    }
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

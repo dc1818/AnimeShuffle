@@ -320,6 +320,18 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                               state.preferences
                             ).favoriteGenres
                           }
+                          restrictGenres={
+                            (
+                              state.recommendationPreferences ||
+                              state.preferences
+                            ).restrictGenres
+                          }
+                          selectedThemes={
+                            (
+                              state.recommendationPreferences ||
+                              state.preferences
+                            ).requiredThemes
+                          }
                           onPreferences={onPreferences}
                           reason={pick.reason}
                           saved={pick.saved}

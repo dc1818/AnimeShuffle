@@ -229,10 +229,9 @@ for (const staticMode of [false, true])
       await act(async () =>
         document.querySelector(".ranked-card .reaction.watch").click(),
       );
-      assert.equal(
+      assert.ok(
         document.getElementById(`recommendation-heading-${firstId}`),
-        null,
-        "Saved title immediately leaves the loaded recommendations",
+        "Saved title remains in the loaded recommendations until Refresh picks",
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "watch");
       await act(async () =>
@@ -242,7 +241,7 @@ for (const staticMode of [false, true])
       await click("Recommendations");
       assert.equal(
         document.querySelectorAll(".leaderboard-row.reacted").length,
-        0,
+        1,
       );
       await click("Refresh picks");
       for (

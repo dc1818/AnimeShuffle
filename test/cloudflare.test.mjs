@@ -138,7 +138,11 @@ test("Cloudflare accounts and sessions survive restart; devices share preference
   const registered = await a.request("/api/account/register", {
     username: "Viewer",
     password: "a secure testing password",
+    preferences: { requiredThemes: ["Mecha"], favoriteGenres: ["Action"] },
+    onboardingComplete: true,
   });
+  assert.deepEqual(registered.body.preferences.requiredThemes, ["Mecha"]);
+  assert.equal(registered.body.onboardingComplete, true);
   assert.equal(registered.response.status, 200);
   assert.equal(registered.body.cloudSync, true);
   assert.match(

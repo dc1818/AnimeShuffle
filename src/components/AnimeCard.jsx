@@ -1,10 +1,10 @@
+import { GenreBadges } from "./GenreBadges.jsx";
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
 import { paletteFromPixels } from "../lib/cover-palette.js";
 import { englishTitle, primaryTitle } from "../lib/titles.js";
 import { loadMedia } from "../lib/media-cache.js";
 import { AnimeMedia } from "./AnimeMedia.jsx";
 import { TrailerPreview } from "./TrailerPreview.jsx";
-import { genreLabel } from "../lib/genres.js";
 import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
@@ -54,6 +54,8 @@ export function AnimeCard({
   reason,
   saved = false,
   selectedGenres = [],
+  restrictGenres = false,
+  selectedThemes = [],
   onPreferences,
 }) {
   const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
@@ -178,14 +180,13 @@ export function AnimeCard({
             .join(" · ")}
         </div>
         <p className="runtime-estimate">{runtimeLabel(anime)}</p>
-        <div className="genres">
-          {anime.genres?.map((genre) => (
-            <span className="genre" key={genre}>
-              {genreLabel(genre)}
-            </span>
-          ))}
-        </div>
-        <GenreFocus genres={selectedGenres} onChange={onPreferences} />
+        <GenreBadges anime={anime} />
+        <GenreFocus
+          genres={selectedGenres}
+          restricted={restrictGenres}
+          themes={selectedThemes}
+          onChange={onPreferences}
+        />
         <p className="synopsis">
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
@@ -353,7 +354,13 @@ export function AnimeDetails({
   useEffect(() => {
     if (overlay) return;
     const outside = (event) => {
-      if (panel.current?.contains(event.target)) return;
+      // React can remove the clicked thumbnail/feedback button before this listener.
+      // The original propagation path still records where the click started.
+      if (
+        event.composedPath().includes(panel.current) ||
+        panel.current?.contains(event.target)
+      )
+        return;
       // Keep the opening toggle and any foreground dialog in charge of their own clicks.
       if (event.target.closest?.('.details-toggle, dialog, [role="dialog"]'))
         return;

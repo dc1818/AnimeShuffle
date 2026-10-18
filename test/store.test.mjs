@@ -606,10 +606,7 @@ test("MAL freshness imports external plans, throttles reads, and keeps unchanged
   await store.skip();
   assert.notEqual(store.getSnapshot().current?.id, displayed.id);
   const afterSkip = store.getSnapshot().recommendationPicks;
-  assert.deepEqual(
-    afterSkip,
-    picks,
-  );
+  assert.deepEqual(afterSkip, picks);
   assert.equal(store.getSnapshot().recommendationsReady, true);
   seedRecommendationHistory(store);
   await store.loadRecommendations();
@@ -1423,3 +1420,69 @@ test(
     }
   },
 );
+
+test("new local registration migrates guest saves and preferences with a durable sync outbox", async () => {
+  const storage = memory();
+  storage.setItem(
+    "anime-shuffle:guest",
+    JSON.stringify({
+      reactions: { 1: { action: "watch", anime, at: 1 } },
+      preferences: { favoriteGenres: ["Action"], requiredThemes: ["Mecha"] },
+      onboardingComplete: true,
+    }),
+  );
+  let registration;
+  const store = createAnimeStore({
+    storage,
+    browserBackup: null,
+    request: async (url, options) => {
+      if (url === "/api/session")
+        return Response.json({
+          configured: false,
+          connected: false,
+          csrf: "guest",
+        });
+      if (url === "/api/account/register") {
+        registration = JSON.parse(options.body);
+        return Response.json({
+          configured: false,
+          connected: false,
+          cloudSync: true,
+          csrf: "new",
+          account: { id: "local:new", provider: "local" },
+          preferences: registration.preferences,
+          onboardingComplete: registration.onboardingComplete,
+        });
+      }
+      if (url === "/api/account/state") {
+        if (options?.method === "POST")
+          return Response.json({ error: "Offline" }, { status: 503 });
+        return Response.json({
+          revision: 0,
+          reactions: {},
+          settings: {},
+          preferences: registration.preferences,
+          onboardingComplete: true,
+        });
+      }
+      return Response.json({});
+    },
+  });
+  await store.initialize();
+  await store.authenticate("register", "NewViewer", "example-password");
+  assert.equal(store.getSnapshot().reactions[1].action, "watch");
+  assert.deepEqual(store.getSnapshot().preferences.requiredThemes, ["Mecha"]);
+  assert.equal(
+    JSON.parse(storage.getItem("anime-shuffle:local:new")).reactions[1].action,
+    "watch",
+  );
+  assert.equal(
+    JSON.parse(storage.getItem("anime-shuffle:local:new:pending-sync"))
+      .pending[1].action,
+    "watch",
+  );
+  assert.equal(
+    JSON.parse(storage.getItem("anime-shuffle:guest")).reactions[1].action,
+    "watch",
+  );
+});

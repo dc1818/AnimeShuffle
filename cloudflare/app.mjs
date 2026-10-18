@@ -317,7 +317,11 @@ export function createCloudApp(
     return {
       autoAdd: value.autoAdd === true,
       dynamic: value.dynamic !== false,
-      backgroundStyle: ["aurora", "liquid", "comet"].includes(value.backgroundStyle) ? value.backgroundStyle : "aurora",
+      backgroundStyle: ["aurora", "liquid", "comet"].includes(
+        value.backgroundStyle,
+      )
+        ? value.backgroundStyle
+        : "aurora",
       ...(value.recommendationsNotified === true
         ? { recommendationsNotified: true }
         : {}),
@@ -700,13 +704,15 @@ export function createCloudApp(
               salt = random(),
               hash = passwordHash(body.password, salt);
             sql.exec(
-              "INSERT INTO accounts(id,username,username_key,salt,password_hash,provider) VALUES (?,?,?,?,?,?)",
+              "INSERT INTO accounts(id,username,username_key,salt,password_hash,provider,preferences,onboarded) VALUES (?,?,?,?,?,?,?,?)",
               id,
               name,
               name.toLowerCase(),
               salt,
               hash,
               "local",
+              JSON.stringify(normalizePreferences(body.preferences)),
+              body.onboardingComplete === true ? 1 : 0,
             );
             row = one("SELECT * FROM accounts WHERE id=?", id);
             operations.created(id);

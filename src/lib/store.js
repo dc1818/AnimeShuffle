@@ -1293,8 +1293,8 @@ export function createAnimeStore({
     recent = [...recent, state.current].slice(-10);
     await next();
   }
-  /** Keep identity changes isolated: never copy guest reactions into a signed-in account. */
-  async function adoptSession(session) {
+  /** Existing-account login stays isolated; only explicit registration migrates this guest. */
+  async function adoptSession(session, guest = null) {
     sessionGeneration++;
     recommendationEvents?.dispose();
     recommendationEvents = null;
@@ -1438,6 +1438,20 @@ export function createAnimeStore({
         await cloudSync.initialize();
       } catch (error) {
         update({ syncError: "Account sync is unavailable. " + error.message });
+      }
+    }
+    if (guest && session.account?.provider === "local") {
+      // Account conflicts win; preserve the guest backup until the account outbox is safe.
+      update({
+        reactions: { ...guest.reactions, ...state.reactions },
+        settings: { ...state.settings, ...guest.settings, autoAdd: false },
+      });
+      skipUntil = { ...guest.skipUntil, ...skipUntil };
+      await persist();
+      try {
+        await cloudSync?.flush();
+      } catch {
+        /* The account-scoped outbox retries on reconnect. */
       }
     }
     if (listWarmup) await listWarmup;
@@ -1794,13 +1808,30 @@ export function createAnimeStore({
       if (state.busy) throw new Error("Please wait for the current request.");
       if (!["register", "login"].includes(mode))
         throw new Error("Invalid account action.");
+      const guest =
+        mode === "register" && profileKey === "guest" && !state.session.account
+          ? {
+              reactions: state.reactions,
+              preferences: state.preferences,
+              onboardingComplete: state.onboardingComplete,
+              settings: state.settings,
+              skipUntil: { ...skipUntil },
+            }
+          : null;
+      if (guest) await persist(false);
       update({ busy: true });
       try {
         const session = await api(`/api/account/${mode}`, {
           username,
           password,
+          ...(guest
+            ? {
+                preferences: guest.preferences,
+                onboardingComplete: guest.onboardingComplete,
+              }
+            : {}),
         });
-        await adoptSession(session);
+        await adoptSession(session, guest);
         return state.onboardingComplete;
       } finally {
         update({ busy: false });

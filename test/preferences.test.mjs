@@ -95,6 +95,7 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
     }),
     {
       favoriteGenres: [],
+      requiredThemes: [],
       restrictGenres: false,
       favoriteAnime: [],
       formats: ["movies"],

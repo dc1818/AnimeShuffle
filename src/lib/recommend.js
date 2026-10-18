@@ -1,3 +1,7 @@
+import {
+  isExplicitTitle,
+  explicitAvoidancePenalty,
+} from "./content-avoidance.js";
 import { normalizeFeedback } from "./reaction-feedback.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
 import { isNonCanonMovie } from "./movie-continuity.js";
@@ -337,6 +341,10 @@ export function chooseNextBatch(
     .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
     .filter(
       (anime) =>
+        !isExplicitTitle(anime) || !recent.slice(-9).some(isExplicitTitle),
+    )
+    .filter(
+      (anime) =>
         audienceMode !== "include" ||
         !isAudienceFilteredTitle(anime) ||
         !recent.slice(-9).some(isAudienceFilteredTitle),
@@ -361,6 +369,7 @@ export function chooseNextBatch(
     ).length;
     let score = cold ? -0.05 * overlap : match.score - 0.025 * overlap;
     if (isAudienceFilteredTitle(a)) score -= 0.15;
+    score -= explicitAvoidancePenalty(a, reactions);
     if (explore) score += 0.1 * (1 - taste.model.support(a));
     return { a, score };
   });
@@ -426,7 +435,15 @@ export function rankRecommendations(
   ]);
   const available = [...new Map(pool.map((a) => [a.id, a])).values()]
     .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
-    .map((anime) => ({ anime, ...taste.model.score(anime), saved: false }));
+    .map((anime) => {
+      const match = taste.model.score(anime);
+      return {
+        anime,
+        ...match,
+        score: match.score - explicitAvoidancePenalty(anime, reactions),
+        saved: false,
+      };
+    });
   const selected = [];
   const audienceMode = normalizePreferences(preferences).childrenTitles;
   // Greedy diversity reranking: first place is the strongest match, later places balance variety.
@@ -434,6 +451,11 @@ export function rankRecommendations(
     let best = 0,
       bestScore = -Infinity;
     for (let i = 0; i < available.length; i++) {
+      if (
+        isExplicitTitle(available[i].anime) &&
+        selected.some((p) => isExplicitTitle(p.anime))
+      )
+        continue;
       if (
         audienceMode === "include" &&
         isAudienceFilteredTitle(available[i].anime) &&

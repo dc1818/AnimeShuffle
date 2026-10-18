@@ -139,7 +139,7 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       /Pick three anime|Auto-add watchlist/,
     );
     for (const text of [
-      "What genres do you like?",
+      "Genres and themes",
       "Any genre",
       "What would you like to watch?",
       "How long a series?",
@@ -233,7 +233,7 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       ),
     );
     assert.match(document.body.textContent, /Pick three anime/);
-    assert.match(document.body.textContent, /What genres/);
+    assert.match(document.body.textContent, /Genres and themes/);
     assert.match(document.body.textContent, /Auto-add watchlist/);
     // Mount an untouched first-use screen to verify the two start choices.
     await act(async () =>

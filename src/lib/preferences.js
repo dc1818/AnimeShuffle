@@ -1,24 +1,7 @@
-import { canonicalGenre } from "./genres.js";
+import { canonicalGenre, MAIN_GENRES, THEMES } from "./genres.js";
 import { titleFields } from "./titles.js";
 // Favorites guide ranking; restricting candidates is a separate explicit choice.
-export const GENRES = [
-  "Action",
-  "Adventure",
-  "Avant Garde",
-  "Award Winning",
-  "Comedy",
-  "Drama",
-  "Fantasy",
-  "Gourmet",
-  "Horror",
-  "Mystery",
-  "Romance",
-  "Sci-Fi",
-  "Slice of Life",
-  "Sports",
-  "Supernatural",
-  "Suspense",
-];
+export const GENRES = [...MAIN_GENRES, "Award Winning"];
 /** Viewing preferences use complete episode ranges, not assumed broadcast cours. */
 export const FORMAT_OPTIONS = [
   { id: "series", label: "Series", detail: "TV and web series" },
@@ -68,6 +51,7 @@ export const LENGTH_OPTIONS = [
 ];
 export const defaultPreferences = () => ({
   favoriteGenres: [],
+  requiredThemes: [],
   restrictGenres: false,
   favoriteAnime: [],
   formats: [],
@@ -150,6 +134,10 @@ export function normalizePreferences(value = {}) {
     includeNonCanonMovies: value?.includeNonCanonMovies === true,
     includeNsfw: value?.includeNsfw === true,
     favoriteGenres,
+    requiredThemes: clean(
+      value?.requiredThemes,
+      THEMES.map((id) => ({ id })),
+    ),
     restrictGenres: value?.restrictGenres === true,
     favoriteAnime,
     formats: clean(value?.formats, FORMAT_OPTIONS),
@@ -164,6 +152,18 @@ export function normalizePreferences(value = {}) {
 
 export function matchesPreferences(anime, input) {
   const preferences = normalizePreferences(input);
+  if (
+    preferences.requiredThemes.length &&
+    !preferences.requiredThemes.some((theme) =>
+      [
+        ...(anime.genres || []),
+        ...(anime.themes || []).map((t) =>
+          typeof t === "string" ? t : t.name,
+        ),
+      ].includes(theme),
+    )
+  )
+    return false;
   // MAL's community mean is separate from the connected user's personal score.
   if (preferences.scoreMin !== null || preferences.scoreMax !== null) {
     const score = anime.score;

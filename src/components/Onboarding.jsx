@@ -43,7 +43,7 @@ export function AccountForm({ mode, store, onNavigate, onComplete }) {
       <h2>{registering ? "Make yourself at home." : "Welcome back."}</h2>
       <p>
         {registering
-          ? "Create an account here, without a MyAnimeList account. You can connect MAL later."
+          ? "Create an account here, without a MyAnimeList account. Your guest watchlist, reactions and viewing preferences will be saved to your new account. You can connect MAL later."
           : "Sign in with your Anime Shuffle username and password."}
       </p>
       <form className="account-form" onSubmit={submit}>

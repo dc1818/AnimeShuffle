@@ -11,7 +11,9 @@ export function BackgroundOptions({ settings, onChange }) {
     <fieldset className="background-options">
       <legend>Animated background</legend>
       <p>
-        Follows the current anime’s colors. Choose a preview or turn it off.
+        Follows the current anime’s colors. Motion automatically stops when
+        hardware acceleration cannot be verified, reduced motion is on, or
+        performance is slow.
       </p>
       <div className="background-options-grid">
         {[...BACKGROUND_STYLES, ["off", "Off"]].map(([key, label]) => (
@@ -29,7 +31,7 @@ export function BackgroundOptions({ settings, onChange }) {
               }
             />
             <span className="background-preview" aria-hidden="true">
-              <AmbientBackground enabled={key !== "off"} style={key} />
+              <AmbientBackground preview enabled={key !== "off"} style={key} />
             </span>
             <span className="background-choice-label">
               {label}
