@@ -637,6 +637,10 @@ export function createAnimeStore({
     return {
       favoriteGenres: p.favoriteGenres,
       restrictGenres: p.restrictGenres,
+      requiredCategories: p.requiredCategories,
+      requiredThemes: p.requiredThemes,
+      preferredNodes: p.restrictNodes ? p.preferredNodes : [],
+      restrictNodes: p.restrictNodes,
       formats: p.formats,
       finishedOnly: p.finishedOnly,
       scoreMin: p.scoreMin,

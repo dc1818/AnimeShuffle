@@ -17,7 +17,8 @@
     "format": "prettier --write src lib server.mjs scripts test public/index.html package.json",
     "dev:cloudflare": "npm run build && wrangler dev",
     "deploy:cloudflare": "npm run build && wrangler deploy",
-    "check:cloudflare": "npm run build && wrangler deploy --dry-run"
+    "check:cloudflare": "npm run build && wrangler deploy --dry-run",
+    "taxonomy:build": "node scripts/build-taxonomy.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

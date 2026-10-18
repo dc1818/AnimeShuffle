@@ -25,7 +25,9 @@ function Fixture() {
     [compact, setCompact] = useState(
       location.search.includes("surface=recommendations"),
     ),
-    [displayed, setDisplayed] = useState(1),
+    [displayed, setDisplayed] = useState(
+      location.search.includes("category-labels") ? 6 : 1,
+    ),
     [dynamic, setDynamic] = useState(true),
     [backgroundStyle, setBackgroundStyle] = useState("aurora");
   const anime = {
@@ -166,6 +168,18 @@ function Fixture() {
           <AnimeCard
             anime={{
               ...demo[displayed],
+              ...(location.search.includes("category-labels")
+                ? {
+                    genres: [
+                      "Shounen",
+                      "Action",
+                      "Adventure",
+                      "Drama",
+                      "Fantasy",
+                      "Military",
+                    ],
+                  }
+                : {}),
               ...(location.search.includes("genre-labels")
                 ? {
                     genres: [
@@ -178,6 +192,12 @@ function Fixture() {
                   }
                 : {}),
             }}
+            selectedCategories={
+              location.search.includes("category-labels") ? ["Shounen"] : []
+            }
+            selectedThemes={
+              location.search.includes("category-labels") ? ["Military"] : []
+            }
             selectedGenres={
               location.search.includes("genre-labels") ? ["Sci-Fi"] : []
             }
@@ -224,7 +244,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

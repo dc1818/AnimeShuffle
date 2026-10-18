@@ -140,7 +140,12 @@ export function buildTaste(
     formats,
     anchors,
     model: train
-      ? trainContentModel(records, initial.favoriteGenres, corpus)
+      ? trainContentModel(
+          records,
+          initial.favoriteGenres,
+          corpus,
+          initial.preferredNodes,
+        )
       : null,
   };
 }
@@ -270,7 +275,8 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
   const initial = normalizePreferences(preferences);
   const allowChildren =
     initial.childrenTitles === "include" &&
-    childrenInterest(reactions, list, initial);
+    (initial.requiredCategories.includes("Kids") ||
+      childrenInterest(reactions, list, initial));
   const favorites = new Set(initial.favoriteAnime.map((a) => a.id));
   const statuses = new Map(list.map((a) => [a.id, a.listStatus?.status]));
   const seen = new Set(
@@ -336,7 +342,10 @@ export function chooseNextBatch(
     preferences,
   } = {},
 ) {
-  const audienceMode = normalizePreferences(preferences).childrenTitles;
+  const audiencePreferences = normalizePreferences(preferences);
+  const audienceMode = audiencePreferences.childrenTitles;
+  const explicitlyKids =
+    audiencePreferences.requiredCategories.includes("Kids");
   const available = pool
     .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
     .filter(
@@ -346,6 +355,7 @@ export function chooseNextBatch(
     .filter(
       (anime) =>
         audienceMode !== "include" ||
+        explicitlyKids ||
         !isAudienceFilteredTitle(anime) ||
         !recent.slice(-9).some(isAudienceFilteredTitle),
     );
@@ -358,6 +368,7 @@ export function chooseNextBatch(
     count < 8 &&
     list.length === 0 &&
     !initial.favoriteGenres.length &&
+    !initial.preferredNodes.length &&
     !initial.favoriteAnime.length;
   const draw = random();
   const hidden = !cold && draw < 0.3;
@@ -445,7 +456,10 @@ export function rankRecommendations(
       };
     });
   const selected = [];
-  const audienceMode = normalizePreferences(preferences).childrenTitles;
+  const audiencePreferences = normalizePreferences(preferences);
+  const audienceMode = audiencePreferences.childrenTitles;
+  const explicitlyKids =
+    audiencePreferences.requiredCategories.includes("Kids");
   // Greedy diversity reranking: first place is the strongest match, later places balance variety.
   while (selected.length < limit && available.length) {
     let best = 0,
@@ -458,6 +472,7 @@ export function rankRecommendations(
         continue;
       if (
         audienceMode === "include" &&
+        !explicitlyKids &&
         isAudienceFilteredTitle(available[i].anime) &&
         selected.filter((pick) => isAudienceFilteredTitle(pick.anime)).length >=
           1

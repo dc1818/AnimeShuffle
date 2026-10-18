@@ -4882,3 +4882,198 @@ dialog.details-card.details-modal::backdrop {
     flex-basis: 100%;
   }
 }
+
+.main-category-preferences {
+  margin-bottom: 20px;
+}
+.main-category-preferences h3,
+.preference-group h3 {
+  font-size: 15px;
+  margin: 16px 0 8px;
+}
+.theme-option-group {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.theme-option-group h4 {
+  color: #cddaf0;
+  margin: 12px 0 8px;
+  font-size: 13px;
+}
+.category-explanation,
+.theme-explanation {
+  font-size: 13px;
+  color: #c4d8e3;
+  line-height: 1.5;
+}
+
+/* Taxonomy stays collapsed on cards; category navigation mounts one level at a time. */
+.taxonomy-card {
+  width: 100%;
+  min-width: 0;
+  margin-top: 3px;
+}
+.taxonomy-card summary,
+.taxonomy-preferences summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  color: #b9dcff;
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.taxonomy-card summary span,
+.taxonomy-preferences summary span {
+  font-size: 11px;
+  color: #b8cede;
+  margin-left: 6px;
+}
+.taxonomy-card p,
+.taxonomy-help {
+  color: #b8cede;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.taxonomy-card-paths {
+  display: grid;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.taxonomy-card-path {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #395568;
+  border-radius: 9px;
+  background: #10212ce6;
+}
+.taxonomy-facet {
+  color: #c4d5e3;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.taxonomy-path {
+  color: #cee8fc;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.taxonomy-leaf {
+  color: #fff;
+  font-weight: 700;
+}
+.taxonomy-arrow {
+  color: #78c9e8;
+  padding: 0 3px;
+}
+.taxonomy-definition,
+.taxonomy-card-path small {
+  color: #b8cede;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.taxonomy-preferences {
+  margin-top: 16px;
+  padding: 0 12px 12px;
+  border: 1px solid #395568;
+  border-radius: 12px;
+  min-width: 0;
+}
+.taxonomy-preferences input[type="search"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #6498be;
+  border-radius: 8px;
+  padding: 10px;
+  background: #102333;
+  color: #f0f7fc;
+  margin: 8px 0;
+}
+.taxonomy-preferences .taxonomy-restrict {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+.taxonomy-preferences .taxonomy-restrict input {
+  flex: none;
+  margin-top: 5px;
+}
+.taxonomy-breadcrumbs,
+.taxonomy-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.taxonomy-preferences button {
+  min-height: 44px;
+  border: 1px solid #467494;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #133148;
+  color: #e5f3ff;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.taxonomy-preferences button:hover {
+  background: #214762;
+}
+.taxonomy-breadcrumbs button {
+  font-size: 12px;
+}
+.taxonomy-breadcrumbs [aria-current] {
+  border-color: #85c5f0;
+}
+.taxonomy-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.taxonomy-option {
+  display: flex;
+  min-width: 0;
+}
+.taxonomy-choice {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.taxonomy-choice span {
+  font-weight: 650;
+}
+.taxonomy-choice small {
+  color: #b6cbdc;
+  font-size: 10px;
+}
+.taxonomy-preferences .taxonomy-drill {
+  flex: none;
+  min-width: 44px;
+  margin-left: 3px;
+  text-align: center;
+}
+.taxonomy-choice[aria-pressed="true"],
+.taxonomy-selected button {
+  background: #195037;
+  border-color: #69c594;
+}
+.taxonomy-preferences > button {
+  margin-top: 10px;
+}
+@media (max-width: 480px) {
+  .taxonomy-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .taxonomy-preferences {
+    padding: 0 9px 9px;
+  }
+}

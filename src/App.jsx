@@ -420,6 +420,9 @@ function ConnectedApp({ store, state }) {
                       selectedGenres={state.preferences.favoriteGenres}
                       restrictGenres={state.preferences.restrictGenres}
                       selectedThemes={state.preferences.requiredThemes}
+                      selectedCategories={state.preferences.requiredCategories}
+                      selectedNodes={state.preferences.preferredNodes}
+                      restrictNodes={state.preferences.restrictNodes}
                       onPreferences={() => setDialog("preferences")}
                       busy={state.busy}
                       reactionDisabled={

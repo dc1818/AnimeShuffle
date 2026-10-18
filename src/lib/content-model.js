@@ -1,3 +1,14 @@
+import {
+  taxonomyFeatures,
+  nodeForLabel,
+  formatForNode,
+} from "./anime-taxonomy.js";
+import {
+  categoryContextFeatures,
+  MAIN_GENRES,
+  THEMES,
+  DEMOGRAPHICS,
+} from "./genres.js";
 import { semanticPreference } from "./semantic-taste.js";
 import { feedbackExamples } from "./reaction-feedback.js";
 import { attributedFeatures } from "./reaction-reasons.js";
@@ -8,6 +19,12 @@ import { narrativeFeatures } from "./story-aspects.js";
  * Two regularized logistic heads estimate enjoyment and watch interest separately.
  * Synopsis features are lexical TF-IDF, not neural embeddings or viewing-time signals.
  */
+const existingCatalogLabels = new Map(
+  [...MAIN_GENRES, ...THEMES, ...DEMOGRAPHICS].map((label) => [
+    nodeForLabel(label),
+    label,
+  ]),
+);
 const stop = new Set(
   "the and for that with this from they their them into when which about have has had was were are its his her she him who but not all can will one after before through also than then been being more most some such each other anime series story follows written source mal synopsis".split(
     " ",
@@ -28,7 +45,12 @@ export function terms(anime) {
 const dot = (weights, features) =>
   features.reduce((n, [key, value]) => n + (weights.get(key) || 0) * value, 0);
 const sigmoid = (x) => 1 / (1 + Math.exp(-Math.max(-12, Math.min(12, x))));
-export function trainContentModel(records, favoriteGenres = [], corpus = []) {
+export function trainContentModel(
+  records,
+  favoriteGenres = [],
+  corpus = [],
+  preferredNodes = [],
+) {
   // Prefer strong evidence; retain examples from both sides of each preference axis.
   const sorted = [...records.values()].sort(
     (a, b) =>
@@ -68,6 +90,16 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
         "genre:" + g,
         (g === "Mecha" ? 0.15 : 0.65) / Math.sqrt(a.genres.length),
       ]);
+    f.push(...categoryContextFeatures(a));
+    // Existing broad tags already contribute through genre features. Keep their
+    // direct signal once; finer categories and inherited parents remain available.
+    const existing = new Set((a.genres || []).map(nodeForLabel));
+    f.push(
+      ...taxonomyFeatures(a).filter(([key]) => {
+        const id = key.slice(9);
+        return !(existing.has(id) && existingCatalogLabels.has(id));
+      }),
+    );
     f.push(...nuancedFeatures(a).features);
     const narrative = narrativeFeatures(a);
     f.push(...narrative.features);
@@ -130,6 +162,19 @@ export function trainContentModel(records, favoriteGenres = [], corpus = []) {
       enjoyment: 0.4,
       interest: 0.4,
     });
+  for (const id of preferredNodes) {
+    const label = existingCatalogLabels.get(id);
+    const format = formatForNode(id);
+    training.push({
+      features: [
+        ["taxonomy:" + id, 0.35],
+        ...(label ? [["genre:" + label, 0.65]] : []),
+        ...(format ? [["format:" + format, 0.2]] : []),
+      ],
+      enjoyment: 0.55,
+      interest: 0.55,
+    });
+  }
   // Fixed passes and bounded samples keep learning deterministic and inexpensive.
   for (let epoch = 0; epoch < 16; epoch++) {
     const rate = 0.22 / (1 + epoch * 0.1);

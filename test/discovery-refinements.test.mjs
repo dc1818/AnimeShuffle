@@ -61,9 +61,9 @@ test("genre labels preserve facets without inferring parent genres; theme filter
     episodes: 12,
   };
   assert.deepEqual(genreGroups(anime), [
+    ["Audience", ["Shounen"]],
     ["Genres", ["Action"]],
     ["Themes", ["Mecha"]],
-    ["Audience", ["Shounen"]],
   ]);
   assert.equal(
     matchesPreferences(anime, {

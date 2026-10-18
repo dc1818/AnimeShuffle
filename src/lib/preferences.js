@@ -1,4 +1,11 @@
-import { canonicalGenre, MAIN_GENRES, THEMES } from "./genres.js";
+import { cleanNodeIds, matchesTaxonomy } from "./anime-taxonomy.js";
+import {
+  canonicalGenre,
+  MAIN_GENRES,
+  THEMES,
+  DEMOGRAPHICS,
+  animeTags,
+} from "./genres.js";
 import { titleFields } from "./titles.js";
 // Favorites guide ranking; restricting candidates is a separate explicit choice.
 export const GENRES = [...MAIN_GENRES, "Award Winning"];
@@ -52,6 +59,9 @@ export const LENGTH_OPTIONS = [
 export const defaultPreferences = () => ({
   favoriteGenres: [],
   requiredThemes: [],
+  requiredCategories: [],
+  preferredNodes: [],
+  restrictNodes: false,
   restrictGenres: false,
   favoriteAnime: [],
   formats: [],
@@ -134,6 +144,14 @@ export function normalizePreferences(value = {}) {
     includeNonCanonMovies: value?.includeNonCanonMovies === true,
     includeNsfw: value?.includeNsfw === true,
     favoriteGenres,
+    preferredNodes: cleanNodeIds(value?.preferredNodes),
+    restrictNodes: value?.restrictNodes === true,
+    requiredCategories: clean(
+      Array.isArray(value?.requiredCategories)
+        ? value.requiredCategories.map(canonicalGenre)
+        : [],
+      DEMOGRAPHICS.map((id) => ({ id })),
+    ),
     requiredThemes: clean(
       value?.requiredThemes,
       THEMES.map((id) => ({ id })),
@@ -152,6 +170,18 @@ export function normalizePreferences(value = {}) {
 
 export function matchesPreferences(anime, input) {
   const preferences = normalizePreferences(input);
+  if (
+    preferences.restrictNodes &&
+    !matchesTaxonomy(anime, preferences.preferredNodes)
+  )
+    return false;
+  if (
+    preferences.requiredCategories.length &&
+    !preferences.requiredCategories.some((category) =>
+      animeTags(anime).includes(category),
+    )
+  )
+    return false;
   if (
     preferences.requiredThemes.length &&
     !preferences.requiredThemes.some((theme) =>

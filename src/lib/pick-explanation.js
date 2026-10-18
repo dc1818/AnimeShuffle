@@ -1,3 +1,4 @@
+import { TAXONOMY_BY_ID, taxonomyMemberships } from "./anime-taxonomy.js";
 import { RESEARCH_TRAITS } from "./research-taxonomy.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { EXTENDED_TRAIT_BY_KEY } from "./extended-research-traits.js";
@@ -351,6 +352,29 @@ export function explainPickReasons(
     else if (liked && own.focus === "central")
       parts.push(
         "Piloted-machine battles are central here, as in a show you liked.",
+      );
+  }
+  // Explain only actually contributing, spoiler-safe catalog categories.
+  const safeNodes = new Set([
+    "real-robot",
+    "super-robot",
+    "team-sports",
+    "combat-sports",
+    "iyashikei",
+    "isekai",
+    "magic-school",
+    "romantic-comedy",
+    "cyberpunk",
+    "space-opera",
+  ]);
+  const category = contributing("taxonomy").find((id) => safeNodes.has(id));
+  if (category && parts.length < 3) {
+    const related = positive.find((r) =>
+      taxonomyMemberships(r.anime).has(category),
+    );
+    if (related)
+      parts.push(
+        `Its ${TAXONOMY_BY_ID.get(category).label} category is a positive connection to ${title(related.anime)}, ${connectionClause(related)}.`,
       );
   }
   const genres = contributing("genre").slice(0, 3);

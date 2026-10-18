@@ -183,7 +183,7 @@ const definitions = [
   ["sound-design", "Sound design", /sound-design/],
   ["artwork", "Artwork", /art-style|visual-style|character-design/],
   ["trailer", "Trailer", null],
-  ["genre", "Genre", /^genre:/],
+  ["genre", "Genre", /^(genre|taxonomy):/],
   ["length", "Length", /^length:/],
 ];
 const focusedDefinitions = [

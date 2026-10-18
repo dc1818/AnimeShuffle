@@ -56,6 +56,9 @@ export function AnimeCard({
   selectedGenres = [],
   restrictGenres = false,
   selectedThemes = [],
+  selectedCategories = [],
+  selectedNodes = [],
+  restrictNodes = false,
   onPreferences,
 }) {
   const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
@@ -185,6 +188,9 @@ export function AnimeCard({
           genres={selectedGenres}
           restricted={restrictGenres}
           themes={selectedThemes}
+          categories={selectedCategories}
+          nodes={selectedNodes}
+          restrictNodes={restrictNodes}
           onChange={onPreferences}
         />
         <p className="synopsis">

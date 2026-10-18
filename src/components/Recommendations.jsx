@@ -332,6 +332,24 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                               state.preferences
                             ).requiredThemes
                           }
+                          selectedNodes={
+                            (
+                              state.recommendationPreferences ||
+                              state.preferences
+                            ).preferredNodes
+                          }
+                          restrictNodes={
+                            (
+                              state.recommendationPreferences ||
+                              state.preferences
+                            ).restrictNodes
+                          }
+                          selectedCategories={
+                            (
+                              state.recommendationPreferences ||
+                              state.preferences
+                            ).requiredCategories
+                          }
                           onPreferences={onPreferences}
                           reason={pick.reason}
                           saved={pick.saved}

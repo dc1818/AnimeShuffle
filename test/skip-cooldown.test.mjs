@@ -157,11 +157,15 @@ test("guest skips do not leak into another account and account skips survive its
   const account = f.create({ staticMode: false, request });
   await account.initialize();
   await account.loadRecommendations();
+  // A title may already occupy Discover, which intentionally excludes it from
+  // Recommendations. Either placement proves a guest-only skip did not leak.
   assert.ok(
-    account
-      .getSnapshot()
-      .recommendationPicks.some((p) => p.anime.id === guestId),
+    account.getSnapshot().current?.id === guestId ||
+      account
+        .getSnapshot()
+        .recommendationPicks.some((p) => p.anime.id === guestId),
   );
+  assert.ok(!f.saved("local:viewer")?.skipUntil?.[guestId]);
   const accountId = account.getSnapshot().current.id;
   await account.skip();
   assert.ok(f.saved("local:viewer").skipUntil[accountId]);
