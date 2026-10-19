@@ -1,8 +1,19 @@
-import { TAXONOMY_BY_ID, taxonomyMemberships } from "./anime-taxonomy.js";
+import {
+  TAXONOMY_BY_ID,
+  taxonomyMemberships,
+  nodeForLabel,
+  formatForNode,
+} from "./anime-taxonomy.js";
 import { RESEARCH_TRAITS } from "./research-taxonomy.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { EXTENDED_TRAIT_BY_KEY } from "./extended-research-traits.js";
-import { genreLabel } from "./genres.js";
+import {
+  genreLabel,
+  MAIN_GENRES,
+  THEMES,
+  DEMOGRAPHICS,
+  animeTags,
+} from "./genres.js";
 import { reviewTraits } from "./taste-traits.js";
 import {
   storyAspects as evidence,
@@ -135,6 +146,147 @@ const join = (values) =>
     ? values.join(" and ")
     : values.slice(0, -1).join(", ") + ", and " + values.at(-1);
 
+// Public catalog classifications only. Unreviewed plot/trope labels (for example
+// tragedy, amnesia or an afterlife reveal) cannot become recommendation prose.
+const safeCategoryIds = new Set(
+  [
+    ...[...MAIN_GENRES, ...THEMES, ...DEMOGRAPHICS].map(nodeForLabel),
+    "real-robot",
+    "super-robot",
+    "magic-school",
+    "romantic-comedy",
+    "cyberpunk",
+    "space-opera",
+    "steampunk",
+    "urban-fantasy",
+    "contemporary-fantasy",
+    "science-fantasy",
+    "school-life",
+    "slow-life",
+    "slapstick",
+    "satire",
+    "noir",
+    "western",
+    "volleyball",
+    "baseball",
+    "soccer",
+    "tennis",
+    "boxing",
+    "wrestling",
+    "archery",
+    "cycling",
+    "swimming",
+    "gymnastics",
+    "ice-skating",
+    "fishing",
+    "cooking",
+    "art-school",
+    "college",
+    "military-school",
+    "music-school",
+    "martial-arts-school",
+    "school-club",
+    "restaurants-stores",
+    "feudal-japan",
+    "medieval",
+    "prehistoric",
+    "episodic",
+    "monster-of-the-week",
+    "chibi",
+    "black-and-white",
+    "cg-animation",
+    "stop-motion-animation",
+    "no-dialogue",
+    "family",
+    ...[...TAXONOMY_BY_ID.values()]
+      .filter((n) => n.id.startsWith("based-on-") || formatForNode(n.id))
+      .map((n) => n.id),
+    "original-work",
+  ].filter(Boolean),
+);
+
+function categoryExplanations(anime, taste, analysis, positive, mentioned) {
+  const own = taxonomyMemberships(anime),
+    selected = new Set(taste.preferences?.preferredNodes || []);
+  const used = new Set(),
+    reasons = [];
+  const contributions = analysis.contributions
+    .filter((c) => c.contribution > 0.00001)
+    .sort((a, b) => b.contribution - a.contribution);
+  // An audience/genre interaction is distinct from liking either label alone.
+  for (const c of contributions.filter((c) =>
+    /^category-(genre|theme):/.test(c.key),
+  )) {
+    const labels = c.key.slice(c.key.indexOf(":") + 1).split("|");
+    if (!labels.every((label) => safeCategoryIds.has(nodeForLabel(label))))
+      continue;
+    const anchor = positive.find((r) =>
+      labels.every((label) => animeTags(r.anime).includes(label)),
+    );
+    if (!anchor) continue;
+    const context = mentioned.has(anchor.anime.id)
+      ? ""
+      : personalConnection(anchor) + " ";
+    reasons.push(
+      `${context}Its ${labels.map(genreLabel).join(" + ")} combination also appears in ${title(anchor.anime)}.`,
+    );
+    mentioned.add(anchor.anime.id);
+    labels.forEach((label) => used.add(nodeForLabel(label)));
+    break;
+  }
+  for (const c of contributions) {
+    if (reasons.length >= 2) break;
+    const [kind, value] = c.key.split(":");
+    const id =
+      kind === "taxonomy"
+        ? value
+        : kind === "genre"
+          ? nodeForLabel(value)
+          : kind === "format"
+            ? [...own.keys()].find((id) => formatForNode(id) === value)
+            : null;
+    if (kind === "format" && !selected.has(id)) continue;
+    if (!id || !safeCategoryIds.has(id) || used.has(id) || !own.has(id))
+      continue;
+    const node = TAXONOMY_BY_ID.get(id),
+      membership = own.get(id);
+    const ancestors = taxonomyMemberships({ genres: [node.label] });
+    if ([...ancestors.keys()].some((ancestor) => used.has(ancestor))) continue;
+    const anchor = positive.find((r) => taxonomyMemberships(r.anime).has(id));
+    const favorite = taste.preferences?.favoriteGenres?.some(
+      (g) => nodeForLabel(g) === id,
+    );
+    if (!selected.has(id) && !favorite && !anchor) continue;
+    const descriptor =
+      node.facet === "Audience / Demographic"
+        ? "audience label"
+        : formatForNode(id)
+          ? "format"
+          : "category";
+    // Membership propagation runs solely along reviewed subtype edges.
+    const child = membership.source.replace(/^Subtype of /, "");
+    const subject = membership.direct
+      ? `Its ${node.label} ${descriptor}`
+      : safeCategoryIds.has(nodeForLabel(child))
+        ? `Its ${child} category falls under ${node.label}; that broader category`
+        : `Its broader ${node.label} category`;
+    if (selected.has(id) || favorite)
+      reasons.push(`${subject} matches an interest you selected.`);
+    else {
+      const context = mentioned.has(anchor.anime.id)
+        ? ""
+        : personalConnection(anchor) + " ";
+      reasons.push(
+        `${context}${subject} is shared with ${title(anchor.anime)}.`,
+      );
+      mentioned.add(anchor.anime.id);
+    }
+    used.add(id);
+    for (const ancestor of ancestors.keys()) used.add(ancestor);
+  }
+  return { reasons, used };
+}
+
 /** Compose a small set of distinct, positively contributing reasons. Raw review
  * prose never reaches this function; all review descriptions are allowlisted. */
 export function explainPick(anime, taste, options = {}) {
@@ -149,6 +301,7 @@ export function explainPickReasons(
   {
     cold = false,
     explore = false,
+    lesserKnown = false,
     mode = "discover",
     tier,
     varietyAdjusted = false,
@@ -354,30 +507,21 @@ export function explainPickReasons(
         "Piloted-machine battles are central here, as in a show you liked.",
       );
   }
-  // Explain only actually contributing, spoiler-safe catalog categories.
-  const safeNodes = new Set([
-    "real-robot",
-    "super-robot",
-    "team-sports",
-    "combat-sports",
-    "iyashikei",
-    "isekai",
-    "magic-school",
-    "romantic-comedy",
-    "cyberpunk",
-    "space-opera",
-  ]);
-  const category = contributing("taxonomy").find((id) => safeNodes.has(id));
-  if (category && parts.length < 3) {
-    const related = positive.find((r) =>
-      taxonomyMemberships(r.anime).has(category),
-    );
-    if (related)
-      parts.push(
-        `Its ${TAXONOMY_BY_ID.get(category).label} category is a positive connection to ${title(related.anime)}, ${connectionClause(related)}.`,
-      );
-  }
-  const genres = contributing("genre").slice(0, 3);
+  const categories = categoryExplanations(
+    anime,
+    taste,
+    analysis,
+    positive,
+    mentioned,
+  );
+  parts.push(...categories.reasons);
+  const genres = contributing("genre")
+    .filter(
+      (g) =>
+        !categories.used.has(nodeForLabel(g)) &&
+        safeCategoryIds.has(nodeForLabel(g)),
+    )
+    .slice(0, 3);
   if (
     genres.length &&
     analysis.groups.genre > 0.00001 &&
@@ -432,6 +576,10 @@ export function explainPickReasons(
   if (neighbor && analysis.groups.community > 0.00001)
     parts.push(
       `Choices from other Anime Shuffle accounts also connect this title with ${title(neighbor.anime)}.`,
+    );
+  if (lesserKnown)
+    parts.push(
+      "This pick explores a less widely followed title within your eligible matches.",
     );
   if (!parts.length)
     return [

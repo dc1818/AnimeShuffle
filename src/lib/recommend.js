@@ -136,6 +136,7 @@ export function buildTaste(
     .map((r) => ({ ...r, terms: terms(r.anime) }));
   return {
     records,
+    preferences: initial,
     genres,
     formats,
     anchors,
@@ -418,10 +419,18 @@ export function chooseNextBatch(
         return explanation(anime, taste);
       },
       get detailReason() {
-        return detailedExplanation(anime, taste, { cold, explore });
+        return detailedExplanation(anime, taste, {
+          cold,
+          explore,
+          lesserKnown: hidden && lesserKnown.length > 0,
+        });
       },
       get whyReasons() {
-        return detailedExplanationReasons(anime, taste, { cold, explore });
+        return detailedExplanationReasons(anime, taste, {
+          cold,
+          explore,
+          lesserKnown: hidden && lesserKnown.length > 0,
+        });
       },
     }));
 }

@@ -2,9 +2,16 @@ import { TAXONOMY_BY_ID, taxonomyCardRows } from "../lib/anime-taxonomy.js";
 import { genreGroups } from "../lib/genres.js";
 export function GenreBadges({ anime }) {
   const rows = taxonomyCardRows(anime);
+  const groups = genreGroups(anime);
+  // A missing demographic is unknown, never inferred from art, plot or rating.
+  if (!groups.some(([label]) => label === "Audience"))
+    groups.unshift(["Audience", []]);
   return (
-    <div className="genre-groups" aria-label="Anime genres and themes">
-      {genreGroups(anime).map(([label, tags]) => (
+    <div
+      className="genre-groups"
+      aria-label="Anime audience, genres and themes"
+    >
+      {groups.map(([label, tags]) => (
         <div
           className={`genre-group genre-group-${label.toLowerCase()}`}
           key={label}
@@ -13,13 +20,21 @@ export function GenreBadges({ anime }) {
             className="genre-group-label"
             title={
               label === "Audience"
-                ? "Source-labeled intended audience"
+                ? "Catalog audience label, not an age rating or a restriction on who can enjoy this anime."
                 : undefined
             }
           >
             {label}
           </span>
           <div className="genres">
+            {label === "Audience" && !tags.length && (
+              <span
+                className="genre genre-unknown"
+                title="The catalog has not supplied an audience label for this anime."
+              >
+                Not listed
+              </span>
+            )}
             {tags.map((tag) => (
               <span className="genre" key={tag}>
                 {tag}

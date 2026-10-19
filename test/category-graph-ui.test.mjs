@@ -84,3 +84,40 @@ test("category browsing drills down, saves optional interests, and preserves ind
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("Discover's shared card badges always show audience without guessing unknown demographics", async () => {
+  const folder = await mkdtemp(path.resolve(".taxonomy-ui-"));
+  try {
+    await build({
+      entryPoints: ["src/components/GenreBadges.jsx"],
+      outfile: path.join(folder, "badges.mjs"),
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      jsx: "automatic",
+      packages: "external",
+    });
+    const { GenreBadges } = await import(
+      pathToFileURL(path.join(folder, "badges.mjs"))
+    );
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    for (const [anime, expected] of [
+      [{ id: 1, genres: ["Action", "Shounen"] }, "Shounen"],
+      [
+        { id: 2, genres: ["Action"], demographics: [{ name: "Seinen" }] },
+        "Seinen",
+      ],
+      [{ id: 3, genres: ["Action"], ageRating: "r" }, "Not listed"],
+    ]) {
+      const dom = new JSDOM(
+        renderToStaticMarkup(React.createElement(GenreBadges, { anime })),
+      );
+      const row = dom.window.document.querySelector(".genre-group-audience");
+      assert.ok(row);
+      assert.match(row.textContent, new RegExp(`Audience${expected}`));
+      dom.window.close();
+    }
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
