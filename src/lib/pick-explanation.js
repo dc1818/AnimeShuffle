@@ -228,7 +228,9 @@ function categoryExplanations(anime, taste, analysis, positive, mentioned) {
       ? ""
       : personalConnection(anchor) + " ";
     reasons.push(
-      `${context}Its ${labels.map(genreLabel).join(" + ")} combination also appears in ${title(anchor.anime)}.`,
+      context
+        ? `${context}${title(anime)} also has the ${genreLabel(labels[1])} ${c.key.startsWith("category-genre:") ? "genre" : "theme"} and ${genreLabel(labels[0])} audience label.`
+        : `${title(anime)} and ${title(anchor.anime)} share the ${genreLabel(labels[1])} ${c.key.startsWith("category-genre:") ? "genre" : "theme"} and ${genreLabel(labels[0])} audience label.`,
     );
     mentioned.add(anchor.anime.id);
     labels.forEach((label) => used.add(nodeForLabel(label)));
@@ -266,10 +268,10 @@ function categoryExplanations(anime, taste, analysis, positive, mentioned) {
     // Membership propagation runs solely along reviewed subtype edges.
     const child = membership.source.replace(/^Subtype of /, "");
     const subject = membership.direct
-      ? `Its ${node.label} ${descriptor}`
+      ? `${title(anime)}’s ${node.label} ${descriptor}`
       : safeCategoryIds.has(nodeForLabel(child))
-        ? `Its ${child} category falls under ${node.label}; that broader category`
-        : `Its broader ${node.label} category`;
+        ? `${title(anime)}’s ${child} category falls under ${node.label}; that broader category`
+        : `${title(anime)}’s broader ${node.label} category`;
     if (selected.has(id) || favorite)
       reasons.push(`${subject} matches an interest you selected.`);
     else {
@@ -277,7 +279,7 @@ function categoryExplanations(anime, taste, analysis, positive, mentioned) {
         ? ""
         : personalConnection(anchor) + " ";
       reasons.push(
-        `${context}${subject} is shared with ${title(anchor.anime)}.`,
+        `${context}${subject} is shared with ${context ? "that show" : title(anchor.anime)}.`,
       );
       mentioned.add(anchor.anime.id);
     }

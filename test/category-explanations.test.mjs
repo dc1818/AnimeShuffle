@@ -43,7 +43,7 @@ test("audience combinations and inherited categories refer to real reactions wit
     b = anime(2, ["Shounen", "Sports"]);
   assert.match(
     text(b, buildTaste({ 1: { anime: a, action: "good" } })),
-    /Shounen \+ Sports combination/,
+    /Anime 2 and Anime 1 share the Sports genre and Shounen audience label/,
   );
   const candidate = anime(3, ["Mecha"]);
   const explanation = text(
@@ -79,4 +79,27 @@ test("lesser-known discovery explains the selection branch only when it was used
   assert.match(hidden.whyReasons.join(" "), /less widely followed/);
   const ordinary = chooseNext(pool, { preferences, random: () => 0.8 });
   assert.doesNotMatch(ordinary.whyReasons.join(" "), /less widely followed/);
+});
+
+test("Naruto explanation names the current pick and never compares Naruto to itself", () => {
+  const known = anime(20, ["Shounen", "Action"], { title: "Naruto" });
+  const candidate = anime(21, ["Shounen", "Action"], { title: "Bleach" });
+  const reasons = explainPickReasons(
+    candidate,
+    buildTaste({ 20: { anime: known, action: "good" } }),
+  );
+  const reason = reasons.find((r) => r.includes("Shounen audience label"));
+  assert.equal(
+    reason,
+    "You liked Naruto. Bleach also has the Action genre and Shounen audience label.",
+  );
+  assert.equal(reason.match(/Naruto/g).length, 1);
+  assert.doesNotMatch(
+    reasons.join(" "),
+    /Its Shounen|combination also appears in Naruto/,
+  );
+  assert.doesNotMatch(
+    text(known, buildTaste({ 20: { anime: known, action: "good" } })),
+    /shared with Naruto|Naruto and Naruto/,
+  );
 });
