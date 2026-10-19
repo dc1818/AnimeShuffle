@@ -215,3 +215,12 @@ Saved reactions already train against catalog tags. Bounded category/genre and c
 ## Remaining data limits
 
 Source coverage varies. An original anime may have no demographic category. Unknown does not mean adult, Shounen, or genre-free. The catalog API taxonomy may evolve; new tags need a reviewed addition to src/lib/genres.js. Existing stored classifications are not fabricated or bulk rewritten.
+
+## Algorithm integration audit and admin analytics — 2026-10-19
+
+- Direct and inherited broad categories share the existing genre feature key. Liking Real Robot can transfer a small positive signal to a Mecha-only title; negative reactions transfer a negative signal. Direct broad tags are counted once. Related graph links never propagate memberships.
+- Explicit Kodomo interest plus the children-title opt-in satisfies eligibility and repeat-spacing rules in both Discover and Recommendations.
+- Adaptation source and separate theme/demographic metadata survive favorite, account/watchlist, research catalog and guest snapshot serialization. Thin research-catalog updates preserve previously known fields. Old data cannot be reconstructed if it never contained those fields.
+- Admin → Algorithm diagnostics → Category coverage & reactions reuses the production graph. Reaction summaries use the existing bounded current-reaction sample, with no additional per-title reads. Catalog coverage is opt-in: `/api/admin/taxonomy?after=<MAL ID>` scans at most 250 titles per page plus one lookahead row using the primary key. Continue until the UI says Complete scan; partial scans are explicitly labeled. No background scans, extra AI calls, writes, or per-title hydration are required.
+- Search, missing-coverage filter and JSON export include all active categories, direct versus inherited counts, enjoyment and watch-interest reactions. Release format alone does not qualify a title as content-covered. Missing is unknown, not negative. A reaction may appear under several nodes but only once under each node. These associations are not causal category preferences, impression metrics, or a measured improvement in recommendation accuracy.
+- Endpoint remains behind existing owner authentication. Analytics reads stored catalog metadata; this is not complete MAL coverage or a transactionally frozen snapshot. Existing account/candidate simulations still expose actual model feature contributions with their existing sample limits.

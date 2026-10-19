@@ -113,3 +113,97 @@ test("owner account interface distinguishes interest, pages stored reactions and
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("category analytics scans only on request, merges pages, filters and exports", async () => {
+  const folder = await mkdtemp(path.resolve(".react-test-"));
+  const out = path.join(folder, "TaxonomyAnalytics.mjs");
+  await build({
+    entryPoints: ["src/components/TaxonomyAnalytics.jsx"],
+    outfile: out,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    jsx: "automatic",
+    packages: "external",
+  });
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "https://shuffle.example/admin",
+  });
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const { TaxonomyAnalytics } = await import(pathToFileURL(out));
+  const { taxonomyAnalytics } =
+    await import("../src/lib/taxonomy-analytics.js");
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(document.getElementById("root"));
+  const a = { id: 1, genres: ["Real Robot"] };
+  const calls = [];
+  const api = async (url) => {
+    calls.push(url);
+    return {
+      ...taxonomyAnalytics([a]),
+      nextCursor: calls.length === 1 ? 1 : null,
+    };
+  };
+  const button = (label) =>
+    [...document.querySelectorAll("button")].find(
+      (b) => b.textContent === label,
+    );
+  const oldCreate = URL.createObjectURL,
+    oldRevoke = URL.revokeObjectURL;
+  let exported;
+  URL.createObjectURL = (blob) => {
+    exported = blob;
+    return "blob:test";
+  };
+  URL.revokeObjectURL = () => {};
+  dom.window.HTMLAnchorElement.prototype.click = () => {};
+  try {
+    await act(async () =>
+      root.render(
+        React.createElement(TaxonomyAnalytics, {
+          api,
+          reactions: taxonomyAnalytics([], [{ anime: a, action: "good" }]),
+          catalogTotal: 2,
+        }),
+      ),
+    );
+    assert.equal(calls.length, 0);
+    assert.match(
+      document.body.textContent,
+      /Catalog coverage has not been scanned/,
+    );
+    await act(async () => button("Scan catalog coverage").click());
+    assert.match(document.body.textContent, /Partial scan: 1 titles/);
+    await act(async () => button("Scan next 250 titles").click());
+    assert.deepEqual(calls, [
+      "/api/admin/taxonomy?after=0",
+      "/api/admin/taxonomy?after=1",
+    ]);
+    assert.match(document.body.textContent, /Complete scan: 2 titles/);
+    assert.equal(button("Scan next 250 titles").disabled, true);
+    await act(async () => {
+      const select = document.querySelector("select");
+      select.value = "missing";
+      select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+    assert.equal(
+      [...document.querySelectorAll("tbody th")].some(
+        (n) => n.textContent === "Mecha",
+      ),
+      false,
+    );
+    await act(async () => button("Export category analytics").click());
+    const saved = JSON.parse(await exported.text());
+    assert.equal(saved.catalog.titleCount, 2);
+    assert.equal(saved.catalogScanComplete, true);
+    assert.equal(saved.reactions.reactionCount, 1);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    URL.createObjectURL = oldCreate;
+    URL.revokeObjectURL = oldRevoke;
+    await rm(folder, { recursive: true, force: true });
+  }
+});

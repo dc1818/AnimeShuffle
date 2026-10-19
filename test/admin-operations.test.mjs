@@ -102,6 +102,7 @@ test("admin account data is private; edits are versioned, audited and never expo
     "/api/admin/overview",
     "/api/admin/accounts",
     "/api/admin/algorithm",
+    "/api/admin/taxonomy",
     "/api/admin/account?id=" + encodeURIComponent(id),
     "/api/admin/account/reactions?id=" + encodeURIComponent(id),
   ];
@@ -580,4 +581,41 @@ test("guest snapshots and encrypted network observations follow retention window
     0,
   );
   s.db.close();
+});
+
+test("category audit is paged by primary key, validates cursors and records unknown coverage", async () => {
+  const s = storage(),
+    config = env(),
+    app = createCloudApp(s, config),
+    owner = client(app);
+  await owner.req("/api/session");
+  const o = await owner.req("/api/account/register", {
+    username: "AuditOwner",
+    password: "secure-owner-password",
+  });
+  config.ADMIN_ACCOUNT_IDS = o.data.account.id;
+  for (let id = 1; id <= 251; id++)
+    s.sql.exec(
+      "INSERT INTO research_catalog VALUES (?,?,?,?)",
+      id,
+      JSON.stringify({
+        id,
+        title: `Title ${id}`,
+        genres: id === 251 ? [] : ["Real Robot"],
+        format: "tv",
+      }),
+      "test",
+      Date.now(),
+    );
+  const first = await owner.req("/api/admin/taxonomy");
+  assert.equal(first.status, 200);
+  assert.equal(first.data.titleCount, 250);
+  assert.equal(first.data.nextCursor, 250);
+  assert.equal(first.data.nodes.find((n) => n.id === "mecha").inherited, 250);
+  const last = await owner.req("/api/admin/taxonomy?after=250");
+  assert.equal(last.data.titleCount, 1);
+  assert.equal(last.data.nextCursor, null);
+  assert.equal(last.data.contentCovered, 0);
+  assert.equal((await owner.req("/api/admin/taxonomy?after=-1")).status, 400);
+  assert.equal((await owner.req("/api/admin/taxonomy?after=NaN")).status, 400);
 });

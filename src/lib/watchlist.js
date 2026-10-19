@@ -211,6 +211,25 @@ export function parseWatchlistBackup(text) {
           )
             ? a.image
             : "",
+        ...(a.adaptationSource
+          ? { adaptationSource: cleanText(a.adaptationSource, 100) }
+          : {}),
+        ...(Array.isArray(a.themes)
+          ? {
+              themes: a.themes
+                .filter((v) => typeof v === "string")
+                .slice(0, 40)
+                .map((v) => cleanText(v, 100)),
+            }
+          : {}),
+        ...(Array.isArray(a.demographics)
+          ? {
+              demographics: a.demographics
+                .filter((v) => typeof v === "string")
+                .slice(0, 10)
+                .map((v) => cleanText(v, 100)),
+            }
+          : {}),
         format: cleanText(a.format, 30),
         status: [
           "finished_airing",

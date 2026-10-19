@@ -205,3 +205,51 @@ test("explicit interests work for audience, source, presentation and release for
     assert.ok(model.score(a).score > model.score(b).score, id);
   }
 });
+
+test("narrow reactions transfer to existing broad catalog features in both directions", () => {
+  for (const [learned, related, unrelated] of [
+    ["Real Robot", "Mecha", "Romance"],
+    ["Mecha", "Real Robot", "Villainess"],
+    ["Volleyball", "Sports", "Horror"],
+    ["Shonen", "Shounen", "Seinen"],
+  ]) {
+    const model = buildTaste({
+      1: { anime: anime(1, [learned]), action: "good" },
+    }).model;
+    assert.ok(
+      model.score(anime(2, [related])).score >
+        model.score(anime(3, [unrelated])).score,
+      learned,
+    );
+  }
+  const model = buildTaste({
+    1: { anime: anime(1, ["Real Robot"]), action: "bad" },
+  }).model;
+  assert.ok(
+    model.score(anime(2, ["Mecha"])).score <
+      model.score(anime(3, ["Romance"])).score,
+  );
+});
+
+test("explicit Kodomo works for new users in both discovery and recommendations", async () => {
+  const { chooseNextBatch, rankRecommendations } =
+    await import("../src/lib/recommend.js");
+  const pool = [anime(10, ["Kids"]), anime(11, ["Kids"])];
+  const preferences = {
+    preferredNodes: ["kodomo"],
+    restrictNodes: true,
+    childrenTitles: "include",
+  };
+  assert.equal(eligibleCandidates(pool, { preferences }).length, 2);
+  assert.equal(
+    chooseNextBatch(pool, { preferences, recent: [anime(9, ["Kids"])] }).length,
+    2,
+  );
+  assert.equal(rankRecommendations(pool, { preferences }).length, 2);
+  assert.equal(
+    eligibleCandidates(pool, {
+      preferences: { ...preferences, childrenTitles: "exclude" },
+    }).length,
+    0,
+  );
+});

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GENRES, FORMAT_OPTIONS, LENGTH_OPTIONS } from "../lib/preferences.js";
 import { AlgorithmGuide } from "./AlgorithmGuide.jsx";
+import { TaxonomyAnalytics } from "./TaxonomyAnalytics.jsx";
 const when = (v) => (v ? new Date(v).toLocaleString() : "Not recorded");
 const number = (v) => Number(v || 0).toLocaleString();
 const actionLabel = {
@@ -1060,6 +1061,14 @@ export function AdminOperations({ section, api, currentAccount }) {
       {data && section === "algorithm" && (
         <>
           <AlgorithmGuide />
+          {data.taxonomy && (
+            <TaxonomyAnalytics
+              key={data.taxonomy.version}
+              reactions={data.taxonomy}
+              api={api}
+              catalogTotal={data.research.catalog}
+            />
+          )}
           <h2>Usage and research diagnostics</h2>
           <Stats
             values={[

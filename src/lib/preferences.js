@@ -116,6 +116,25 @@ export function normalizePreferences(value = {}) {
                       .slice(0, 20)
                       .map((g) => canonicalGenre(g.slice(0, 60)))
                   : [],
+                ...(typeof a.adaptationSource === "string" && a.adaptationSource
+                  ? { adaptationSource: a.adaptationSource.slice(0, 100) }
+                  : {}),
+                ...(Array.isArray(a.themes)
+                  ? {
+                      themes: a.themes
+                        .filter((v) => typeof v === "string")
+                        .slice(0, 40)
+                        .map((v) => v.slice(0, 100)),
+                    }
+                  : {}),
+                ...(Array.isArray(a.demographics)
+                  ? {
+                      demographics: a.demographics
+                        .filter((v) => typeof v === "string")
+                        .slice(0, 10)
+                        .map((v) => v.slice(0, 100)),
+                    }
+                  : {}),
                 format:
                   typeof a.format === "string"
                     ? a.format.slice(0, 30)

@@ -12,6 +12,10 @@ const checks = [
     "Genres, synopsis words and specific story attributes describe what a show is about. Broad labels are only part of the match; Mecha has a reduced broad-genre weight.",
   ],
   [
+    "Category graph",
+    "Known categories and reviewed subtype relationships inform taste learning and category filters. For example, Real Robot contributes a smaller Mecha signal. Related browse links do not imply membership. Missing categories remain unknown. Selected categories guide ranking unless the category-only filter is enabled.",
+  ],
+  [
     "Nuanced research traits",
     "Validated traits can distinguish central from incidental mechs, romance progression, character appeal, powers, tone and presentation. Confidence and evidence affect their strength. Missing information adds no negative evidence.",
   ],
@@ -61,8 +65,8 @@ export function AlgorithmGuide() {
         score range, finished-only preference and the setting for unknown
         metadata. Adult content, children’s titles and non-canon movies have
         separate eligibility rules. Children’s titles need both opt-in and
-        evidence of interest. These are eligibility checks, not evidence that
-        someone will enjoy a show.
+        either an explicit Kids/Kodomo selection or evidence of interest. These
+        are eligibility checks, not evidence that someone will enjoy a show.
       </p>
       <h3>2. Compare the eligible anime with that user’s evidence</h3>
       <div className="admin-table-scroll">
@@ -92,11 +96,13 @@ export function AlgorithmGuide() {
         anime.
       </p>
       <p>
-        Discover reserves some choices for exploration (20% after the initial
-        learning stage). Shortlists also reduce repetition between similar
-        candidates. The next card therefore need not be the highest raw score. A
-        larger number of research tags or explanation bullets does not
-        automatically mean a better match.
+        After the initial learning stage, Discover uses a 30% draw for eligible
+        lesser-known matches and a separate 15% exploration draw. If no suitable
+        lesser-known titles exist, it falls back to the eligible pool. All
+        branches use weighted random selection. Shortlists also reduce
+        repetition between similar candidates. The next card therefore need not
+        be the highest raw score. A larger number of research tags or
+        explanation bullets does not automatically mean a better match.
       </p>
       <h3>4. Explain the useful connections without spoilers</h3>
       <p>

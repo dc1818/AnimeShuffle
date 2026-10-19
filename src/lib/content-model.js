@@ -87,17 +87,20 @@ export function trainContentModel(
       // Broad labels should not drown out plot/context differences. In particular,
       // liking one Mecha title is weak evidence for every robot-centered show.
       f.push([
-        "genre:" + g,
+        "genre:" + (existingCatalogLabels.get(nodeForLabel(g)) || g),
         (g === "Mecha" ? 0.15 : 0.65) / Math.sqrt(a.genres.length),
       ]);
     f.push(...categoryContextFeatures(a));
-    // Existing broad tags already contribute through genre features. Keep their
-    // direct signal once; finer categories and inherited parents remain available.
+    // Direct and inherited memberships must share the same broad feature key.
+    // Keep direct tags once, so ancestry neither duplicates them nor creates an
+    // isolated taxonomy weight that cannot transfer to existing catalog titles.
     const existing = new Set((a.genres || []).map(nodeForLabel));
     f.push(
-      ...taxonomyFeatures(a).filter(([key]) => {
-        const id = key.slice(9);
-        return !(existing.has(id) && existingCatalogLabels.has(id));
+      ...taxonomyFeatures(a).flatMap(([key, value]) => {
+        const id = key.slice(9),
+          label = existingCatalogLabels.get(id);
+        if (label && existing.has(id)) return [];
+        return [[label ? "genre:" + label : key, value]];
       }),
     );
     f.push(...nuancedFeatures(a).features);
@@ -167,8 +170,7 @@ export function trainContentModel(
     const format = formatForNode(id);
     training.push({
       features: [
-        ["taxonomy:" + id, 0.35],
-        ...(label ? [["genre:" + label, 0.65]] : []),
+        ...(label ? [["genre:" + label, 0.65]] : [["taxonomy:" + id, 0.35]]),
         ...(format ? [["format:" + format, 0.2]] : []),
       ],
       enjoyment: 0.55,

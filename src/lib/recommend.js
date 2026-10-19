@@ -276,6 +276,7 @@ function eligibilityFilter(reactions, list, skipped, allowPlan, preferences) {
   const allowChildren =
     initial.childrenTitles === "include" &&
     (initial.requiredCategories.includes("Kids") ||
+      initial.preferredNodes.includes("kodomo") ||
       childrenInterest(reactions, list, initial));
   const favorites = new Set(initial.favoriteAnime.map((a) => a.id));
   const statuses = new Map(list.map((a) => [a.id, a.listStatus?.status]));
@@ -345,7 +346,8 @@ export function chooseNextBatch(
   const audiencePreferences = normalizePreferences(preferences);
   const audienceMode = audiencePreferences.childrenTitles;
   const explicitlyKids =
-    audiencePreferences.requiredCategories.includes("Kids");
+    audiencePreferences.requiredCategories.includes("Kids") ||
+    audiencePreferences.preferredNodes.includes("kodomo");
   const available = pool
     .filter(eligibilityFilter(reactions, list, skipped, false, preferences))
     .filter(
@@ -459,7 +461,8 @@ export function rankRecommendations(
   const audiencePreferences = normalizePreferences(preferences);
   const audienceMode = audiencePreferences.childrenTitles;
   const explicitlyKids =
-    audiencePreferences.requiredCategories.includes("Kids");
+    audiencePreferences.requiredCategories.includes("Kids") ||
+    audiencePreferences.preferredNodes.includes("kodomo");
   // Greedy diversity reranking: first place is the strongest match, later places balance variety.
   while (selected.length < limit && available.length) {
     let best = 0,
