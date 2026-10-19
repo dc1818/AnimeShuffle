@@ -100,6 +100,7 @@ export function createAnimeStore({
     lastReactionId: null,
     current: null,
     reason: "",
+    discoveryLabel: "",
     detailReason: "",
     whyReasons: [],
     busy: true,
@@ -828,6 +829,7 @@ export function createAnimeStore({
         update({
           current: pick.anime,
           reason: pick.reason,
+          discoveryLabel: pick.discoveryLabel,
           detailReason: pick.detailReason,
           whyReasons: pick.whyReasons,
           busy: false,
@@ -955,6 +957,7 @@ export function createAnimeStore({
         search.outcome = "found";
         update({
           current: anime,
+          discoveryLabel: pick.discoveryLabel,
           detailReason: pick.detailReason,
           whyReasons: pick.whyReasons,
           reason: state.preview
@@ -1098,6 +1101,7 @@ export function createAnimeStore({
       anime,
       before: state.reactions[anime.id],
       reason: state.reason,
+      discoveryLabel: state.discoveryLabel,
       detailReason: state.detailReason,
       whyReasons: state.whyReasons,
       receipt: null,
@@ -1265,6 +1269,7 @@ export function createAnimeStore({
         ? {
             current: entry.anime,
             reason: entry.reason,
+            discoveryLabel: entry.discoveryLabel || "",
             detailReason: entry.detailReason,
             whyReasons: entry.whyReasons || [],
           }
@@ -1282,6 +1287,7 @@ export function createAnimeStore({
     recordHistory({
       anime: state.current,
       reason: state.reason,
+      discoveryLabel: state.discoveryLabel,
       detailReason: state.detailReason,
       whyReasons: state.whyReasons,
       skip: true,

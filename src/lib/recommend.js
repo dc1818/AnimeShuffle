@@ -411,6 +411,13 @@ export function chooseNextBatch(
     .slice(0, Math.max(1, Math.min(6, limit)))
     .map(({ a: anime }) => ({
       anime,
+      discoveryLabel: cold
+        ? "Getting to know your taste"
+        : hidden && lesserKnown.length > 0
+          ? "Lesser-known find"
+          : explore
+            ? "Explore something different"
+            : "Based on your taste",
       get reason() {
         const continuation = continuationConnection(anime, taste);
         if (continuation) return continuationReason(continuation);

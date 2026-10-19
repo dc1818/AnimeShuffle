@@ -103,3 +103,28 @@ test("Naruto explanation names the current pick and never compares Naruto to its
     /shared with Naruto|Naruto and Naruto/,
   );
 });
+
+test("Discover labels identify the actual selection branch while details remain separate", () => {
+  const pool = [anime(10, ["Real Robot"], { members: 1000 })];
+  const preferences = { preferredNodes: ["real-robot"] };
+  for (const [random, label] of [
+    [0.1, "Lesser-known find"],
+    [0.35, "Explore something different"],
+    [0.8, "Based on your taste"],
+  ]) {
+    const pick = chooseNext(pool, { preferences, random: () => random });
+    assert.equal(pick.discoveryLabel, label);
+    assert.notEqual(pick.detailReason, label);
+  }
+  assert.equal(
+    chooseNext(pool, { random: () => 0.1 }).discoveryLabel,
+    "Getting to know your taste",
+  );
+  assert.equal(
+    chooseNext([anime(11, ["Real Robot"], { members: 1000000 })], {
+      preferences,
+      random: () => 0.1,
+    }).discoveryLabel,
+    "Based on your taste",
+  );
+});

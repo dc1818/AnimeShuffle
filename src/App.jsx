@@ -380,7 +380,8 @@ function ConnectedApp({ store, state }) {
                 <Icon name="shuffle" />
                 {state.discoveryLoading
                   ? "Finding your next anime…"
-                  : state.reason || "Find your next anime"}
+                  : (state.current && state.discoveryLabel) ||
+                    "Find your next anime"}
               </span>
               <span className="progress">
                 {Object.keys(state.reactions).length} reactions
