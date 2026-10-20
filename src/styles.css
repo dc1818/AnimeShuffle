@@ -5088,3 +5088,32 @@ dialog.details-card.details-modal::backdrop {
     padding: 0 9px 9px;
   }
 }
+
+/* Leave room for browser chrome on 1080p desktops. Category rows already have
+ * their own gap; the older standalone genre margins must not stack per row.
+ * Keep natural document flow for long titles, expanded categories and zoom. */
+@media (min-width: 901px) and (max-height: 1080px) {
+  [data-layout="familiar"] main:not(.wide-main) .feed-top {
+    min-height: 42px;
+    padding-block: 5px;
+  }
+  [data-layout="familiar"] main:not(.wide-main) .cards-layout .poster-stage {
+    height: clamp(130px, calc(100svh - 700px), 210px);
+  }
+  [data-layout="familiar"] main:not(.wide-main) .cards-layout .card-content {
+    padding-bottom: 12px;
+  }
+  [data-layout="familiar"] main:not(.wide-main) .cards-layout .genre-groups {
+    gap: 4px;
+    margin-block: 6px;
+  }
+  [data-layout="familiar"] main:not(.wide-main) .cards-layout .genre-group .genres {
+    margin: 0;
+  }
+  [data-layout="familiar"] main:not(.wide-main) .cards-layout .genre-focus {
+    margin-block: 6px;
+  }
+  [data-layout="familiar"] main:not(.wide-main) .cards-layout .reaction-labels {
+    margin-top: 8px;
+  }
+}
