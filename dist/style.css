@@ -5881,7 +5881,7 @@ summary:focus-visible {
   inset: 0;
   margin: auto;
   width: min(760px, calc(100vw - 32px));
-  height: auto;
+  height: fit-content;
   max-height: min(760px, calc(100dvh - 48px));
   padding: 0;
   border: 1px solid #7babc15c;
@@ -5950,7 +5950,7 @@ summary:focus-visible {
 @media (max-width: 560px), (max-height: 500px) {
   [data-layout="familiar"] .cards-layout.discover-layout dialog.details-modal {
     width: calc(100vw - 16px);
-    height: auto;
+    height: fit-content;
     max-height: calc(100dvh - 24px);
     border-radius: 14px;
   }
