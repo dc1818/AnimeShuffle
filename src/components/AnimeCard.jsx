@@ -385,11 +385,15 @@ export function AnimeDetails({
     if (!overlay) return;
     const element = panel.current;
     const overflow = document.body.style.overflow;
+    // Capture before showModal moves focus into the dialog. React removes the
+    // node before effect cleanup, so native focus restoration alone is unreliable.
+    const opener = document.activeElement;
     element.showModal();
     document.body.style.overflow = "hidden";
     return () => {
       element.close();
       document.body.style.overflow = overflow;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [overlay]);
   useEffect(() => {

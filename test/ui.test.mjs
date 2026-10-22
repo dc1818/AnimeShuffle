@@ -52,6 +52,8 @@ for (const [staticMode, android] of [
     if (staticMode) document.documentElement.dataset.hosting = "pages";
     dom.window.HTMLDialogElement.prototype.showModal = function () {
       this.setAttribute("open", "");
+      // Native showModal moves focus before effects that select a details tab.
+      if (this.matches(".details-card")) this.querySelector("button")?.focus();
     };
     dom.window.HTMLDialogElement.prototype.close = function () {
       this.removeAttribute("open");

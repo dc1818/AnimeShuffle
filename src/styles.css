@@ -5881,8 +5881,8 @@ summary:focus-visible {
   inset: 0;
   margin: auto;
   width: min(760px, calc(100vw - 32px));
-  height: min(760px, calc(100dvh - 48px));
-  max-height: calc(100dvh - 48px);
+  height: auto;
+  max-height: min(760px, calc(100dvh - 48px));
   padding: 0;
   border: 1px solid #7babc15c;
   border-radius: 18px;
@@ -5926,7 +5926,8 @@ summary:focus-visible {
   overflow-y: auto;
   overflow-wrap: anywhere;
   font-size: 28px;
-  line-height: 1.25;
+  line-height: 1.4;
+  padding-block: 3px;
 }
 [data-layout="familiar"]
   .cards-layout.discover-layout
@@ -5949,7 +5950,7 @@ summary:focus-visible {
 @media (max-width: 560px), (max-height: 500px) {
   [data-layout="familiar"] .cards-layout.discover-layout dialog.details-modal {
     width: calc(100vw - 16px);
-    height: calc(100dvh - 24px);
+    height: auto;
     max-height: calc(100dvh - 24px);
     border-radius: 14px;
   }
@@ -5973,4 +5974,10 @@ summary:focus-visible {
     h2 {
     font-size: 23px;
   }
+}
+
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  dialog.details-modal.feedback-active {
+  height: min(760px, calc(100dvh - 48px));
 }
