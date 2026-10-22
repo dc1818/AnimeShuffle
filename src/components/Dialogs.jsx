@@ -18,7 +18,15 @@ function Dialog({
 }) {
   const ref = useRef(null);
   useEffect(() => {
-    ref.current.showModal();
+    const dialog = ref.current;
+    dialog.showModal();
+    // Long dialogs should open at the heading, not scroll to their first input.
+    const heading = dialog.querySelector("h2");
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      dialog.scrollTop = 0;
+    }
     return () => ref.current?.close();
   }, []);
   return (

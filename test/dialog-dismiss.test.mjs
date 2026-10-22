@@ -58,6 +58,11 @@ test("viewing preferences dismisses on backdrop clicks but not inside clicks", a
         .textContent,
       "What are you in the mood for?",
     );
+    assert.equal(
+      document.activeElement,
+      dialog.querySelector("h2"),
+      "Long dialogs initially focus their title",
+    );
     dialog.getBoundingClientRect = () => ({
       left: 100,
       right: 500,
@@ -65,15 +70,13 @@ test("viewing preferences dismisses on backdrop clicks but not inside clicks", a
       bottom: 600,
     });
     await act(async () =>
-      dialog
-        .querySelector("h2")
-        .dispatchEvent(
-          new window.MouseEvent("click", {
-            bubbles: true,
-            clientX: 150,
-            clientY: 150,
-          }),
-        ),
+      dialog.querySelector("h2").dispatchEvent(
+        new window.MouseEvent("click", {
+          bubbles: true,
+          clientX: 150,
+          clientY: 150,
+        }),
+      ),
     );
     assert.equal(closed, 0);
     await act(async () =>
