@@ -1,4 +1,5 @@
 import { BackgroundOptions } from "./BackgroundOptions.jsx";
+import { InstallApp } from "./InstallApp.jsx";
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { missingMalPlans } from "../lib/watchlist.js";
 import { useEffect, useRef } from "react";
@@ -236,6 +237,7 @@ export function Dialogs({
     <Dialog closeOnOutside onClose={onClose}>
       <span className="eyebrow">Make it yours</span>
       <h2>Settings</h2>
+      {!state.session.staticMode && <InstallApp />}
       {state.session.cloudSync && state.session.account && (
         <div className="setting-row">
           <div>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0d151b" />
+    <title>Connect to Anime Shuffle</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #0d151b;
+        color: #eff4f8;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+      }
+      main {
+        width: min(100%, 440px);
+        padding: clamp(20px, 5vw, 36px);
+        border: 1px solid #304a58;
+        border-radius: 24px;
+        background: #14232d;
+      }
+      h1 {
+        font-size: clamp(24px, 6vw, 32px);
+        line-height: 1.2;
+      }
+      p {
+        color: #b9c9d5;
+      }
+      .brand {
+        color: #91d9ee;
+        font-weight: 700;
+      }
+      a {
+        display: block;
+        margin-top: 24px;
+        padding: 12px 20px;
+        border-radius: 12px;
+        text-align: center;
+        background: #91d9ee;
+        color: #0d151b;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      a:focus-visible {
+        outline: 3px solid white;
+        outline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">Anime Shuffle</div>
+      <h1>Let’s get you connected.</h1>
+      <p>
+        We couldn’t reach Anime Shuffle. Check your connection, then try again.
+      </p>
+      <p>
+        Your synced account data stays on the server. Any pending changes saved
+        on this device will retry when you reconnect and open the app.
+      </p>
+      <a href="/">Try again</a>
+    </main>
+  </body>
+</html>

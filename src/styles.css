@@ -4,6 +4,43 @@
  * Sections: base controls, ambient background, navigation, discovery cards,
  * details, watchlist, dialogs, responsive breakpoints, and reduced-motion support.
  */
+.install-app {
+  margin: 16px 0 22px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #14232d;
+  overflow-wrap: anywhere;
+}
+.install-app-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.install-app-heading img {
+  flex: 0 0 48px;
+  border-radius: 12px;
+}
+.install-app-heading div {
+  min-width: 0;
+}
+.install-app-heading h3 {
+  margin: 0;
+}
+.install-app-heading p {
+  margin: 4px 0 0;
+}
+.install-app p {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.install-app-help {
+  color: var(--muted);
+}
+.install-app button {
+  min-height: 44px;
+  white-space: normal;
+}
 @font-face {
   font-family: Shuffle;
   src: local("Bahnschrift");
@@ -5107,7 +5144,11 @@ dialog.details-card.details-modal::backdrop {
     gap: 4px;
     margin-block: 6px;
   }
-  [data-layout="familiar"] main:not(.wide-main) .cards-layout .genre-group .genres {
+  [data-layout="familiar"]
+    main:not(.wide-main)
+    .cards-layout
+    .genre-group
+    .genres {
     margin: 0;
   }
   [data-layout="familiar"] main:not(.wide-main) .cards-layout .genre-focus {
@@ -5145,7 +5186,11 @@ main:not(.wide-main) .cards-layout .card-content {
   max-height: none;
   overflow-wrap: anywhere;
 }
-[data-layout="familiar"] main:not(.wide-main) .cards-layout .genre-group .genres {
+[data-layout="familiar"]
+  main:not(.wide-main)
+  .cards-layout
+  .genre-group
+  .genres {
   margin: 0;
   min-width: 0;
 }

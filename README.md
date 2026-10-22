@@ -18,6 +18,10 @@ In the companion Python program choose **9**, select this JSON, and select a new
 
 [Try Anime Shuffle](https://animeshuffle.com) · [Sample demo](https://dc1818.github.io/AnimeShuffle/)
 
+**Android app:** Open the production site in Chrome, then **Settings → Get the Android app**,
+or use Chrome’s **Add to home screen → Install** menu. Sign into the same website
+account or linked MyAnimeList account to sync across devices. See [Android installation and sync](docs/ANDROID-APP.md).
+
 Anime Shuffle helps turn a long list of anime into something you actually want to watch. Browse one title at a time, tell it what you've enjoyed or would watch, and explore a shortlist based on those choices.
 
 Connect MyAnimeList to start with your existing watch history and Plan to Watch list, create an Anime Shuffle account, or try it as a guest. Personal ratings help when you have them, but aren't required.

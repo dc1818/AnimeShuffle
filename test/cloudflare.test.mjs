@@ -267,6 +267,77 @@ test("MAL identity and encrypted connection persist across devices and refreshed
   db.db.close();
 });
 
+test("Android MAL sign-in reuses a linked website account and syncs reactions both ways", async () => {
+  const db = storage();
+  try {
+    const app = createCloudApp(db, env, {
+      interval: 0,
+      fetcher: async (url) =>
+        Response.json(
+          url.includes("/token")
+            ? {
+                access_token: "PRIVATE",
+                refresh_token: "PRIVATE",
+                expires_in: 3600,
+              }
+            : { id: 77, name: "LinkedViewer" },
+        ),
+    });
+    const desktop = browser(() => app),
+      android = browser(() => app);
+    await desktop.request("/api/session");
+    const registered = await desktop.request("/api/account/register", {
+      username: "LinkedViewer",
+      password: "a secure testing password",
+      preferences: { favoriteGenres: ["Action"] },
+      onboardingComplete: true,
+    });
+    for (const device of [desktop, android]) {
+      await device.request("/api/session");
+      const start = await device.request("/auth/start");
+      const state = new URL(
+        start.response.headers.get("location"),
+      ).searchParams.get("state");
+      const callback = await device.request(
+        `/auth/callback?state=${state}&code=FIXTURE`,
+      );
+      assert.equal(callback.response.headers.get("location"), "/?connected=1");
+      assert.equal(
+        (await device.request("/api/session")).body.account.id,
+        registered.body.account.id,
+      );
+    }
+    const before = (await desktop.request("/api/account/state")).body;
+    await desktop.request("/api/account/state", {
+      revision: before.revision,
+      changes: [
+        {
+          id: 42,
+          reaction: { anime, action: "watch", at: 123, reason: "characters" },
+        },
+      ],
+    });
+    const onPhone = (await android.request("/api/account/state")).body;
+    assert.equal(onPhone.reactions[42].action, "watch");
+    assert.equal(onPhone.reactions[42].reason, "characters");
+    assert.deepEqual(onPhone.preferences.favoriteGenres, ["Action"]);
+    await android.request("/api/account/state", {
+      revision: onPhone.revision,
+      changes: [{ id: 42, reaction: { anime, action: "good", at: 124 } }],
+    });
+    assert.equal(
+      (await desktop.request("/api/account/state")).body.reactions[42].action,
+      "good",
+    );
+    assert.equal(
+      db.db.prepare("SELECT count(*) AS n FROM accounts").get().n,
+      1,
+    );
+  } finally {
+    db.db.close();
+  }
+});
+
 test("MAL callback failures identify the failing stage without returning provider details", async () => {
   for (const failedStage of ["token", "profile"]) {
     const db = storage();
