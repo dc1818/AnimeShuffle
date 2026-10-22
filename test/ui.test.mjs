@@ -152,6 +152,8 @@ for (const [staticMode, android] of [
       assert.ok(document.getElementById("details-card"));
       await click("Hide details");
       assert.equal(document.getElementById("details-card"), null);
+      const whyOpener = button("Why this pick?");
+      whyOpener.focus();
       await click("Why this pick?");
       assert.equal(
         document.querySelector('[role="tab"][aria-selected="true"]')
@@ -160,7 +162,14 @@ for (const [staticMode, android] of [
         "Direct explanation opens the actual Why tab in both hosting modes",
       );
       assert.equal(document.querySelector(".reaction-feedback"), null);
-      await click("Hide details");
+      await act(async () =>
+        document.querySelector('[aria-label="Close anime details"]').click(),
+      );
+      assert.equal(
+        document.activeElement,
+        whyOpener,
+        "Closing explanations returns keyboard focus to their opener",
+      );
       await click("More details");
       await click("Why this pick?");
       assert.equal(

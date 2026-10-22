@@ -5495,14 +5495,14 @@ summary:focus-visible {
   .cards-layout.discover-layout
   .discover-card
   .poster-stage {
-  height: clamp(390px, calc(100svh - 210px), 600px);
+  height: clamp(390px, calc(100svh - 210px), 540px);
   min-height: 0;
   border-radius: 12px;
   width: 100%;
   background: #15232f;
 }
 [data-layout="familiar"] .cards-layout.discover-layout .discover-card .poster {
-  object-fit: contain;
+  object-fit: scale-down;
 }
 [data-layout="familiar"]
   .cards-layout.discover-layout

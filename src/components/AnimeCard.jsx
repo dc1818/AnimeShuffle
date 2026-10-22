@@ -415,11 +415,24 @@ export function AnimeDetails({
   }, [overlay, onClose]);
   useEffect(() => {
     if (!responsive) return;
-    const selected = panel.current?.querySelector(
+    const element = panel.current;
+    const trigger = document.activeElement;
+    const selected = element?.querySelector(
       '[role="tab"][aria-selected="true"]',
     );
     selected?.focus({ preventScroll: true });
-    if (!overlay) panel.current?.scrollIntoView?.({ block: "nearest" });
+    if (!overlay) element?.scrollIntoView?.({ block: "nearest" });
+    return () => {
+      // Return keyboard users to their opener, without stealing focus from a
+      // reaction or another control they deliberately clicked outside the panel.
+      if (
+        trigger?.isConnected &&
+        (element?.contains(document.activeElement) ||
+          document.activeElement === document.body)
+      ) {
+        trigger.focus({ preventScroll: true });
+      }
+    };
   }, [anime.id, initialTab, overlay, responsive]);
   const Panel = overlay ? "dialog" : "aside";
   const ratingLabels = {
