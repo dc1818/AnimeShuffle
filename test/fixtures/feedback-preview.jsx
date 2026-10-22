@@ -1,3 +1,4 @@
+import { Dialogs } from "../../src/components/Dialogs.jsx";
 import { Watchlist } from "../../src/components/Watchlist.jsx";
 import { normalizePreferences } from "../../src/lib/preferences.js";
 import { BackgroundOptions } from "../../src/components/BackgroundOptions.jsx";
@@ -12,9 +13,13 @@ const sizes = [
   [320, 640],
   [390, 844],
   [768, 1024],
+  [1366, 768],
   [1440, 900],
+  [1920, 900],
+  [1920, 1080],
 ];
 function Fixture() {
+  const [setupDone, setSetupDone] = useState(false);
   const [action, setAction] = useState("good"),
     [long, setLong] = useState(false),
     [feedback, setFeedback] = useState(null),
@@ -37,6 +42,25 @@ function Fixture() {
       : demo[0].title,
     englishTitle: "",
   };
+  if (location.search.includes("surface=onboarding")) {
+    return setupDone ? (
+      <p>Ready to discover. Preview only — no profile changes.</p>
+    ) : (
+      <Dialogs
+        kind="preferences"
+        state={{
+          session: {},
+          preview: true,
+          onboardingComplete: false,
+          preferences: normalizePreferences(),
+          settings: {},
+          busy: false,
+        }}
+        store={{ searchAnime: async () => [], savePreferences: async () => {} }}
+        onClose={() => setSetupDone(true)}
+      />
+    );
+  }
   if (location.search.includes("surface=watchlist")) {
     const list = Array.from({ length: 218 }, (_, i) => ({
       ...demo[i % demo.length],
@@ -244,7 +268,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

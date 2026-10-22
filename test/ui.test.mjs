@@ -72,7 +72,7 @@ for (const [staticMode, android] of [
     });
     const root = createRoot(document.getElementById("root"));
     const button = (text) =>
-      [...document.querySelectorAll("button")].find(
+      [...document.querySelectorAll("button, nav a")].find(
         (b) => b.textContent.trim() === text,
       );
     async function click(text) {
@@ -135,8 +135,8 @@ for (const [staticMode, android] of [
         await click("Try without logging in");
       }
       assert.ok(document.querySelector("dialog[open]"));
-      assert.equal(button("Start shuffling").disabled, true);
-      await click("Surprise me — any anime");
+      assert.equal(button("Start shuffling").disabled, false);
+      await click("Start shuffling");
       assert.equal(document.querySelector("dialog"), null);
       const firstChosen = store.getSnapshot().current;
       const firstTitle = document.getElementById("anime-title").textContent;
@@ -163,7 +163,7 @@ for (const [staticMode, android] of [
         document.querySelector('[aria-label="New watchlist additions"]'),
       );
       await act(async () =>
-        [...document.querySelectorAll("nav button")]
+        [...document.querySelectorAll("nav a")]
           .find((b) => b.textContent.includes("Watchlist"))
           .click(),
       );
@@ -189,7 +189,7 @@ for (const [staticMode, android] of [
         /Recommendations unlocked/,
       );
       await act(async () =>
-        [...document.querySelectorAll("nav button")]
+        [...document.querySelectorAll("nav a")]
           .find((b) => b.textContent.includes("Recommendations"))
           .click(),
       );
@@ -265,9 +265,7 @@ for (const [staticMode, android] of [
         "Saved title remains in the loaded recommendations until Refresh picks",
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "watch");
-      await act(async () =>
-        [...document.querySelectorAll("nav button")][1].click(),
-      );
+      await act(async () => [...document.querySelectorAll("nav a")][1].click());
       assert.equal(document.querySelectorAll(".saved-card").length, 2);
       await click("Recommendations");
       assert.equal(
@@ -295,9 +293,7 @@ for (const [staticMode, android] of [
         null,
       );
       await click("Undo last reaction");
-      await act(async () =>
-        [...document.querySelectorAll("nav button")][1].click(),
-      );
+      await act(async () => [...document.querySelectorAll("nav a")][1].click());
       assert.equal(document.querySelectorAll(".saved-card").length, 1);
       await click("Discover");
       await click("Undo");
@@ -481,7 +477,7 @@ test("returning focus preserves a Discover card even when MAL adds it during bac
     assert.ok(
       [...document.querySelectorAll(".reaction")].every((b) => b.disabled),
     );
-    const skip = [...document.querySelectorAll("button")].find(
+    const skip = [...document.querySelectorAll("button, nav a")].find(
       (b) => b.textContent.trim() === "Skip",
     );
     assert.equal(skip.disabled, false);

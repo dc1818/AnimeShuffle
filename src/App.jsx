@@ -1,3 +1,4 @@
+import { usePageNavigation } from "./lib/page-navigation.js";
 import { AmbientBackground } from "./components/AmbientBackground.jsx";
 import { AndroidAppPrompt } from "./components/AndroidAppPrompt.jsx";
 import { shouldOfferAndroidApp } from "./lib/install-app.js";
@@ -48,7 +49,7 @@ function ConnectedApp({ store, state }) {
   const [appChoiceOpen, setAppChoiceOpen] = useState(
     () => !state.session.staticMode && shouldOfferAndroidApp(),
   );
-  const [view, setView] = useState("discover");
+  const [view, setView] = usePageNavigation();
   const [freshnessTick, setFreshnessTick] = useState(0);
   useEffect(() => {
     if (view === "watchlist") store.visitWatchlist?.();
@@ -131,7 +132,14 @@ function ConnectedApp({ store, state }) {
       setDialog(state.session.account ? "settings" : "welcome");
     } else if (!state.onboardingComplete)
       setDialog(state.session.account ? "preferences" : "welcome");
-    window.history.replaceState({}, "", location.pathname);
+    query.delete("setup");
+    query.delete("auth_error");
+    const remaining = query.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${location.pathname}${remaining ? `?${remaining}` : ""}${location.hash}`,
+    );
   }, [state.ready, state.session.connected, store, appChoiceOpen]);
   useEffect(() => {
     if (!state.message) return;
@@ -272,11 +280,23 @@ function ConnectedApp({ store, state }) {
         </a>
         <nav aria-label="Main navigation">
           {["discover", "watchlist", "recommendations"].map((name) => (
-            <button
+            <a
+              href={`#${name}`}
               key={name}
               className={`nav-button ${view === name ? "active" : ""}`}
               aria-current={view === name ? "page" : undefined}
-              onClick={() => setView(name)}
+              onClick={(event) => {
+                if (
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                )
+                  return;
+                event.preventDefault();
+                setView(name);
+              }}
             >
               <Icon
                 name={
@@ -313,7 +333,7 @@ function ConnectedApp({ store, state }) {
               {name === "watchlist" &&
                 state.accountDataReady &&
                 savedCount > 0 && <span className="count">{savedCount}</span>}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="account-actions">

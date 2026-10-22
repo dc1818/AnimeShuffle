@@ -5334,3 +5334,122 @@ main:not(.wide-main) .cards-layout .secondary-actions button {
     padding-bottom: 8px;
   }
 }
+
+/* Review improvements: retain the established palette and bring tasks forward. */
+a.nav-button:hover {
+  text-decoration: none;
+}
+.dialog[aria-labelledby="preferences-title"] {
+  scroll-padding-block: 24px 130px;
+}
+.preference-advanced {
+  margin: 20px 0;
+  border-block: 1px solid #34505f;
+}
+.preference-advanced > summary,
+.watchlist-tools > summary {
+  cursor: pointer;
+  padding: 14px 0;
+  min-height: 44px;
+  color: #b7eafa;
+  font-weight: 600;
+}
+.preference-advanced > summary span {
+  display: block;
+  margin-top: 6px;
+  color: #b6c6d7;
+  font-size: 13px;
+  font-weight: 400;
+}
+.preference-advanced[open] > summary {
+  margin-bottom: 16px;
+}
+.preference-continue {
+  position: sticky;
+  bottom: -1px;
+  z-index: 3;
+  padding: 14px 0 max(12px, env(safe-area-inset-bottom));
+  margin-top: 16px;
+  background: #101c26;
+  border-top: 1px solid #34505f;
+  box-shadow: 0 -12px 16px #101c26;
+}
+.preference-continue .primary {
+  margin: 0;
+  min-height: 48px;
+}
+.preference-continue small {
+  display: block;
+  margin: 8px 0 0;
+  color: #b6c6d7;
+  font-size: 12px;
+}
+.preference-advanced :is(button, input, select, summary) {
+  scroll-margin-bottom: 130px;
+}
+.dialog .close,
+.details-card .close,
+.details-card .feedback-close {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.dialog:not(.welcome) > h2 {
+  padding-right: 28px;
+}
+summary:focus-visible {
+  outline: 3px solid #e3f3ff;
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.watchlist-extra-filters {
+  display: contents;
+}
+.watchlist-filter-toggle {
+  display: none;
+}
+.watchlist-tools {
+  max-width: 100%;
+}
+.watchlist-tools-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+@media (max-width: 640px) {
+  .watchlist-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .watchlist-controls .watchlist-search {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .watchlist-filter-toggle {
+    display: block;
+    align-self: end;
+    min-height: 44px;
+    margin: 0;
+  }
+  .watchlist-extra-filters {
+    display: none;
+    grid-column: 1 / -1;
+  }
+  .watchlist-extra-filters.expanded {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding-block: 8px;
+  }
+  .watchlist-tools {
+    flex-basis: 100%;
+  }
+  .watchlist-tools-body,
+  .watchlist-tools .watchlist-transfer {
+    width: 100%;
+  }
+}

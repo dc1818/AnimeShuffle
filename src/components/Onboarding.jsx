@@ -2,11 +2,7 @@ import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { useEffect, useRef, useState } from "react";
 import { GenrePreferences } from "./GenrePreferences.jsx";
 import { TasteSetup } from "./TasteSetup.jsx";
-import {
-  FORMAT_OPTIONS,
-  LENGTH_OPTIONS,
-  defaultPreferences,
-} from "../lib/preferences.js";
+import { FORMAT_OPTIONS, LENGTH_OPTIONS } from "../lib/preferences.js";
 
 /** Passwords exist only in this form until submitted to the same-origin server. */
 export function AccountForm({ mode, store, onNavigate, onComplete }) {
@@ -40,7 +36,9 @@ export function AccountForm({ mode, store, onNavigate, onComplete }) {
   return (
     <>
       <span className="eyebrow">Anime Shuffle account</span>
-      <h2>{registering ? "Make yourself at home." : "Welcome back."}</h2>
+      <h2 id="account-title">
+        {registering ? "Make yourself at home." : "Welcome back."}
+      </h2>
       <p>
         {registering
           ? "Create an account here, without a MyAnimeList account. Your guest watchlist, reactions and viewing preferences will be saved to your new account. You can connect MAL later."
@@ -140,27 +138,8 @@ export function ViewingPreferences({ state, store, onComplete }) {
     const timer = setTimeout(() => setSaved(false), 2200);
     return () => clearTimeout(timer);
   }, [saved]);
-  const [hasChosen, setHasChosen] = useState(() => {
-    const p = state.preferences;
-    return Boolean(
-      p.favoriteGenres.length ||
-      p.favoriteAnime.length ||
-      p.formats.length ||
-      p.lengths.length ||
-      p.scoreMin != null ||
-      p.scoreMax != null ||
-      p.finishedOnly ||
-      p.includeNonCanonMovies ||
-      !p.includeUnknown ||
-      p.includeNsfw === true ||
-      (p.childrenTitles && p.childrenTitles !== "hide") ||
-      state.settings.autoAdd,
-    );
-  });
-  // Choosing an explicit “Anything”/“Any length” also counts as user input.
   function setValue(change) {
     if (initialSetup && (saving.current || state.busy)) return;
-    setHasChosen(true);
     const next =
       typeof change === "function" ? change(valueRef.current) : change;
     valueRef.current = next;
@@ -215,8 +194,12 @@ export function ViewingPreferences({ state, store, onComplete }) {
           ? "Your viewing preferences"
           : "One more thing"}
       </span>
-      <h2>What are you in the mood for?</h2>
-      <p>Pick as many as you like. You can change these in Settings anytime.</p>
+      <h2 id="preferences-title">What are you in the mood for?</h2>
+      <p>
+        {initialSetup
+          ? "Start right away, or add a few preferences. Everything here is optional."
+          : "Pick as many as you like. Your changes save automatically."}
+      </p>
       {!initialSetup && saved && (
         <div className="preference-save-toast" role="status" aria-live="polite">
           Preferences saved
@@ -231,18 +214,12 @@ export function ViewingPreferences({ state, store, onComplete }) {
           <MalWatchlistOption
             enabled={autoAdd}
             onChange={(enabled) => {
-              setHasChosen(true);
               setAutoAdd(enabled);
             }}
             disabled={initialSetup && (pending || state.busy)}
           />
         </>
       )}
-      <GenrePreferences
-        value={value}
-        setValue={setValue}
-        disabled={initialSetup && (pending || state.busy)}
-      />
       {showTasteSetup && (
         <TasteSetup
           value={value}
@@ -279,208 +256,221 @@ export function ViewingPreferences({ state, store, onComplete }) {
           ))}
         </div>
       </fieldset>
-      <fieldset
-        className="preference-group"
-        disabled={initialSetup && (pending || state.busy)}
+      <details
+        className="preference-advanced"
+        open={!initialSetup || undefined}
       >
-        <legend>How long a series?</legend>
-        <p className="preference-help">
-          Movies and standalone specials aren't restricted by this choice.
-        </p>
-        <button
-          className="any-choice"
-          aria-pressed={!value.lengths.length}
-          onClick={() => setValue((current) => ({ ...current, lengths: [] }))}
+        <summary>
+          More preferences <span>Genres, audience, length and content</span>
+        </summary>
+        <GenrePreferences
+          value={value}
+          setValue={setValue}
+          disabled={initialSetup && (pending || state.busy)}
+        />
+        <fieldset
+          className="preference-group"
+          disabled={initialSetup && (pending || state.busy)}
         >
-          Any length
-        </button>
-        <div className="preference-grid">
-          {LENGTH_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              className="preference-option"
-              aria-pressed={value.lengths.includes(option.id)}
-              onClick={() => toggle("lengths", option.id)}
-            >
-              <strong>{option.label}</strong>
-              <span>{option.detail}</span>
-            </button>
-          ))}
-        </div>
-        <small>
-          *Examples assume 24-minute episodes. Cards show an estimate using the
-          title's own runtime.
-        </small>
-      </fieldset>
-      <fieldset
-        className="preference-group"
-        disabled={initialSetup && (pending || state.busy)}
-      >
-        <legend>MyAnimeList score</legend>
-        <p>
-          Only show anime within this community rating range, out of 10. This
-          uses the anime’s overall MAL score.
-        </p>
-        <div className="preference-score-range">
-          {[
-            ["scoreMin", "Minimum score"],
-            ["scoreMax", "Maximum score"],
-          ].map(([field, label]) => (
-            <label key={field}>
-              {label}
-              <select
-                aria-label={label}
-                value={value[field] ?? "any"}
-                onChange={(event) => {
-                  const score =
-                    event.target.value === "any"
-                      ? null
-                      : Number(event.target.value);
-                  setValue((current) => {
-                    const next = { ...current, [field]: score };
-                    if (
-                      next.scoreMin != null &&
-                      next.scoreMax != null &&
-                      next.scoreMin > next.scoreMax
-                    ) {
-                      next[field === "scoreMin" ? "scoreMax" : "scoreMin"] =
-                        score;
-                    }
-                    return next;
-                  });
-                }}
-              >
-                <option value="any">Any</option>
-                {Array.from({ length: 19 }, (_, i) => 1 + i * 0.5).map(
-                  (score) => (
-                    <option key={score} value={score}>
-                      {score.toFixed(1)}
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
-          ))}
-        </div>
-        {(value.scoreMin != null || value.scoreMax != null) && (
+          <legend>How long a series?</legend>
           <p className="preference-help">
-            Unscored anime are excluded. Changes apply to new Discover picks and
-            when you refresh Recommendations.
+            Movies and standalone specials aren't restricted by this choice.
           </p>
-        )}
-      </fieldset>
-      <div className="setting-row">
-        <div>
-          <strong>Include NSFW anime</strong>
-          <p>
-            Allow titles flagged by MyAnimeList as suggestive or explicit in
-            Discover and Recommendations. Off by default. Saved watchlist
-            entries are always kept.
-          </p>
-        </div>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label="Include NSFW anime"
-          checked={value.includeNsfw === true}
+          <button
+            className="any-choice"
+            aria-pressed={!value.lengths.length}
+            onClick={() => setValue((current) => ({ ...current, lengths: [] }))}
+          >
+            Any length
+          </button>
+          <div className="preference-grid">
+            {LENGTH_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                className="preference-option"
+                aria-pressed={value.lengths.includes(option.id)}
+                onClick={() => toggle("lengths", option.id)}
+              >
+                <strong>{option.label}</strong>
+                <span>{option.detail}</span>
+              </button>
+            ))}
+          </div>
+          <small>
+            *Examples assume 24-minute episodes. Cards show an estimate using
+            the title's own runtime.
+          </small>
+        </fieldset>
+        <fieldset
+          className="preference-group"
           disabled={initialSetup && (pending || state.busy)}
-          onChange={(event) =>
-            setValue((current) => ({
-              ...current,
-              includeNsfw: event.target.checked,
-            }))
-          }
-        />
-      </div>
-      <div className="setting-row">
-        <div>
-          <strong>Include children’s and all-ages anime</strong>
+        >
+          <legend>MyAnimeList score</legend>
           <p>
-            Off excludes Kids-tagged, PG · Children, and G · All ages titles.
-            When enabled, occasional picks appear only if your likes or MAL
-            ratings show a clear interest.
+            Only show anime within this community rating range, out of 10. This
+            uses the anime’s overall MAL score.
           </p>
-        </div>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label="Include children’s and all-ages anime"
-          checked={value.childrenTitles === "include"}
-          disabled={initialSetup && (pending || state.busy)}
-          onChange={(event) =>
-            setValue((current) => ({
-              ...current,
-              childrenTitles: event.target.checked ? "include" : "hide",
-            }))
-          }
-        />
-      </div>
-      <fieldset
-        className="preference-group"
-        disabled={initialSetup && (pending || state.busy)}
-      >
-        <legend>Movie continuity</legend>
+          <div className="preference-score-range">
+            {[
+              ["scoreMin", "Minimum score"],
+              ["scoreMax", "Maximum score"],
+            ].map(([field, label]) => (
+              <label key={field}>
+                {label}
+                <select
+                  aria-label={label}
+                  value={value[field] ?? "any"}
+                  onChange={(event) => {
+                    const score =
+                      event.target.value === "any"
+                        ? null
+                        : Number(event.target.value);
+                    setValue((current) => {
+                      const next = { ...current, [field]: score };
+                      if (
+                        next.scoreMin != null &&
+                        next.scoreMax != null &&
+                        next.scoreMin > next.scoreMax
+                      ) {
+                        next[field === "scoreMin" ? "scoreMax" : "scoreMin"] =
+                          score;
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  <option value="any">Any</option>
+                  {Array.from({ length: 19 }, (_, i) => 1 + i * 0.5).map(
+                    (score) => (
+                      <option key={score} value={score}>
+                        {score.toFixed(1)}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+            ))}
+          </div>
+          {(value.scoreMin != null || value.scoreMax != null) && (
+            <p className="preference-help">
+              Unscored anime are excluded. Changes apply to new Discover picks
+              and when you refresh Recommendations.
+            </p>
+          )}
+        </fieldset>
         <div className="setting-row">
           <div>
-            <strong>Include non-canon movies</strong>
+            <strong>Include NSFW anime</strong>
             <p>
-              Off hides movies identified as outside their main story
-              continuity. Movies with unknown continuity can still appear;
-              MyAnimeList does not label every movie.
+              Allow titles flagged by MyAnimeList as suggestive or explicit in
+              Discover and Recommendations. Off by default. Saved watchlist
+              entries are always kept.
             </p>
           </div>
           <input
             type="checkbox"
             role="switch"
-            aria-label="Include non-canon movies"
-            checked={value.includeNonCanonMovies === true}
+            aria-label="Include NSFW anime"
+            checked={value.includeNsfw === true}
+            disabled={initialSetup && (pending || state.busy)}
             onChange={(event) =>
               setValue((current) => ({
                 ...current,
-                includeNonCanonMovies: event.target.checked,
+                includeNsfw: event.target.checked,
               }))
             }
           />
         </div>
-      </fieldset>
-      <div className="setting-row">
-        <div>
-          <strong>Finished shows only</strong>
-          <p>Leave off to include ongoing and upcoming titles.</p>
+        <div className="setting-row">
+          <div>
+            <strong>Include children’s and all-ages anime</strong>
+            <p>
+              Off excludes Kids-tagged, PG · Children, and G · All ages titles.
+              When enabled, occasional picks appear only if your likes or MAL
+              ratings show a clear interest.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Include children’s and all-ages anime"
+            checked={value.childrenTitles === "include"}
+            disabled={initialSetup && (pending || state.busy)}
+            onChange={(event) =>
+              setValue((current) => ({
+                ...current,
+                childrenTitles: event.target.checked ? "include" : "hide",
+              }))
+            }
+          />
         </div>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label="Finished shows only"
-          checked={value.finishedOnly}
+        <fieldset
+          className="preference-group"
           disabled={initialSetup && (pending || state.busy)}
-          onChange={(event) =>
-            setValue((current) => ({
-              ...current,
-              finishedOnly: event.target.checked,
-            }))
-          }
-        />
-      </div>
-      <div className="setting-row">
-        <div>
-          <strong>Include unknown lengths or formats</strong>
-          <p>Keep titles whose episode count or format isn't available.</p>
+        >
+          <legend>Movie continuity</legend>
+          <div className="setting-row">
+            <div>
+              <strong>Include non-canon movies</strong>
+              <p>
+                Off hides movies identified as outside their main story
+                continuity. Movies with unknown continuity can still appear;
+                MyAnimeList does not label every movie.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label="Include non-canon movies"
+              checked={value.includeNonCanonMovies === true}
+              onChange={(event) =>
+                setValue((current) => ({
+                  ...current,
+                  includeNonCanonMovies: event.target.checked,
+                }))
+              }
+            />
+          </div>
+        </fieldset>
+        <div className="setting-row">
+          <div>
+            <strong>Finished shows only</strong>
+            <p>Leave off to include ongoing and upcoming titles.</p>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Finished shows only"
+            checked={value.finishedOnly}
+            disabled={initialSetup && (pending || state.busy)}
+            onChange={(event) =>
+              setValue((current) => ({
+                ...current,
+                finishedOnly: event.target.checked,
+              }))
+            }
+          />
         </div>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label="Include unknown lengths or formats"
-          checked={value.includeUnknown}
-          disabled={initialSetup && (pending || state.busy)}
-          onChange={(event) =>
-            setValue((current) => ({
-              ...current,
-              includeUnknown: event.target.checked,
-            }))
-          }
-        />
-      </div>
+        <div className="setting-row">
+          <div>
+            <strong>Include unknown lengths or formats</strong>
+            <p>Keep titles whose episode count or format isn't available.</p>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Include unknown lengths or formats"
+            checked={value.includeUnknown}
+            disabled={initialSetup && (pending || state.busy)}
+            onChange={(event) =>
+              setValue((current) => ({
+                ...current,
+                includeUnknown: event.target.checked,
+              }))
+            }
+          />
+        </div>
+      </details>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -496,22 +486,18 @@ export function ViewingPreferences({ state, store, onComplete }) {
         </button>
       )}
       {initialSetup && (
-        <button
-          className="primary full-width"
-          disabled={pending || state.busy || !hasChosen}
-          onClick={() => save(value)}
-        >
-          {pending ? "Finding your anime…" : "Start shuffling"}
-        </button>
-      )}
-      {initialSetup && !hasChosen && (
-        <button
-          className="quiet"
-          disabled={initialSetup && (pending || state.busy)}
-          onClick={() => save(defaultPreferences())}
-        >
-          Surprise me — any anime
-        </button>
+        <div className="preference-continue">
+          <button
+            className="primary full-width"
+            disabled={pending || state.busy}
+            onClick={() => save(value)}
+          >
+            {pending ? "Finding your anime…" : "Start shuffling"}
+          </button>
+          <small>
+            No setup required. Refine your picks anytime in Settings.
+          </small>
+        </div>
       )}
     </>
   );

@@ -29,6 +29,7 @@ import { WatchlistCover } from "./WatchlistCover.jsx";
 
 /** Show site saves and MAL plans together while keeping their origin explicit. */
 export function Watchlist({ state, store, onDiscover }) {
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [removing, setRemoving] = useState(null);
   const [detailsAnime, setDetailsAnime] = useState(null);
   const importFile = useRef(null);
@@ -147,16 +148,6 @@ export function Watchlist({ state, store, onDiscover }) {
         )}
       </div>
       <div className="watchlist-controls">
-        <label>
-          Source
-          <select value={tab} onChange={(event) => setTab(event.target.value)}>
-            <option value="all">All watchlist · {combined.length}</option>
-            <option value="saved">Found on Anime Shuffle</option>
-            <option value="mal" disabled={!state.session.connected}>
-              MyAnimeList Plan to Watch
-            </option>
-          </select>
-        </label>
         <label className="watchlist-search">
           Search your watchlist
           <input
@@ -182,73 +173,109 @@ export function Watchlist({ state, store, onDiscover }) {
             </option>
           </select>
         </label>
-        <label>
-          Release status
-          <select value={release} onChange={(e) => setRelease(e.target.value)}>
-            <option value="all">Any status</option>
-            <option value="available">Available to start</option>
-            <option value="currently_airing">Currently airing</option>
-            <option value="finished_airing">Finished airing</option>
-            <option value="not_yet_aired">Not yet aired</option>
-          </select>
-        </label>
-        {[
-          ["formats", "Format", FORMAT_OPTIONS],
-          ["lengths", "Series length", LENGTH_OPTIONS],
-        ].map(([key, label, options]) => (
-          <label key={key}>
-            {label}
+        <button
+          className="outline watchlist-filter-toggle"
+          aria-expanded={filtersExpanded}
+          aria-controls="watchlist-extra-filters"
+          onClick={() => setFiltersExpanded((value) => !value)}
+        >
+          {filtersExpanded ? "Hide filters" : "Filters"}
+          {(tab !== "all" ||
+            release !== "all" ||
+            genre !== "all" ||
+            preferences.formats.length > 0 ||
+            preferences.lengths.length > 0 ||
+            !preferences.includeUnknown) &&
+            " · Active"}
+        </button>
+        <div
+          id="watchlist-extra-filters"
+          className={`watchlist-extra-filters${filtersExpanded ? " expanded" : ""}`}
+        >
+          <label>
+            Source
             <select
-              value={preferences[key][0] || ""}
+              value={tab}
+              onChange={(event) => setTab(event.target.value)}
+            >
+              <option value="all">All watchlist · {combined.length}</option>
+              <option value="saved">Found on Anime Shuffle</option>
+              <option value="mal" disabled={!state.session.connected}>
+                MyAnimeList Plan to Watch
+              </option>
+            </select>
+          </label>
+          <label>
+            Release status
+            <select
+              value={release}
+              onChange={(e) => setRelease(e.target.value)}
+            >
+              <option value="all">Any status</option>
+              <option value="available">Available to start</option>
+              <option value="currently_airing">Currently airing</option>
+              <option value="finished_airing">Finished airing</option>
+              <option value="not_yet_aired">Not yet aired</option>
+            </select>
+          </label>
+          {[
+            ["formats", "Format", FORMAT_OPTIONS],
+            ["lengths", "Series length", LENGTH_OPTIONS],
+          ].map(([key, label, options]) => (
+            <label key={key}>
+              {label}
+              <select
+                value={preferences[key][0] || ""}
+                onChange={(e) =>
+                  setPreferences((p) => ({
+                    ...p,
+                    [key]: e.target.value ? [e.target.value] : [],
+                  }))
+                }
+              >
+                <option value="">Any {label.toLowerCase()}</option>
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+          <label>
+            Genre
+            <select value={genre} onChange={(e) => setGenre(e.target.value)}>
+              <option value="all">Any genre</option>
+              {[
+                ...new Set([
+                  ...GENRES,
+                  ...source.flatMap(({ anime }) => anime.genres || []),
+                ]),
+              ]
+                .sort()
+                .map((g) => (
+                  <option key={g} value={g}>
+                    {genreLabel(g)}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Missing information
+            <select
+              value={preferences.includeUnknown ? "include" : "hide"}
               onChange={(e) =>
                 setPreferences((p) => ({
                   ...p,
-                  [key]: e.target.value ? [e.target.value] : [],
+                  includeUnknown: e.target.value === "include",
                 }))
               }
             >
-              <option value="">Any {label.toLowerCase()}</option>
-              {options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
+              <option value="include">Include unknown lengths / formats</option>
+              <option value="hide">Hide unknown lengths / formats</option>
             </select>
           </label>
-        ))}
-        <label>
-          Genre
-          <select value={genre} onChange={(e) => setGenre(e.target.value)}>
-            <option value="all">Any genre</option>
-            {[
-              ...new Set([
-                ...GENRES,
-                ...source.flatMap(({ anime }) => anime.genres || []),
-              ]),
-            ]
-              .sort()
-              .map((g) => (
-                <option key={g} value={g}>
-                  {genreLabel(g)}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label>
-          Missing information
-          <select
-            value={preferences.includeUnknown ? "include" : "hide"}
-            onChange={(e) =>
-              setPreferences((p) => ({
-                ...p,
-                includeUnknown: e.target.value === "include",
-              }))
-            }
-          >
-            <option value="include">Include unknown lengths / formats</option>
-            <option value="hide">Hide unknown lengths / formats</option>
-          </select>
-        </label>
+        </div>
       </div>
       <div className="watchlist-actions">
         {items.length > 8 && (
@@ -273,114 +300,123 @@ export function Watchlist({ state, store, onDiscover }) {
         >
           Clear filters
         </button>
-        <label className="backup-format">
-          Export format
-          <select
-            aria-label="Export format"
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value)}
-          >
-            <option value="json">JSON</option>
-            <option value="txt">Text</option>
-          </select>
-        </label>
-        <div
-          className="watchlist-transfer"
-          role="group"
-          aria-label="Import or export watchlist"
-        >
-          <button
-            className="outline"
-            disabled={!source.length}
-            onClick={() => {
-              // Export the whole active list, even when its visible view is filtered.
-              const entries = orderWatchlist(source, {
-                ...state,
-                preferences: defaultPreferences(),
-                tastePreferences: state.preferences,
-                sort: effectiveSort,
-                scores,
-              });
-              const url = URL.createObjectURL(
-                new Blob(
-                  [
-                    exportFormat === "json"
-                      ? watchlistBackup(entries)
-                      : watchlistText(
-                          entries,
-                          tab === "all"
-                            ? "Watchlist"
-                            : tab === "mal"
-                              ? "MAL Plan to Watch"
-                              : "Found on Anime Shuffle",
-                        ),
-                  ],
-                  {
-                    type:
-                      exportFormat === "json"
-                        ? "application/json"
-                        : "text/plain;charset=utf-8",
-                  },
-                ),
-              );
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = `anime-shuffle-watchlist.${exportFormat}`;
-              document.body.append(link);
-              link.click();
-              link.remove();
-              setTimeout(() => URL.revokeObjectURL(url), 1000);
-            }}
-          >
-            Export watchlist
-          </button>
-          <button
-            className="outline"
-            disabled={state.busy || importing}
-            onClick={() => importFile.current?.click()}
-          >
-            Import watchlist
-          </button>
-        </div>
-        <input
-          ref={importFile}
-          hidden
-          aria-label="Import watchlist file"
-          type="file"
-          accept=".json,.txt,application/json,text/plain"
-          disabled={state.busy || importing}
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            setPendingImport(null);
-            setImportMessage("");
-            if (!file) return;
-            if (!/\.(json|txt)$/i.test(file.name)) {
-              setImportMessage("Choose an Anime Shuffle .json or .txt export.");
-              return;
-            }
-            if (file.size > 5 * 1024 * 1024) {
-              setImportMessage("Choose a watchlist export smaller than 5 MB.");
-              return;
-            }
-            try {
-              const text = await file.text();
-              const entries = parseWatchlistImport(text);
-              const fresh = newWatchlistEntries(
-                entries,
-                state.reactions,
-                state.list,
-              );
-              setPendingImport({
-                text,
-                count: fresh.length,
-                skipped: entries.length - fresh.length,
-              });
-            } catch (error) {
-              setImportMessage(error.message);
-            }
-          }}
-        />
+        <details className="watchlist-tools">
+          <summary>Import / export</summary>
+          <div className="watchlist-tools-body">
+            <label className="backup-format">
+              Export format
+              <select
+                aria-label="Export format"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+              >
+                <option value="json">JSON</option>
+                <option value="txt">Text</option>
+              </select>
+            </label>
+            <div
+              className="watchlist-transfer"
+              role="group"
+              aria-label="Import or export watchlist"
+            >
+              <button
+                className="outline"
+                disabled={!source.length}
+                onClick={() => {
+                  // Export the whole active list, even when its visible view is filtered.
+                  const entries = orderWatchlist(source, {
+                    ...state,
+                    preferences: defaultPreferences(),
+                    tastePreferences: state.preferences,
+                    sort: effectiveSort,
+                    scores,
+                  });
+                  const url = URL.createObjectURL(
+                    new Blob(
+                      [
+                        exportFormat === "json"
+                          ? watchlistBackup(entries)
+                          : watchlistText(
+                              entries,
+                              tab === "all"
+                                ? "Watchlist"
+                                : tab === "mal"
+                                  ? "MAL Plan to Watch"
+                                  : "Found on Anime Shuffle",
+                            ),
+                      ],
+                      {
+                        type:
+                          exportFormat === "json"
+                            ? "application/json"
+                            : "text/plain;charset=utf-8",
+                      },
+                    ),
+                  );
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `anime-shuffle-watchlist.${exportFormat}`;
+                  document.body.append(link);
+                  link.click();
+                  link.remove();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }}
+              >
+                Export watchlist
+              </button>
+              <button
+                className="outline"
+                disabled={state.busy || importing}
+                onClick={() => importFile.current?.click()}
+              >
+                Import watchlist
+              </button>
+            </div>
+            <input
+              ref={importFile}
+              hidden
+              aria-label="Import watchlist file"
+              type="file"
+              accept=".json,.txt,application/json,text/plain"
+              disabled={state.busy || importing}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                setPendingImport(null);
+                setImportMessage("");
+                if (!file) return;
+                if (!/\.(json|txt)$/i.test(file.name)) {
+                  setImportMessage(
+                    "Choose an Anime Shuffle .json or .txt export.",
+                  );
+                  return;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                  setImportMessage(
+                    "Choose a watchlist export smaller than 5 MB.",
+                  );
+                  return;
+                }
+                try {
+                  const text = await file.text();
+                  const entries = parseWatchlistImport(text);
+                  const fresh = newWatchlistEntries(
+                    entries,
+                    state.reactions,
+                    state.list,
+                  );
+                  setPendingImport({
+                    text,
+                    count: fresh.length,
+                    skipped: entries.length - fresh.length,
+                  });
+                } catch (error) {
+                  setImportMessage(error.message);
+                }
+              }}
+            />
+          </div>
+        </details>
       </div>
       {(pendingImport || importMessage) && (
         <div className="watchlist-import">

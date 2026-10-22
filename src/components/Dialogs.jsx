@@ -9,6 +9,7 @@ import { Icon } from "./Icon.jsx";
 /** Native dialog supplies focus trapping and Escape; React supplies its content. */
 function Dialog({
   children,
+  labelledBy,
   onClose,
   welcome = false,
   dismissable = true,
@@ -23,6 +24,7 @@ function Dialog({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={labelledBy}
       className={`dialog ${welcome ? "welcome" : ""}`}
       onClick={(event) => {
         if (
@@ -74,14 +76,14 @@ export function Dialogs({
     ["welcome", "login", "register"].includes(kind)
   )
     return (
-      <Dialog onClose={onClose} welcome>
+      <Dialog labelledBy="welcome-title" onClose={onClose} welcome>
         <img
           className="welcome-logo"
           src="./assets/logo.png"
           alt="Anime Shuffle cards"
         />
         <span className="eyebrow">A little shuffle. A new favorite.</span>
-        <h2>Find your next anime.</h2>
+        <h2 id="welcome-title">Find your next anime.</h2>
         <p>
           Try seven sample anime, react to each pick, and build a watchlist
           saved in this browser.
@@ -105,7 +107,11 @@ export function Dialogs({
     );
   if (["login", "register"].includes(kind))
     return (
-      <Dialog busy={state.busy} onClose={() => onNavigate("welcome")}>
+      <Dialog
+        labelledBy="account-title"
+        busy={state.busy}
+        onClose={() => onNavigate("welcome")}
+      >
         <AccountForm
           mode={kind}
           store={store}
@@ -117,6 +123,7 @@ export function Dialogs({
   if (kind === "preferences")
     return (
       <Dialog
+        labelledBy="preferences-title"
         busy={!state.onboardingComplete && state.busy}
         dismissable={state.onboardingComplete}
         closeOnOutside
@@ -127,14 +134,14 @@ export function Dialogs({
     );
   if (kind === "welcome")
     return (
-      <Dialog onClose={onClose} welcome>
+      <Dialog labelledBy="welcome-title" onClose={onClose} welcome>
         <img
           className="welcome-logo"
           src="./assets/logo.png"
           alt="Anime Shuffle cards"
         />
         <span className="eyebrow">A little shuffle. A new favorite.</span>
-        <h2>Find your next anime.</h2>
+        <h2 id="welcome-title">Find your next anime.</h2>
         <p>
           Create an Anime Shuffle account, or use your MyAnimeList account to
           sign in and bring your list with you.
@@ -173,8 +180,8 @@ export function Dialogs({
     );
   if (kind === "privacy")
     return (
-      <Dialog onClose={onClose}>
-        <h2>Your data and privacy</h2>
+      <Dialog labelledBy="privacy-title" onClose={onClose}>
+        <h2 id="privacy-title">Your data and privacy</h2>
         <p>
           Your own reactions and saved anime are stored in this browser,
           separately for guests and each signed-in account. Imported MAL
@@ -234,9 +241,9 @@ export function Dialogs({
       </Dialog>
     );
   return (
-    <Dialog closeOnOutside onClose={onClose}>
+    <Dialog labelledBy="settings-title" closeOnOutside onClose={onClose}>
       <span className="eyebrow">Make it yours</span>
-      <h2>Settings</h2>
+      <h2 id="settings-title">Settings</h2>
       {!state.session.staticMode && <InstallApp />}
       {state.session.cloudSync && state.session.account && (
         <div className="setting-row">

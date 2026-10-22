@@ -235,7 +235,7 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     assert.match(document.body.textContent, /Pick three anime/);
     assert.match(document.body.textContent, /Genres and themes/);
     assert.match(document.body.textContent, /Auto-add watchlist/);
-    // Mount an untouched first-use screen to verify the two start choices.
+    // First-use setup can continue without choosing a preference.
     await act(async () =>
       root.render(
         React.createElement(ViewingPreferences, {
@@ -255,8 +255,8 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       [...document.querySelectorAll("button")].find(
         (b) => b.textContent === text,
       );
-    assert.equal(button("Start shuffling").disabled, true);
-    assert.ok(button("Surprise me — any anime"));
+    assert.equal(button("Start shuffling").disabled, false);
+    assert.equal(document.querySelector(".preference-advanced").open, false);
     await act(async () => button("Anything").click());
     assert.equal(button("Start shuffling").disabled, false);
     assert.equal(button("Surprise me — any anime"), undefined);
