@@ -1,4 +1,6 @@
 import { AmbientBackground } from "./components/AmbientBackground.jsx";
+import { AndroidAppPrompt } from "./components/AndroidAppPrompt.jsx";
+import { shouldOfferAndroidApp } from "./lib/install-app.js";
 import { RecommendationExposure } from "./components/RecommendationExposure.jsx";
 import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
@@ -43,6 +45,9 @@ export function App({ store }) {
 }
 
 function ConnectedApp({ store, state }) {
+  const [appChoiceOpen, setAppChoiceOpen] = useState(
+    () => !state.session.staticMode && shouldOfferAndroidApp(),
+  );
   const [view, setView] = useState("discover");
   const [freshnessTick, setFreshnessTick] = useState(0);
   useEffect(() => {
@@ -82,7 +87,7 @@ function ConnectedApp({ store, state }) {
   const [authError, setAuthError] = useState("");
   const onboardingShown = useRef(false);
   useEffect(() => {
-    if (!state.ready || onboardingShown.current) return;
+    if (!state.ready || appChoiceOpen || onboardingShown.current) return;
     onboardingShown.current = true;
     const query = new URLSearchParams(location.search);
     if (query.has("setup")) setDialog("settings");
@@ -127,7 +132,7 @@ function ConnectedApp({ store, state }) {
     } else if (!state.onboardingComplete)
       setDialog(state.session.account ? "preferences" : "welcome");
     window.history.replaceState({}, "", location.pathname);
-  }, [state.ready, state.session.connected, store]);
+  }, [state.ready, state.session.connected, store, appChoiceOpen]);
   useEffect(() => {
     if (!state.message) return;
     const timer = setTimeout(store.dismissMessage, 6000);
@@ -568,6 +573,9 @@ function ConnectedApp({ store, state }) {
         <div id="toast" role="status" aria-live="polite">
           {state.message}
         </div>
+      )}
+      {appChoiceOpen && (
+        <AndroidAppPrompt onClose={() => setAppChoiceOpen(false)} />
       )}
       <Dialogs
         key={dialog || "none"}

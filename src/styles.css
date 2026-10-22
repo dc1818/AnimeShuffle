@@ -41,6 +41,116 @@
   min-height: 44px;
   white-space: normal;
 }
+/* Android APK invitation: a native modal bottom sheet, scrollable on short screens. */
+.android-app-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0 auto;
+  width: min(100%, 520px);
+  max-width: 100%;
+  max-height: calc(100dvh - 16px);
+  padding: 26px max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--text);
+  background: #14232d;
+  border: 1px solid #526c7c;
+  border-bottom: 0;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -16px 64px #0008;
+  overflow-wrap: anywhere;
+}
+.android-app-sheet::backdrop {
+  background: #030910a6;
+  backdrop-filter: blur(3px);
+}
+.android-app-handle {
+  width: 48px;
+  height: 5px;
+  margin: -14px auto 22px;
+  border-radius: 8px;
+  background: #71899a;
+}
+.android-app-close {
+  position: absolute;
+  right: 10px;
+  top: 12px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.android-app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 28px;
+}
+.android-app-brand img {
+  border-radius: 12px;
+  flex: 0 0 48px;
+}
+.android-app-brand .eyebrow {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.android-app-sheet h2 {
+  font-size: clamp(1.3rem, 5.6vw, 1.7rem);
+  line-height: 1.2;
+  margin: 18px 0 12px;
+}
+.android-app-sheet p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 8px 0;
+}
+.android-app-sheet .android-app-sync {
+  margin-bottom: 22px;
+}
+button.apk-download:disabled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #394650;
+  border: 1px solid #56616b;
+  color: #b8c0c6;
+  font-weight: 700;
+  opacity: 1;
+  cursor: not-allowed;
+  white-space: normal;
+  box-shadow: none;
+}
+.android-app-sheet .android-app-status {
+  text-align: center;
+  font-size: 0.78rem;
+  margin: 8px 0 16px;
+}
+.android-app-continue {
+  min-height: 50px;
+  border-radius: 12px;
+  white-space: normal;
+}
+.android-app-sheet .android-app-footer {
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 18px 0 0;
+}
+@media (max-height: 500px) {
+  .android-app-sheet {
+    padding-top: 22px;
+  }
+  .android-app-sheet h2 {
+    margin-top: 12px;
+  }
+  .android-app-sheet .android-app-sync {
+    margin-bottom: 12px;
+  }
+}
 @font-face {
   font-family: Shuffle;
   src: local("Bahnschrift");

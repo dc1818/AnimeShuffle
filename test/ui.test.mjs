@@ -12,8 +12,12 @@ import { createAnimeStore } from "../src/lib/store.js";
 
 // Render real React components in jsdom. Native dialog/canvas layout still needs
 // a real browser; the dialog methods below only emulate opening/closing for events.
-for (const staticMode of [false, true])
-  test(`React interface preserves onboarding and discovery (${staticMode ? "Pages" : "server"})`, async () => {
+for (const [staticMode, android] of [
+  [false, false],
+  [true, false],
+  [false, true],
+])
+  test(`React interface preserves onboarding and discovery (${staticMode ? "Pages" : android ? "Android" : "server"})`, async () => {
     const folder = await mkdtemp(path.resolve(".react-test-"));
     const outfile = path.join(folder, "App.mjs");
     await build({
@@ -40,6 +44,11 @@ for (const staticMode of [false, true])
     ])
       globalThis[name] = dom.window[name];
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    if (android)
+      Object.defineProperty(dom.window.navigator, "userAgent", {
+        value:
+          "Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile Safari/537.36",
+      });
     if (staticMode) document.documentElement.dataset.hosting = "pages";
     dom.window.HTMLDialogElement.prototype.showModal = function () {
       this.setAttribute("open", "");
@@ -76,6 +85,28 @@ for (const staticMode of [false, true])
         root.render(React.createElement(App, { store }));
         await store.initialize();
       });
+      if (android) {
+        assert.ok(document.querySelector(".android-app-sheet[open]"));
+        assert.equal(
+          document.querySelectorAll("dialog[open]").length,
+          1,
+          "invitation must not stack over onboarding",
+        );
+        assert.equal(button("Download Android app").disabled, true);
+        await click("Download Android app");
+        assert.ok(document.querySelector(".android-app-sheet[open]"));
+        await click("Continue on website");
+        assert.equal(document.querySelector(".android-app-sheet"), null);
+        assert.equal(
+          localStorage.getItem("anime-shuffle:android-app-choice:v1"),
+          "website",
+        );
+        assert.equal(
+          document.querySelectorAll("dialog[open]").length,
+          1,
+          "normal onboarding resumes after choosing website",
+        );
+      }
       assert.equal(
         document.getElementById("anime-title"),
         null,
@@ -315,7 +346,22 @@ for (const staticMode of [false, true])
       await act(async () =>
         document.querySelector('[aria-label="Open settings"]').click(),
       );
+      if (!staticMode) {
+        assert.equal(button("Download Android app").disabled, true);
+        assert.match(
+          document.querySelector("dialog").textContent,
+          /APK download · Coming soon/,
+        );
+        assert.doesNotMatch(
+          document.querySelector("dialog").textContent,
+          /Add to home screen|Installs from your browser|Install Anime Shuffle/i,
+        );
+      }
       await click("Viewing preferences");
+      assert.doesNotMatch(
+        document.querySelector("dialog").textContent,
+        /Add to home screen|Installs from your browser|Install Anime Shuffle/i,
+      );
       await act(async () =>
         [...document.querySelectorAll(".preference-option")]
           .find((element) => element.textContent.startsWith("Movies"))

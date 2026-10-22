@@ -1,5 +1,6 @@
 /** Shared inline icons keep the interface consistent without loading an icon font. */
 const paths = {
+  download: "M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5",
   shuffle: "m3 5 4 0 10 14h4m-4-4 4 4-4 4M3 19h4l3-4m4-6 3-4h4m-4-4 4 4-4 4",
   bookmark: "M6 3h12v18l-6-4-6 4Z",
   thumbUp: "M7 10h-4v11h4m0-11 5-8c3 0 2 5 2 7h5q3 0 2 3l-2 7q0 2-3 2H7Z",

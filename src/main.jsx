@@ -1,5 +1,8 @@
 import { browserLocalStorage } from "./lib/browser-storage.js";
-import { registerAppWorker } from "./lib/install-app.js";
+import {
+  registerAppWorker,
+  suppressBrowserInstall,
+} from "./lib/install-app.js";
 import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.jsx";
@@ -11,6 +14,7 @@ const Admin = lazy(() =>
 );
 
 registerAppWorker();
+suppressBrowserInstall();
 
 // A single store survives component remounts. Secrets and OAuth tokens remain
 // in server.mjs; this entry point only calls our same-origin API routes.
