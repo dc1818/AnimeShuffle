@@ -477,6 +477,7 @@ function ConnectedApp({ store, state }) {
                   {details && (
                     <AnimeDetails
                       initialTab={details === "why" ? "why" : "synopsis"}
+                      modal
                       responsive
                       reactions={state.reactions}
                       onSaveFeedback={store.setReactionFeedback}

@@ -149,7 +149,11 @@ for (const [staticMode, android] of [
             .src.startsWith("https://cdn.myanimelist.net/"),
         );
       await click("More details");
-      assert.ok(document.getElementById("details-card"));
+      assert.ok(
+        document.querySelector("dialog#details-card[open]"),
+        "Discover details must overlay at desktop and phone widths",
+      );
+      assert.equal(document.body.style.overflow, "hidden");
       await click("Hide details");
       assert.equal(document.getElementById("details-card"), null);
       const whyOpener = button("Why this pick?");

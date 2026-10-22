@@ -244,8 +244,12 @@ function Fixture() {
           {details && (
             <AnimeDetails
               initialTab={details === "why" ? "why" : "synopsis"}
+              modal={!compact}
               responsive
-              anime={demo[displayed]}
+              anime={{
+                ...demo[displayed],
+                ...(long ? { title: anime.title, englishTitle: "" } : {}),
+              }}
               reactions={
                 action === "none"
                   ? {}

@@ -5740,13 +5740,7 @@ summary:focus-visible {
   border-color: #8ab5cd30;
   background: #152632;
 }
-[data-layout="familiar"] .cards-layout.discover-layout > aside.details-card {
-  width: 100%;
-  align-self: stretch;
-  border-color: #7babc13d;
-  background: var(--discover-surface);
-  scroll-margin-block: 20px;
-}
+
 .fixture-controls {
   padding: 4px 16px;
   color: #b8cbd9;
@@ -5878,4 +5872,105 @@ summary:focus-visible {
   .discover-card
   .poster-stage:has(.trailer-panel:not([hidden])) {
   min-height: 320px;
+}
+
+/* Discover details stay in the viewport; only their content scrolls.
+ * Override historical side-panel offsets at every breakpoint. */
+[data-layout="familiar"] .cards-layout.discover-layout dialog.details-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(760px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 48px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid #7babc15c;
+  border-radius: 18px;
+  background: #0c1923;
+  color: var(--text);
+  box-shadow: 0 24px 80px #0008;
+  overflow: hidden;
+}
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  dialog.details-modal::backdrop {
+  background: #030912a8;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  .details-modal
+  .details-header {
+  padding: 20px 24px 0;
+  flex: none;
+}
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  .details-modal
+  .details-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 24px 24px;
+}
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  .details-modal
+  .details-header
+  h2 {
+  margin-right: 44px;
+  max-height: min(150px, 18dvh);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  font-size: 28px;
+  line-height: 1.25;
+}
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  .details-modal
+  .details-header
+  .eyebrow {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: #b8cbd9;
+}
+[data-layout="familiar"]
+  .cards-layout.discover-layout
+  .details-modal
+  .feedback-editor {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+}
+@media (max-width: 560px), (max-height: 500px) {
+  [data-layout="familiar"] .cards-layout.discover-layout dialog.details-modal {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 14px;
+  }
+  [data-layout="familiar"]
+    .cards-layout.discover-layout
+    .details-modal
+    .details-header {
+    padding: 12px 16px 0;
+  }
+  [data-layout="familiar"]
+    .cards-layout.discover-layout
+    .details-modal
+    .details-body {
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  [data-layout="familiar"]
+    .cards-layout.discover-layout
+    .details-modal
+    .details-header
+    h2 {
+    font-size: 23px;
+  }
 }
