@@ -154,7 +154,8 @@ for (const [staticMode, android] of [
       assert.equal(document.getElementById("details-card"), null);
       await click("Why this pick?");
       assert.equal(
-        document.querySelector('[role="tab"][aria-selected="true"]').textContent,
+        document.querySelector('[role="tab"][aria-selected="true"]')
+          .textContent,
         "Why this pick?",
         "Direct explanation opens the actual Why tab in both hosting modes",
       );
@@ -163,7 +164,8 @@ for (const [staticMode, android] of [
       await click("More details");
       await click("Why this pick?");
       assert.equal(
-        document.querySelector('[role="tab"][aria-selected="true"]').textContent,
+        document.querySelector('[role="tab"][aria-selected="true"]')
+          .textContent,
         "Why this pick?",
         "Direct explanation switches an already-open details panel",
       );
