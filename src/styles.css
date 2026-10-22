@@ -5461,3 +5461,325 @@ summary:focus-visible {
     width: 100%;
   }
 }
+
+/* Discover refinement: the artwork and decision share one calm surface.
+ * Scope to Discover so ranked cards, Watchlist and their dialogs keep geometry. */
+[data-layout="familiar"] .discover-layout {
+  --discover-ink: #edf5fc;
+  --discover-muted: #b8cbd9;
+  --discover-link: #89d8ff;
+  --discover-surface: #0c1923f5;
+  --discover-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 1120px;
+  gap: 20px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+[data-layout="familiar"] .discover-layout .anime-card.discover-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(20px, 3vw, 36px);
+  width: 100%;
+  padding: 20px;
+  background: var(--discover-surface);
+  border: 1px solid #7babc13d;
+  border-radius: var(--discover-radius);
+  box-shadow: 0 18px 50px #0003;
+}
+[data-layout="familiar"] .discover-layout .discover-card .poster-stage {
+  height: clamp(390px, calc(100svh - 210px), 600px);
+  border-radius: 12px;
+  width: 100%;
+  background: #15232f;
+}
+[data-layout="familiar"] .discover-layout .discover-card .poster {
+  object-fit: contain;
+}
+[data-layout="familiar"] .discover-layout .discover-card .poster-fade {
+  height: 90px;
+  background: linear-gradient(transparent, #0c1923b3);
+}
+[data-layout="familiar"] .discover-layout .discover-card .media-badge {
+  display: none; /* The format is now in the readable facts row. */
+}
+[data-layout="familiar"] .discover-layout .discover-card .card-content {
+  margin: 0;
+  padding: 8px 0 0;
+  min-width: 0;
+  color: var(--discover-ink);
+}
+[data-layout="familiar"] .discover-layout #anime-title {
+  font-size: clamp(28px, 2.8vw, 40px);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+[data-layout="familiar"] .discover-layout .discover-card .metadata {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--discover-muted);
+}
+[data-layout="familiar"] .discover-layout .discover-card .release-status {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--discover-muted);
+  margin: 3px 0;
+  line-height: 1.5;
+}
+[data-layout="familiar"]
+  .discover-layout
+  .discover-card
+  .release-status.unreleased {
+  color: #f6d699;
+}
+[data-layout="familiar"] .discover-layout .discover-card .runtime-estimate {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--discover-muted);
+  margin: 2px 0;
+}
+[data-layout="familiar"] .discover-layout .discover-card .genre-groups {
+  margin: 18px 0 8px;
+  gap: 8px;
+}
+[data-layout="familiar"] .discover-layout .discover-card .genre-group {
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 10px;
+}
+[data-layout="familiar"] .discover-layout .discover-card .genre-group-label {
+  flex: 0 0 65px;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+[data-layout="familiar"] .discover-layout .discover-card .genres {
+  margin: 0;
+  gap: 5px;
+}
+[data-layout="familiar"] .discover-layout .discover-card .genre {
+  padding: 4px 9px;
+  font-size: 12px;
+  line-height: 1.3;
+  border-color: #5487a25c;
+}
+[data-layout="familiar"] .discover-layout .discover-card .genre-unknown {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--discover-muted);
+}
+[data-layout="familiar"]
+  .discover-layout
+  .discover-card
+  .taxonomy-card
+  summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--discover-link);
+  font-size: 13px;
+}
+[data-layout="familiar"]
+  .discover-layout
+  .discover-card
+  .taxonomy-card
+  summary::before {
+  content: "›";
+  font-size: 20px;
+}
+[data-layout="familiar"]
+  .discover-layout
+  .discover-card
+  .taxonomy-card[open]
+  summary::before {
+  transform: rotate(90deg);
+}
+[data-layout="familiar"] .discover-layout .discover-card .synopsis {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #d0dce6;
+  -webkit-line-clamp: 3;
+  min-height: 0;
+  margin: 12px 0;
+}
+.discover-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+[data-layout="familiar"] .discover-layout .discover-links .details-toggle {
+  min-height: 44px;
+  padding: 8px 4px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  justify-content: flex-start;
+  color: var(--discover-link);
+  gap: 7px;
+  font-size: 14px;
+  text-align: left;
+}
+[data-layout="familiar"]
+  .discover-layout
+  .discover-links
+  .details-toggle:hover {
+  background: #183747;
+  color: #c1edff;
+}
+.discover-links .details-toggle > span:first-child,
+.discover-links .details-toggle > span:last-child {
+  margin: 0;
+  flex: 0 0 auto;
+  display: flex;
+}
+.discover-links .details-toggle > span:last-child svg {
+  width: 14px;
+}
+[data-layout="familiar"] .discover-layout .discover-card .reaction-labels {
+  margin: 0 0 8px;
+  gap: 16px;
+  color: var(--discover-muted);
+  font-size: 13px;
+}
+.discover-card .reaction-labels span {
+  justify-content: flex-start;
+}
+.discover-card .reaction-labels span::before,
+.discover-card .reaction-labels span::after {
+  display: none;
+}
+[data-layout="familiar"] .discover-layout .discover-card .reactions {
+  gap: 8px;
+}
+[data-layout="familiar"] .discover-layout .discover-card .reaction {
+  min-height: 68px;
+  gap: 6px;
+  padding: 9px 4px;
+  font-size: 13px;
+  border-radius: 10px;
+  box-shadow: none;
+  white-space: normal;
+}
+.discover-card .reaction kbd {
+  display: none; /* Shortcuts remain available in each button's tooltip. */
+}
+[data-layout="familiar"] .discover-layout .discover-card .secondary-actions {
+  margin-top: 16px;
+}
+[data-layout="familiar"]
+  .discover-layout
+  .discover-card
+  .secondary-actions
+  button {
+  min-height: 44px;
+  font-size: 13px;
+  border-color: #8ab5cd30;
+  background: #152632;
+}
+[data-layout="familiar"] .discover-layout > aside.details-card {
+  width: 100%;
+  align-self: stretch;
+  border-color: #7babc13d;
+  background: var(--discover-surface);
+  scroll-margin-block: 20px;
+}
+.fixture-controls {
+  padding: 4px 16px;
+  color: #b8cbd9;
+  font-size: 12px;
+}
+.fixture-controls > summary {
+  cursor: pointer;
+  min-height: 28px;
+}
+@media (max-width: 900px) {
+  [data-layout="familiar"] .discover-layout {
+    max-width: 600px;
+  }
+  [data-layout="familiar"] .discover-layout .anime-card.discover-card {
+    width: 100%;
+    display: block;
+    padding: 0;
+    border-radius: 16px;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .poster-stage {
+    height: clamp(150px, 24svh, 245px);
+    border-radius: 0;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .card-content {
+    padding: 12px 16px 14px;
+  }
+  [data-layout="familiar"] .discover-layout #anime-title {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .genre-groups {
+    margin: 12px 0 4px;
+    gap: 5px;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .synopsis {
+    -webkit-line-clamp: 2;
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .discover-links {
+    margin: 0 0 10px;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .secondary-actions {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 560px) {
+  [data-layout="familiar"] .discover-layout .discover-card .poster-stage {
+    height: clamp(140px, 21svh, 190px);
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .card-content {
+    padding: 10px 14px 12px;
+  }
+  [data-layout="familiar"] .discover-layout #anime-title {
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .reaction-labels {
+    display: none;
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .reactions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 8px;
+  }
+  [data-layout="familiar"]
+    .discover-layout
+    .discover-card
+    .mobile-reaction-label {
+    display: block;
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 12px;
+    color: var(--discover-muted);
+  }
+  [data-layout="familiar"] .discover-layout .discover-card .reaction {
+    flex-direction: row;
+    min-height: 46px;
+    font-size: 13px;
+  }
+  [data-layout="familiar"] .discover-layout .discover-links .details-toggle {
+    font-size: 13px;
+    gap: 5px;
+  }
+}
+@media (max-width: 360px) {
+  .discover-links .details-toggle > span:last-child {
+    display: none;
+  }
+}

@@ -45,6 +45,7 @@ export function AnimeCard({
   reactionDisabled = false,
   detailsOpen,
   onDetails,
+  onWhy,
   onReact,
   onSkip,
   onUndo,
@@ -104,7 +105,7 @@ export function AnimeCard({
   }
   return (
     <article
-      className={`anime-card ${compact ? "ranked-card" : ""} ${tier <= 3 ? "medal-" + tier : ""}`}
+      className={`anime-card ${compact ? "ranked-card" : "discover-card"} ${tier <= 3 ? "medal-" + tier : ""}`}
       aria-label={compact ? anime.title : "Current anime"}
       aria-busy={busy}
     >
@@ -134,6 +135,9 @@ export function AnimeCard({
             key={coverKey}
             ref={image}
             className="poster"
+            width="300"
+            height="450"
+            fetchPriority={compact ? "auto" : "high"}
             src={coverUrl(anime)}
             alt={`${anime.title} cover`}
             onLoad={imageLoaded}
@@ -162,11 +166,6 @@ export function AnimeCard({
             <AnimeTitle anime={anime} />
           </h1>
         )}
-        <p
-          className={`release-status ${isUnreleased(anime) ? "unreleased" : ""}`}
-        >
-          {releaseLabel(anime)}
-        </p>
         {compact && (
           <p className="match-reason">
             {reason}
@@ -176,12 +175,21 @@ export function AnimeCard({
         <div className="metadata">
           {[
             anime.year,
+            !compact && anime.format
+              ? anime.format.replaceAll("_", " ").toUpperCase()
+              : null,
             anime.episodes ? `${anime.episodes} episodes` : null,
-            anime.duration ? `${anime.duration} min` : null,
+            compact && anime.duration ? `${anime.duration} min` : null,
           ]
             .filter(Boolean)
             .join(" · ")}
         </div>
+        <p
+          className={`release-status ${isUnreleased(anime) ? "unreleased" : ""}`}
+        >
+          {releaseLabel(anime)}
+          {!compact && anime.duration ? ` · ${anime.duration} min/episode` : ""}
+        </p>
         <p className="runtime-estimate">{runtimeLabel(anime)}</p>
         <GenreBadges anime={anime} />
         <GenreFocus
@@ -196,21 +204,45 @@ export function AnimeCard({
         <p className="synopsis">
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
-        <button
-          id={compact ? `details-toggle-${anime.id}` : "details-toggle"}
-          className="details-toggle"
-          aria-expanded={detailsOpen}
-          aria-controls="details-card"
-          onClick={onDetails}
-        >
-          <span>
-            <Icon name="info" />
-          </span>
-          <span>{detailsOpen ? "Hide details" : "More about this anime"}</span>
-          <span>
-            <Icon name="chevron" />
-          </span>
-        </button>
+        <div className={compact ? undefined : "discover-links"}>
+          <button
+            id={compact ? `details-toggle-${anime.id}` : "details-toggle"}
+            className="details-toggle"
+            aria-expanded={!!detailsOpen}
+            aria-controls="details-card"
+            onClick={onDetails}
+          >
+            <span>
+              <Icon name="info" />
+            </span>
+            <span>
+              {detailsOpen
+                ? "Hide details"
+                : compact
+                  ? "More about this anime"
+                  : "More details"}
+            </span>
+            <span>
+              <Icon name="chevron" />
+            </span>
+          </button>
+          {!compact && onWhy && (
+            <button
+              className="details-toggle why-toggle"
+              aria-expanded={detailsOpen === "why"}
+              aria-controls="details-card"
+              onClick={onWhy}
+            >
+              <span>
+                <Icon name="compass" />
+              </span>
+              <span>Why this pick?</span>
+              <span>
+                <Icon name="chevron" />
+              </span>
+            </button>
+          )}
+        </div>
         {selectionNote && (
           <p className="runtime-estimate" role="status">
             {selectionNote}
@@ -278,6 +310,7 @@ export function AnimeDetails({
   reason,
   reasons,
   onClose,
+  initialTab = "synopsis",
   responsive = false,
   modal = false,
   loading = false,
@@ -316,12 +349,14 @@ export function AnimeDetails({
     ...(mediaEnabled ? ["Trailers", "Images"] : []),
     "Why this pick?",
   ];
-  const [activeTab, setActiveTab] = useState(0);
-  // Each anime starts at its synopsis, including when a parent reuses this panel.
+  const [activeTab, setActiveTab] = useState(
+    initialTab === "why" ? tabs.length - 1 : 0,
+  );
+  // A direct explanation request opens Why; ordinary details starts at Synopsis.
   useEffect(() => {
-    setActiveTab(0);
+    setActiveTab(initialTab === "why" ? tabs.length - 1 : 0);
     setEditingId(null);
-  }, [anime.id]);
+  }, [anime.id, initialTab]);
   function changeTab(event, index) {
     let next;
     if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
@@ -378,6 +413,14 @@ export function AnimeDetails({
     document.addEventListener("click", outside);
     return () => document.removeEventListener("click", outside);
   }, [overlay, onClose]);
+  useEffect(() => {
+    if (!responsive) return;
+    const selected = panel.current?.querySelector(
+      '[role="tab"][aria-selected="true"]',
+    );
+    selected?.focus({ preventScroll: true });
+    if (!overlay) panel.current?.scrollIntoView?.({ block: "nearest" });
+  }, [anime.id, initialTab, overlay, responsive]);
   const Panel = overlay ? "dialog" : "aside";
   const ratingLabels = {
     g: "G · All ages",

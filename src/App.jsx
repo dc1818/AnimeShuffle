@@ -432,7 +432,9 @@ function ConnectedApp({ store, state }) {
                     detail="Your current pick will stay here."
                   />
                 )}
-                <div className={`cards-layout ${details ? "expanded" : ""}`}>
+                <div
+                  className={`cards-layout discover-layout ${details ? "expanded" : ""}`}
+                >
                   <RecommendationExposure
                     className="discovery-exposure"
                     animeId={state.current.id}
@@ -465,6 +467,7 @@ function ConnectedApp({ store, state }) {
                       canUndo={state.canUndo}
                       detailsOpen={details}
                       onDetails={() => setDetails((value) => !value)}
+                      onWhy={() => setDetails("why")}
                       onReact={store.react}
                       onSkip={store.skip}
                       onUndo={store.undo}
@@ -473,6 +476,7 @@ function ConnectedApp({ store, state }) {
                   </RecommendationExposure>
                   {details && (
                     <AnimeDetails
+                      initialTab={details === "why" ? "why" : "synopsis"}
                       responsive
                       reactions={state.reactions}
                       onSaveFeedback={store.setReactionFeedback}

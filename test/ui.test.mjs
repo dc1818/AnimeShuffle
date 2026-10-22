@@ -148,10 +148,26 @@ for (const [staticMode, android] of [
             .querySelector(".poster")
             .src.startsWith("https://cdn.myanimelist.net/"),
         );
-      await click("More about this anime");
+      await click("More details");
       assert.ok(document.getElementById("details-card"));
       await click("Hide details");
       assert.equal(document.getElementById("details-card"), null);
+      await click("Why this pick?");
+      assert.equal(
+        document.querySelector('[role="tab"][aria-selected="true"]').textContent,
+        "Why this pick?",
+        "Direct explanation opens the actual Why tab in both hosting modes",
+      );
+      assert.equal(document.querySelector(".reaction-feedback"), null);
+      await click("Hide details");
+      await click("More details");
+      await click("Why this pick?");
+      assert.equal(
+        document.querySelector('[role="tab"][aria-selected="true"]').textContent,
+        "Why this pick?",
+        "Direct explanation switches an already-open details panel",
+      );
+      await click("Hide details");
       // Keyboard numbers are present in button text, so dispatch by class for reactions.
       await act(async () => document.querySelector(".reaction.watch").click());
       assert.equal(
@@ -308,7 +324,7 @@ for (const [staticMode, android] of [
         0,
       );
       for (const action of ["good", "bad", "nope"]) {
-        await click("More about this anime");
+        await click("More details");
         await act(async () =>
           document.querySelector(".reaction." + action).click(),
         );
@@ -319,14 +335,14 @@ for (const [staticMode, android] of [
         );
         await click("Undo");
       }
-      await click("More about this anime");
+      await click("More details");
       await click("Skip");
       assert.equal(document.getElementById("details-card"), null);
       assert.notEqual(
         document.getElementById("anime-title").textContent,
         firstTitle,
       );
-      await click("More about this anime");
+      await click("More details");
       await click("Undo");
       assert.equal(document.getElementById("details-card"), null);
       assert.equal(
