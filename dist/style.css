@@ -9143,3 +9143,46 @@ summary:focus-visible {
   outline: 2px solid #a9eaff;
   outline-offset: -2px;
 }
+
+/* Watchlist transfer tools share one deliberate, responsive surface. */
+.watchlist-page .watchlist-tools > summary {
+  width: max-content;
+  max-width: 100%;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #456478;
+  border-radius: 7px;
+  cursor: pointer;
+  list-style: none;
+}
+.watchlist-tools > summary::-webkit-details-marker { display: none; }
+.watchlist-tools > summary svg { width: 16px; height: 16px; }
+.watchlist-tools[open] > summary svg { transform: rotate(180deg); }
+.watchlist-page .watchlist-tools[open] > summary { margin-left: auto; }
+.watchlist-page .watchlist-tools-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 24px;
+  margin: 12px 0 16px;
+  padding: 20px;
+  background: #101f2a;
+  border: 1px solid #365365;
+  border-radius: 9px;
+}
+.watchlist-transfer-section { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.watchlist-transfer-section + .watchlist-transfer-section { border-left: 1px solid #365365; padding-left: 24px; }
+.watchlist-transfer-section h3 { margin: 0; font-size: 16px; color: #edf5fb; }
+.watchlist-transfer-section p { margin: 0; color: #b8cbd9; font-size: 14px; line-height: 1.55; max-width: 52ch; }
+.watchlist-export-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: auto; width: 100%; }
+.watchlist-tools-body .backup-format { display: grid; gap: 6px; margin: 0; color: #c3d3df; font-size: 13px; }
+.watchlist-tools-body .backup-format select { min-width: 120px; min-height: 44px; margin: 0; }
+.watchlist-tools-body .outline { min-height: 44px; width: auto; margin: 0; padding: 10px 16px; white-space: normal; }
+.watchlist-transfer-section > .outline { margin-top: auto; }
+.watchlist-tools > summary:focus-visible { outline: 2px solid #8ce1fa; outline-offset: 3px; }
+@media (max-width: 640px) {
+  .watchlist-page .watchlist-tools-body { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px; }
+  .watchlist-transfer-section + .watchlist-transfer-section { border-left: 0; border-top: 1px solid #365365; padding: 20px 0 0; }
+  .watchlist-export-controls { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .watchlist-tools-body .outline, .watchlist-tools-body .backup-format { width: 100%; }
+}

@@ -426,8 +426,12 @@ function WatchlistView({ state, store, onDiscover, memory }) {
           </button>
         )}{" "}
         <details className="watchlist-tools">
-          <summary>Import / export</summary>
+          <summary>Import / export <Icon name="chevron" /></summary>
           <div className="watchlist-tools-body">
+            <section className="watchlist-transfer-section" aria-label="Export watchlist options">
+              <h3>Save a copy</h3>
+              <p>Download every title in the current list, including titles hidden by filters.</p>
+              <div className="watchlist-export-controls">
             <label className="backup-format">
               Export format
               <select
@@ -439,11 +443,6 @@ function WatchlistView({ state, store, onDiscover, memory }) {
                 <option value="txt">Text</option>
               </select>
             </label>
-            <div
-              className="watchlist-transfer"
-              role="group"
-              aria-label="Import or export watchlist"
-            >
               <button
                 className="outline"
                 disabled={!source.length}
@@ -489,6 +488,11 @@ function WatchlistView({ state, store, onDiscover, memory }) {
               >
                 Export watchlist
               </button>
+              </div>
+            </section>
+            <section className="watchlist-transfer-section" aria-label="Import watchlist options">
+              <h3>Restore a saved list</h3>
+              <p>Choose an Anime Shuffle JSON or text export, up to 5 MB. Review new titles before adding them.</p>
               <button
                 className="outline"
                 disabled={state.busy || importing}
@@ -496,7 +500,7 @@ function WatchlistView({ state, store, onDiscover, memory }) {
               >
                 Import watchlist
               </button>
-            </div>
+            </section>
             <input
               ref={importFile}
               hidden
