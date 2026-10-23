@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TrailerPreview } from "./TrailerPreview.jsx";
 import { coverUrl } from "./AnimeCard.jsx";
 
 /** Start covers well ahead of scrolling, without requesting an entire large list.
@@ -45,6 +46,9 @@ export function WatchlistCover({ anime, priority = false }) {
         />
       ) : (
         <span className="cover-unavailable">Cover unavailable</span>
+      )}
+      {document.documentElement.dataset.hosting !== "pages" && (
+        <TrailerPreview anime={anime} eager={false} />
       )}
     </div>
   );

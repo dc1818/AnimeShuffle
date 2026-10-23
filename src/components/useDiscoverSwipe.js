@@ -52,12 +52,13 @@ export function useDiscoverSwipe({
         e.pointerType !== "touch" ||
         !window.matchMedia("(max-width: 700px)").matches ||
         document.querySelector("dialog[open]") ||
-        e.target.closest(interactive)
+        (e.target.closest(interactive) && !e.target.closest(".artwork-preview"))
       )
         return;
       suppressClick.current = false;
       gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      const captureTarget = e.target.closest(".artwork-preview") || e.currentTarget;
+      captureTarget.setPointerCapture?.(e.pointerId);
     },
     onPointerMove(e) {
       const start = gesture.current;

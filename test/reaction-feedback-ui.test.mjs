@@ -192,7 +192,8 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
         }),
       ),
     );
-    await click("Add a reason for this reaction");
+    assert.match(document.querySelector(".feedback-saved-indicator").textContent, /1 reason saved/);
+    await click("Update reasons for this reaction");
     assert.ok(document.body.textContent.includes("What caught your eye?"));
     assert.equal(
       document.querySelector('.feedback-editor [aria-pressed="true"]'),

@@ -9,7 +9,7 @@ import { catalogPreview } from "../lib/media-data.js";
 import { InlineTrailer } from "./InlineTrailer.jsx";
 
 /** Keyed by anime ID: changing cards disposes its player. Closing only pauses it. */
-export function TrailerPreview({ anime }) {
+export function TrailerPreview({ anime, eager = true }) {
   const blocked = useBlockedTrailers();
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState(
@@ -43,11 +43,11 @@ export function TrailerPreview({ anime }) {
   }, [load]);
   useEffect(() => {
     mounted.current = true;
-    warm();
+    if (eager) warm();
     return () => {
       mounted.current = false;
     };
-  }, [warm]);
+  }, [warm, eager]);
   useEffect(() => {
     if (open) closeButton.current?.focus();
     else if (wasOpened.current) trigger.current?.focus();
@@ -81,30 +81,23 @@ export function TrailerPreview({ anime }) {
     <>
       <button
         ref={trigger}
-        className="watch-preview"
+        className="watch-preview artwork-preview"
+        aria-label={result && !video && !error ? `No preview for ${anime.title}` : `Preview ${anime.title}`}
         onClick={play}
-        onPointerEnter={() => loadYouTubeAPI().catch(() => {})}
-        onFocus={() => loadYouTubeAPI().catch(() => {})}
+        onPointerEnter={warm}
+        onFocus={warm}
         title={error || undefined}
         disabled={!!result && !video && !error}
-        aria-busy={!result && !error}
+        aria-busy={(eager || started) && !result && !error}
         aria-expanded={open}
         hidden={open}
       >
-        {!result && !error ? (
-          <>
-            <span className="media-spinner" aria-hidden="true" /> Preparing
-            preview…
-          </>
-        ) : error ? (
-          "Retry preview"
-        ) : video ? (
-          <>
-            <span aria-hidden="true">▶</span> Watch preview
-          </>
-        ) : (
-          "No preview available"
+        {(!result || video || error) && (
+          <span className="artwork-play" aria-hidden="true">▶</span>
         )}
+        <span className="artwork-preview-label">
+          {error ? "Retry preview" : result && !video ? "No preview" : "Preview"}
+        </span>
       </button>
       {started && (
         <div

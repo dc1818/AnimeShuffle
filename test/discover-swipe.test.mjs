@@ -158,6 +158,18 @@ test("Discover touch gestures share reactions and ignore scrolling controls, can
       document.querySelector("button.reaction.good").click(),
     );
     assert.equal(reactions.at(-1), "good", "tap alternative still works");
+    const artwork = document.createElement("button");
+    artwork.className = "artwork-preview";
+    let previewClicks = 0;
+    artwork.addEventListener("click", () => previewClicks++);
+    area.append(artwork);
+    await swipe(-100, 0, {}, "pointerup", artwork);
+    await act(async () => artwork.click());
+    assert.equal(previewClicks, 0, "Swipe on preview artwork must not launch a trailer");
+    assert.equal(reactions.at(-1), "good");
+    await swipe(0, 0, {}, "pointerup", artwork);
+    await act(async () => artwork.click());
+    assert.equal(previewClicks, 1, "A tap on artwork launches its preview");
     assert.equal(document.querySelectorAll("article.anime-card").length, 1);
   } finally {
     await act(async () => root.unmount());

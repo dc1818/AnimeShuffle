@@ -1,3 +1,4 @@
+import { normalizeFeedback } from "../lib/reaction-feedback.js";
 import { GenreBadges } from "./GenreBadges.jsx";
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
 import { paletteFromPixels } from "../lib/cover-palette.js";
@@ -361,6 +362,8 @@ export function AnimeDetails({
   const recent = eligible.sort(
     (a, b) => (Number(b.at) || 0) - (Number(a.at) || 0),
   )[0];
+  const savedFeedback = normalizeFeedback(recent?.feedback, recent?.action);
+  const savedReasonCount = savedFeedback.aspects.length + (savedFeedback.customReasons?.length || 0);
   const editing = eligible.find(
     (r) => String(r.anime.id) === String(editingId),
   );
@@ -690,13 +693,18 @@ export function AnimeDetails({
                           {reactionLabel(recent.action)}
                         </span>
                       </div>
+                      {savedReasonCount > 0 && (
+                        <span className="feedback-saved-indicator" role="status">
+                          <span aria-hidden="true">✓</span> {savedReasonCount} {savedReasonCount === 1 ? "reason" : "reasons"} saved
+                        </span>
+                      )}
                     </div>
                     <button
                       ref={feedbackTrigger}
                       className="primary"
                       onClick={() => setEditingId(recent.anime.id)}
                     >
-                      Add a reason for this reaction
+                      {savedReasonCount ? "Update reasons for this reaction" : "Add a reason for this reaction"}
                     </button>
                     <p className="feedback-hint">
                       About{" "}
