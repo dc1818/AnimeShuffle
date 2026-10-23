@@ -9070,29 +9070,6 @@ summary:focus-visible {
   line-height: 19px;
   font-weight: 400;
 }
-.interest-browse-children {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0 0 6px 30px;
-  padding: 4px 10px;
-  min-height: 44px;
-  max-width: calc(100% - 30px);
-  background: transparent;
-  border: 0;
-  border-radius: 5px;
-  color: #91d5f3;
-  font-size: 13px;
-  text-align: left;
-  white-space: normal;
-}
-.interest-browse-children:hover {
-  background: #23465e;
-  color: #e0f5ff;
-}
-.interest-browse-children[aria-expanded="true"] {
-  background: transparent;
-}
 .interest-row:has(input[aria-checked="mixed"]) {
   box-shadow: inset 3px 0 #8cb4c8;
 }
@@ -9109,13 +9086,6 @@ summary:focus-visible {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-@media (max-width: 560px) {
-  .interest-browse-children {
-    margin-left: 26px;
-    max-width: calc(100% - 26px);
-  }
-}
-
 /* Discover has one full-width route into Details; Why remains a Details tab. */
 .discover-links:not(:has(.why-toggle)) {
   grid-template-columns: minmax(0, 1fr);
@@ -9146,4 +9116,29 @@ summary:focus-visible {
 .interest-row .interest-info {
   height: 100%;
   min-height: 44px;
+}
+
+/* One continuous tree: only the root category groups have a blue container. */
+.interest-row > .interest-selection.interest-checkbox-only {
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 48px;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.interest-row:not(.is-main),
+.interest-row:not(.is-main):is(.is-selected, .is-reading, :focus-within) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+.interest-row:not(.is-main) > .interest-branch-toggle {
+  padding-left: 8px;
+}
+.interest-selection:has(input:focus-visible) {
+  outline: 2px solid #a9eaff;
+  outline-offset: -2px;
 }

@@ -49,18 +49,12 @@ test("category browsing expands in place, saves optional interests, and preserve
       const b = [...document.querySelectorAll("button")].find(
         (b) =>
           b.textContent === text ||
-          b.getAttribute("aria-label") === text ||
-          (/^(Expand|Collapse) /.test(text) &&
-            b.classList.contains("interest-browse-children") &&
-            b
-              .getAttribute("aria-label")
-              .endsWith(` of ${text.replace(/^(Expand|Collapse) /, "")}`) &&
-            b.getAttribute("aria-expanded") ===
-              String(text.startsWith("Collapse"))),
+          b.getAttribute("aria-label") === text,
       );
       assert.ok(b, text);
       await act(async () => b.click());
     };
+    assert.equal(document.querySelector(".interest-browse-children"), null);
     await click("Expand Subject / Theme");
     await click("Expand Mecha");
     // Selecting the name/checkbox selects the branch; browsing remains independent.
@@ -182,7 +176,7 @@ test("category browsing expands in place, saves optional interests, and preserve
         assert.ok(row, current);
         if (i < path.length - 1) {
           const button = row.querySelector(
-            ":scope > .interest-row > .interest-branch-toggle, :scope > .interest-browse-children",
+            ":scope > .interest-row > .interest-branch-toggle",
           );
           assert.ok(button, current);
           if (button.getAttribute("aria-expanded") !== "true")
@@ -226,13 +220,13 @@ test("category browsing expands in place, saves optional interests, and preserve
       );
       assert.ok(row, `future level ${i}`);
       const button = row.querySelector(
-        ":scope > .interest-row > .interest-branch-toggle, :scope > .interest-browse-children",
+        ":scope > .interest-row > .interest-branch-toggle",
       );
       await act(async () => button.click());
       assert.equal(button.getAttribute("aria-expanded"), "true");
       assert.ok(
         document.querySelector(
-          `[data-node-id="level-1"] > .interest-browse-children[aria-expanded="true"]`,
+          `[data-node-id="level-1"] > .interest-row > .interest-branch-toggle[aria-expanded="true"]`,
         ),
         "Ancestors stay visible",
       );

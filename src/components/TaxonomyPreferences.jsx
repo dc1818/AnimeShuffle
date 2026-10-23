@@ -159,19 +159,19 @@ export function TaxonomyPreferences({
           : {}),
       };
     });
-  const selection = (node) => {
+  const selection = (node, compact = false) => {
     const state = branchSelection(groups, node.id, selected);
     const hasChildren = state.ids.length > 1;
     return (
       <label
-        className={`interest-selection ${hasChildren ? "interest-select-group" : ""}`}
+        className={`interest-selection ${compact ? "interest-checkbox-only" : ""} ${hasChildren ? "interest-select-group" : ""}`}
       >
         <input
           type="checkbox"
           aria-label={`Select ${node.label}`}
           aria-description={
             hasChildren
-              ? "Select this category and all subcategories. Show subcategories opens the branch without selecting."
+              ? "Select this category and all subcategories. The arrow and category name expand the branch without selecting."
               : undefined
           }
           checked={state.checked}
@@ -181,7 +181,7 @@ export function TaxonomyPreferences({
           }}
           onChange={() => toggle(node.id)}
         />
-        <span>
+        {!compact && <span>
           <span className="interest-category-name">{node.label}</span>
           {hasChildren && (
             <small>
@@ -192,7 +192,7 @@ export function TaxonomyPreferences({
                   : "Select this category and all subcategories"}
             </small>
           )}
-        </span>
+        </span>}
       </label>
     );
   };
@@ -223,9 +223,8 @@ export function TaxonomyPreferences({
         <div
           className={`interest-row ${children.length ? "has-children" : "is-leaf"} ${level === 0 ? "is-main" : ""} ${selected.includes(nodeId) ? "is-selected" : ""} ${reading === nodeId ? "is-reading" : ""}`}
         >
-          {selectable ? (
-            selection(node)
-          ) : (
+          {selectable && selection(node, !!children.length)}
+          {!!children.length && (
             <button
               type="button"
               className="interest-branch-toggle"
@@ -246,27 +245,6 @@ export function TaxonomyPreferences({
           )}
           {info(node)}
         </div>
-        {selectable && !!children.length && (
-          <button
-            type="button"
-            className="interest-browse-children"
-            aria-label={`${open ? "Hide subcategories" : `Show subcategories (${children.length})`} of ${node.label}`}
-            aria-expanded={open}
-            aria-controls={childrenId}
-            onClick={() => expand(path)}
-          >
-            <svg
-              className="interest-chevron"
-              viewBox="0 0 20 20"
-              aria-hidden="true"
-            >
-              <path d={open ? "M5 7l5 5 5-5" : "M7 5l5 5-5 5"} />
-            </svg>
-            {open
-              ? "Hide subcategories"
-              : `Show subcategories (${children.length})`}
-          </button>
-        )}
         {!!children.length && open && (
           <ul id={childrenId} className="interest-children">
             {children.map((e) => branch(e.child, pathParts, e.type, level + 1))}
@@ -315,9 +293,8 @@ export function TaxonomyPreferences({
         )}
       </div>
       <p className="interest-legend">
-        Click a checkbox or category name to select it. Selecting a category
-        also selects every subcategory inside it. Use Show subcategories to
-        browse without selecting. Tap ⓘ for its meaning.
+        Use the arrow or category name to expand a branch. Check its box to
+        select it and every subcategory inside it. Tap ⓘ for its meaning.
       </p>
       <div className="interest-browser" ref={browser}>
         <div className="interest-list">
