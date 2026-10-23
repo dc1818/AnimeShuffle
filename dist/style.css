@@ -9241,17 +9241,12 @@ dialog.details-card.details-modal,
   font-size: 26px;
   box-shadow: 0 3px 12px #0005;
 }
-.artwork-preview-label {
-  position: absolute;
-  bottom: 0;
-  inset-inline: 0;
-  padding: 10px 6px;
+.artwork-unavailable {
+  padding: 6px 10px;
+  border-radius: 6px;
   background: #071522d9;
   color: #f3faff;
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.3;
-  text-align: center;
+  font-size: 12px;
 }
 .artwork-preview:hover .artwork-play { background: #17516be6; border-color: #9ae6ff; }
 .artwork-preview:focus-visible { outline: 3px solid #9ae6ff; outline-offset: -3px; }
@@ -9259,7 +9254,6 @@ dialog.details-card.details-modal,
 .poster-stage .artwork-preview[hidden], .saved-image .artwork-preview[hidden] { display: none; }
 .saved-image { position: relative; }
 .saved-image .artwork-play { width: 38px; height: 38px; font-size: 17px; }
-.saved-image .artwork-preview-label { padding: 5px 2px; font-size: 12px; }
 .watchlist-page .saved-card:has(.trailer-panel:not([hidden])) .saved-image {
   grid-column: 1 / -1;
   width: 100%;
@@ -9286,3 +9280,33 @@ dialog.details-card.details-modal,
 }
 .why-feedback-title { flex-wrap: wrap; }
 .why-feedback-title > div { flex: 1; min-width: 120px; }
+
+/* Approved preview toolbar: a clear, touch-sized return to the artwork. */
+.trailer-panel { grid-template-rows: 56px minmax(200px, 1fr) 24px; }
+.trailer-toolbar {
+  gap: 8px;
+  padding: 6px 8px;
+  background: #0b1b26;
+  border-bottom: 1px solid #304956;
+  font-size: 14px;
+  color: #b8ccd8;
+}
+.trailer-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #9cdef0;
+  border-radius: 8px;
+  background: #9cdef0;
+  color: #08202e;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.trailer-toolbar button span { font-size: 22px; line-height: 1; }
+.trailer-toolbar button:hover { background: #b9ecfa; border-color: #b9ecfa; }
+.trailer-toolbar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

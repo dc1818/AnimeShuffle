@@ -95,9 +95,9 @@ export function TrailerPreview({ anime, eager = true }) {
         {(!result || video || error) && (
           <span className="artwork-play" aria-hidden="true">▶</span>
         )}
-        <span className="artwork-preview-label">
-          {error ? "Retry preview" : result && !video ? "No preview" : "Preview"}
-        </span>
+        {result && !video && !error && (
+          <span className="artwork-unavailable">No preview</span>
+        )}
       </button>
       {started && (
         <div
@@ -110,7 +110,7 @@ export function TrailerPreview({ anime, eager = true }) {
           <div className="trailer-toolbar">
             <span>Preview</span>
             <button ref={closeButton} onClick={() => setOpen(false)}>
-              Back to cover
+              <span aria-hidden="true">←</span> Back to cover
             </button>
           </div>
           {video ? (
