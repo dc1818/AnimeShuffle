@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { normalizePreferences } from "../src/lib/preferences.js";
 
-test("Watchlist stays interactive during ranking; filters and revisits reuse scores; recommendation decisions retain rows and Undo", async () => {
+test("Watchlist stays interactive during ranking; filters and revisits reuse scores; recommendation decisions remove rows and targeted Undo restores them", async () => {
   const folder = await mkdtemp(path.resolve(".watchlist-ui-"));
   const dom = new JSDOM('<div id="root"></div>', { pretendToBeVisual: true });
   globalThis.window = dom.window;
@@ -304,32 +304,51 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
       );
     await renderPicks();
     for (const action of ["good", "bad", "watch", "nope"]) {
-      await act(async () => store.react(action, picks[0].anime));
+      await act(async () =>
+        document.querySelector(`.ranked-card .reaction.${action}`).click(),
+      );
       if (action === "watch") state = { ...state, list: [list[0]] };
       await renderPicks();
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 2);
-      assert.ok(
-        document
-          .querySelector(".leaderboard-row")
-          .classList.contains("reacted"),
-      );
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 1);
+      assert.equal(document.getElementById("recommendation-heading-1"), null);
       assert.equal(
         document.querySelector(".leaderboard-number").textContent,
         "1",
       );
-      const undo = [...document.querySelectorAll("button")].find((b) =>
-        b.textContent.includes("Undo this choice"),
+      const undo = document.querySelector(
+        ".recommendation-confirmation button",
       );
       assert.ok(undo && !undo.disabled);
       await act(async () => undo.click());
       state = { ...state, list: [] };
       await renderPicks();
-      assert.ok(
-        !document
-          .querySelector(".leaderboard-row")
-          .classList.contains("reacted"),
-      );
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 2);
+      assert.ok(document.getElementById("recommendation-heading-1"));
     }
+    // A MAL/account sync can exclude a loaded pick without any page reaction.
+    state = { ...state, list: [list[0]] };
+    await renderPicks();
+    assert.equal(document.getElementById("recommendation-heading-1"), null);
+    assert.equal(document.querySelectorAll(".leaderboard-row").length, 1);
+    state = {
+      ...state,
+      list: [],
+      preferences: { ...state.preferences, favoriteAnime: [picks[1].anime] },
+    };
+    await renderPicks();
+    assert.ok(document.getElementById("recommendation-heading-1"));
+    assert.equal(document.getElementById("recommendation-heading-2"), null);
+    state = {
+      ...state,
+      reactions: { 1: { anime: picks[0].anime, action: "watch" } },
+    };
+    await renderPicks();
+    assert.equal(document.querySelectorAll(".leaderboard-row").length, 0);
+    assert.match(
+      document.querySelector(".recommendations-count").textContent,
+      /0 picks/,
+    );
+    assert.match(document.body.textContent, /No suitable picks yet/);
   } finally {
     await act(async () => root.unmount());
     delete globalThis.Worker;

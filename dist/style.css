@@ -6454,3 +6454,389 @@ summary:focus-visible {
     grid-column: auto;
   }
 }
+
+/* Recommendations: compact decision surface, current eligibility, shared details. */
+.recommendations-page {
+  --recommendation-border: #3e596c;
+  --recommendation-muted: #b8cbd9;
+  --recommendation-link: #9cddff;
+  max-width: 1180px;
+  margin-inline: auto;
+  width: 100%;
+  min-width: 0;
+}
+.recommendations-heading {
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.recommendations-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.recommendations-heading h1 {
+  font-size: clamp(25px, 3vw, 36px);
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.recommendations-count {
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid var(--recommendation-border);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.recommendations-heading p {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.recommendations-heading .recommendations-exclusions {
+  font-size: 13px;
+  margin-top: 2px;
+}
+.recommendations-heading .recommendations-tools {
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: start;
+}
+.recommendations-tools > button {
+  min-height: 44px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.recommendations-more {
+  position: relative;
+}
+.recommendations-more > summary {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--recommendation-border);
+  border-radius: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 22px;
+}
+.recommendations-more > summary::-webkit-details-marker {
+  display: none;
+}
+.recommendations-more > div {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(280px, 80vw);
+  padding: 8px;
+  background: #102532;
+  border: 1px solid var(--recommendation-border);
+  border-radius: 8px;
+  z-index: 5;
+  box-shadow: 0 8px 24px #0008;
+}
+.recommendations-more button {
+  display: block;
+  min-height: 44px;
+  text-align: left;
+  width: 100%;
+  white-space: normal;
+}
+.recommendations-toolbar {
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-bottom: 16px;
+}
+.recommendations-toolbar > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  min-height: 44px;
+  color: var(--recommendation-link);
+}
+.recommendations-help {
+  flex: 1;
+  min-width: min(220px, 100%);
+}
+.recommendations-help summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--recommendation-link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.recommendations-help p {
+  max-width: 70ch;
+  line-height: 1.6;
+  padding: 8px 0;
+  color: var(--recommendation-muted);
+}
+.recommendation-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--recommendation-border);
+  border-radius: 8px;
+  background: #102532;
+}
+.recommendation-confirmation > span {
+  flex: 1;
+  min-width: 150px;
+  overflow-wrap: anywhere;
+}
+.recommendation-confirmation button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.recommendations-page .leaderboard-row {
+  border: 1px solid var(--recommendation-border);
+  background: #0c1923f5;
+}
+.recommendations-page .leaderboard-toggle {
+  padding: 8px 12px;
+  gap: 12px;
+  color: #edf5fc;
+}
+.recommendations-page .leaderboard-number {
+  width: 32px;
+  height: 32px;
+  align-self: center;
+  border-radius: 50%;
+  color: var(--rank-color);
+  font-variant-numeric: tabular-nums;
+}
+.leaderboard-cover {
+  object-fit: cover;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.leaderboard-facts {
+  color: var(--recommendation-muted);
+  font-size: 12px;
+  flex: 0 1 35%;
+}
+.recommendations-page .leaderboard-row .ranked-card {
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
+  padding: 16px;
+  align-items: start;
+}
+.recommendations-page .leaderboard-row .poster-stage {
+  height: 260px;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+.recommendations-page .ranked-card .media-badge {
+  display: none;
+}
+.recommendations-page .leaderboard-row .card-content {
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.recommendations-page .ranked-card h2 {
+  margin-bottom: 6px;
+  font-size: clamp(22px, 2.3vw, 28px);
+  overflow-wrap: anywhere;
+}
+.recommendations-page .ranked-card .metadata {
+  display: block;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.recommendations-page .ranked-card .release-status {
+  display: inline;
+  font-size: 12px;
+  margin-right: 10px;
+}
+.recommendations-page .ranked-card .runtime-estimate {
+  display: inline;
+  font-size: 12px;
+}
+.recommendations-page .ranked-card .match-reason {
+  padding: 0;
+  border: 0;
+  margin: 10px 0 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.recommendations-page .ranked-card .synopsis {
+  margin: 8px 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 0;
+}
+.recommendations-page .discover-links {
+  margin: 10px 0 14px;
+}
+.recommendations-page .discover-links .details-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 6px;
+  gap: 8px;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--recommendation-link);
+  font-size: 14px;
+}
+.recommendations-page .discover-links .details-toggle:hover {
+  background: #183747;
+}
+.recommendations-page .discover-links .details-toggle > span {
+  flex: 0 1 auto;
+}
+.recommendations-page .discover-links .details-toggle > span:last-child {
+  display: none;
+}
+.recommendations-page .ranked-card .reaction-labels {
+  margin: 0 0 6px;
+}
+.recommendations-page .ranked-card .reaction {
+  min-height: 54px;
+  padding: 8px;
+}
+.recommendations-page .shortlist-note {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-block: 16px;
+}
+.recommendations-page .shortlist-note button {
+  min-height: 44px;
+}
+.recommendations-page .poster-stage:has(.trailer-panel:not([hidden])) {
+  grid-column: 1 / -1;
+  height: 360px;
+  max-height: none;
+}
+.recommendations-page
+  .ranked-card:has(.trailer-panel:not([hidden]))
+  .card-content {
+  grid-column: 1 / -1;
+}
+@media (max-width: 800px) {
+  .recommendations-heading {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .recommendations-page .leaderboard-row .ranked-card {
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 14px;
+  }
+  .recommendations-page .ranked-card .mobile-reaction-label {
+    display: block;
+    grid-column: 1 / -1;
+    color: var(--recommendation-muted);
+    font-size: 12px;
+  }
+  .recommendations-page .ranked-card .reaction-labels {
+    display: none;
+  }
+  .recommendations-page .ranked-card .reaction {
+    flex-direction: row;
+    min-height: 44px;
+  }
+}
+@media (max-width: 560px) {
+  .recommendations-heading {
+    gap: 12px;
+  }
+  .recommendations-heading .recommendations-tools {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .recommendations-tools > button {
+    flex: 1;
+  }
+  .recommendations-toolbar {
+    gap: 0 12px;
+    margin-bottom: 10px;
+  }
+  .recommendations-toolbar > button,
+  .recommendations-help summary {
+    font-size: 12px;
+  }
+  .recommendations-help {
+    min-width: 0;
+  }
+  .recommendations-page .leaderboard-toggle {
+    gap: 8px;
+    padding: 8px;
+    flex-wrap: wrap;
+  }
+  .leaderboard-facts {
+    display: none;
+  }
+  .recommendations-page .leaderboard-row .ranked-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+  .recommendations-page .leaderboard-row .card-content {
+    display: contents;
+  }
+  .recommendations-page .ranked-card .card-content > * {
+    grid-column: 1 / -1;
+    margin-block: 0;
+  }
+  .recommendations-page .ranked-card .card-content > .anime-summary {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+  .recommendations-page .ranked-card h2 {
+    font-size: 21px;
+  }
+  .recommendations-page .leaderboard-row .poster-stage {
+    grid-column: 1;
+    grid-row: 1;
+    height: 176px;
+  }
+  .recommendations-page .ranked-card .poster {
+    height: 138px;
+  }
+  .recommendations-page .ranked-card .watch-preview {
+    min-height: 44px;
+    padding: 4px;
+    width: 100%;
+    max-width: 100%;
+    bottom: 0;
+    font-size: 11px;
+    white-space: normal;
+    border-radius: 6px;
+  }
+  .recommendations-page .ranked-card .discover-links .details-toggle {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .recommendations-page .ranked-card .synopsis {
+    -webkit-line-clamp: 3;
+  }
+  .recommendations-page .poster-stage:has(.trailer-panel:not([hidden])) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    height: 320px;
+  }
+  .recommendations-page
+    .ranked-card:has(.trailer-panel:not([hidden]))
+    .anime-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

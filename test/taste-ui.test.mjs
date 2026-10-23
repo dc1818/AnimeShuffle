@@ -379,6 +379,12 @@ test("recommendation details and page markup stay stable after equivalent backgr
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  window.HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  window.HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
   const { createRoot } = await import("react-dom/client");
   const root = createRoot(document.getElementById("root"));
   const anime = {
@@ -423,7 +429,7 @@ test("recommendation details and page markup stay stable after equivalent backgr
     await act(async () => render());
     await act(async () =>
       [...document.querySelectorAll("button")]
-        .find((button) => button.textContent.includes("More about this anime"))
+        .find((button) => button.textContent.includes("More details"))
         .click(),
     );
     const details = document.querySelector(".details-card");
@@ -457,6 +463,26 @@ test("recommendation details and page markup stay stable after equivalent backgr
         ),
       );
     }
+    await act(async () =>
+      document
+        .querySelector("dialog")
+        .dispatchEvent(new window.Event("cancel", { cancelable: true })),
+    );
+    assert.equal(document.querySelector("dialog[open]"), null);
+    const why = document.querySelector(".why-toggle");
+    why.focus();
+    await act(async () => why.click());
+    assert.ok(document.querySelector("dialog[open]"));
+    assert.match(
+      document.querySelector('[role="tab"][aria-selected="true"]').textContent,
+      /Why this pick/,
+    );
+    await act(async () =>
+      document
+        .querySelector("dialog")
+        .dispatchEvent(new window.Event("cancel", { cancelable: true })),
+    );
+    assert.equal(document.activeElement, why);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

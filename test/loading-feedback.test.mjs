@@ -6,12 +6,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import React from "react";
+import { JSDOM } from "jsdom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createAnimeStore } from "../src/lib/store.js";
 
 test("loaded feeds explain shared waits and retain their existing picks", async () => {
   const dir = await mkdtemp(path.resolve(".react-test-loading-"));
-  globalThis.document = { documentElement: { dataset: {} } };
+  const dom = new JSDOM("<html></html>", { url: "http://localhost/" });
+  globalThis.document = dom.window.document;
+  globalThis.window = dom.window;
   try {
     await build({
       entryPoints: ["src/App.jsx", "src/components/Recommendations.jsx"],
@@ -87,6 +90,8 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
     assert.doesNotMatch(idle, /class="reaction good" disabled/);
   } finally {
     delete globalThis.document;
+    delete globalThis.window;
+    dom.window.close();
     await rm(dir, { recursive: true, force: true });
   }
 });

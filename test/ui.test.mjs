@@ -247,7 +247,7 @@ for (const [staticMode, android] of [
         document
           .querySelector(".leaderboard-number")
           .getAttribute("aria-label"),
-        "Gold, Tier 1",
+        "Gold, Rank 1",
       );
       assert.equal(document.querySelectorAll(".medal-1").length, 1);
       const toggles = [...document.querySelectorAll(".leaderboard-toggle")];
@@ -278,32 +278,34 @@ for (const [staticMode, android] of [
         document.querySelector(".ranked-card .reaction.nope").click(),
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "nope");
-      assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 4);
       assert.equal(
-        document.querySelectorAll(".leaderboard-row.reacted").length,
-        1,
+        document.getElementById(`recommendation-heading-${firstId}`),
+        null,
       );
-      await click("Undo this choice");
-      assert.equal(
-        document.querySelectorAll(".leaderboard-row.reacted").length,
-        0,
+      assert.equal(document.querySelector("dialog[open]"), null);
+      await act(async () =>
+        document.querySelector(".recommendation-confirmation button").click(),
       );
       assert.equal(document.querySelectorAll(".leaderboard-row").length, 5);
+      assert.ok(document.getElementById(`recommendation-heading-${firstId}`));
 
       await act(async () =>
         document.querySelector(".ranked-card .reaction.watch").click(),
       );
-      assert.ok(
+      assert.equal(
         document.getElementById(`recommendation-heading-${firstId}`),
-        "Saved title remains in the loaded recommendations until Refresh picks",
+        null,
+        "Saving removes the title immediately from visible recommendations",
       );
       assert.equal(store.getSnapshot().reactions[firstId].action, "watch");
       await act(async () => [...document.querySelectorAll("nav a")][1].click());
       assert.equal(document.querySelectorAll(".saved-card").length, 2);
       await click("Recommendations");
+      assert.equal(document.querySelectorAll(".leaderboard-row").length, 4);
       assert.equal(
-        document.querySelectorAll(".leaderboard-row.reacted").length,
-        1,
+        document.getElementById(`recommendation-heading-${firstId}`),
+        null,
       );
       await click("Refresh picks");
       for (

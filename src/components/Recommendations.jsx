@@ -5,10 +5,10 @@ import {
 import { RecommendationExposure } from "./RecommendationExposure.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { preparePreview } from "../lib/media-cache.js";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
-import { AnimeCard, AnimeDetails } from "./AnimeCard.jsx";
+import { AnimeCard, AnimeDetails, coverUrl } from "./AnimeCard.jsx";
 import { buildTaste, tasteReadiness } from "../lib/recommend.js";
 import {
   makeEvidenceExport,
@@ -23,8 +23,36 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
   );
   const unlocked =
     count >= RECOMMENDATION_MINIMUM || state.recommendationsReady;
-  // A session batch is a snapshot: decisions mute rows; only Refresh replaces it.
-  const picks = state.recommendationPicks;
+  // Preserve batch order; current account state excludes newly saved/seen titles.
+  const knownIds = useMemo(
+    () =>
+      new Set(
+        [...state.list, ...state.preferences.favoriteAnime].map((anime) =>
+          String(anime.id),
+        ),
+      ),
+    [state.list, state.preferences.favoriteAnime],
+  );
+  const picks = useMemo(
+    () =>
+      state.recommendationPicks.filter(
+        (pick) =>
+          !state.reactions[pick.anime.id] &&
+          !knownIds.has(String(pick.anime.id)),
+      ),
+    [state.recommendationPicks, state.reactions, knownIds],
+  );
+  const [lastChoice, setLastChoice] = useState(null);
+  const choice = lastChoice && state.reactions[lastChoice.id];
+  const confirmation = useRef(null);
+  useEffect(() => {
+    if (choice && document.activeElement === document.body)
+      confirmation.current?.focus({ preventScroll: true });
+  }, [lastChoice?.id, !!choice]);
+  useEffect(() => {
+    setLastChoice(null);
+  }, [state.session?.account?.id]);
+  const [detailsTab, setDetailsTab] = useState("synopsis");
   const [opened, setOpened] = useState(undefined);
   useEffect(() => {
     // Open the first row only after the complete verified batch is published.
@@ -68,19 +96,10 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
     () => tasteReadiness(state.reactions, state.list, state.preferences, taste),
     [state.reactions, state.list, state.preferences, taste],
   );
-  const knownIds = useMemo(
-    () =>
-      new Set(
-        [...state.list, ...state.preferences.favoriteAnime].map(
-          (anime) => anime.id,
-        ),
-      ),
-    [state.list, state.preferences.favoriteAnime],
-  );
   const hasTaste =
     state.preferences.favoriteGenres.length > 0 ||
     [...taste.records.values()].some((r) => r.weight !== 0);
-  // Keep this batch and its numbering stable until Refresh picks. Undo re-enables a row.
+  // Keep remaining picks in order until Refresh. Undo restores the original position.
   // Open the first pick initially; null means the user explicitly collapsed it.
   const openedId =
     opened === null
@@ -118,45 +137,22 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
       className="recommendations-page"
       aria-labelledby="recommendations-title"
     >
-      <div className="recommendations-heading">
+      <header className="recommendations-heading">
         <div>
-          <span className="eyebrow">Based on your taste</span>
-          <h1 id="recommendations-title">Your top 25</h1>
-          <p>
-            Ranked for your taste. Click a row to explore. Tier 1 is your
-            strongest match.
-          </p>
-          <p>
-            Learned from your favorites, genre choices, reactions and, when
-            connected, your MAL list. Scores on MAL are optional. You may see
-            fewer than 25 picks while we learn your taste or when eligible
-            titles run low. React to more anime in Discover to help shape fresh
-            suggestions. A loaded shortlist stays in place until you choose
-            Refresh picks, including after changing preferences. Reacted cards
-            stay greyed out in their original positions, with Undo available for
-            your recent choices.
+          <div className="recommendations-title-row">
+            <h1 id="recommendations-title">Recommendations</h1>
+            <span className="recommendations-count">
+              {picks.length} {picks.length === 1 ? "pick" : "picks"}
+            </span>
+          </div>
+          <p>Your strongest matches, ready to discover.</p>
+          <p className="recommendations-exclusions">
+            Already saved, seen and rejected titles are excluded.
           </p>
         </div>
-        <div>
+        <div className="recommendations-tools">
           <button
-            className="quiet"
-            disabled={
-              state.recommendationsLoading ||
-              (!picks.length && !state.recommendationPool?.length)
-            }
-            onClick={() =>
-              downloadEvidenceExport(
-                makeEvidenceExport([
-                  ...picks.map((p) => p.anime),
-                  ...(state.recommendationPool || []),
-                ]),
-              )
-            }
-          >
-            Export recommendation candidates for research
-          </button>
-          <button
-            className="outline"
+            className="primary"
             disabled={state.busy || state.recommendationsLoading || !hasTaste}
             onClick={() => {
               setOpened(undefined);
@@ -164,17 +160,93 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
               store.loadRecommendations({ force: true });
             }}
           >
-            Refresh picks
+            <Icon name="refresh" /> Refresh picks
+          </button>
+          <details className="recommendations-more">
+            <summary aria-label="More recommendation options">···</summary>
+            <div>
+              <button
+                className="quiet"
+                disabled={
+                  state.recommendationsLoading ||
+                  (!picks.length && !state.recommendationPool?.length)
+                }
+                onClick={() =>
+                  downloadEvidenceExport(
+                    makeEvidenceExport([
+                      ...picks.map((p) => p.anime),
+                      ...(state.recommendationPool || []),
+                    ]),
+                  )
+                }
+              >
+                Export recommendation candidates for research
+              </button>
+              <button
+                className="quiet"
+                disabled={state.busy || !state.canUndo}
+                onClick={() => store.undo()}
+              >
+                Undo last reaction
+              </button>
+            </div>
+          </details>
+        </div>
+      </header>
+      <div className="recommendations-toolbar">
+        <button className="quiet" onClick={onPreferences}>
+          <Icon name="filters" />
+          Viewing preferences
+        </button>
+        <details className="recommendations-help">
+          <summary>How recommendations work</summary>
+          <p>
+            Your favorites, reactions, viewing preferences and connected MAL
+            list guide these picks; numeric ratings are optional. The remaining
+            picks stay in order until you choose Refresh picks. Saving, rating
+            or passing a title removes it from this list. Undo restores an
+            eligible title to its original place. You may see fewer than 25
+            picks when eligible titles run low.
+          </p>
+        </details>
+      </div>
+      {choice && (
+        <div
+          className="recommendation-confirmation"
+          role="status"
+          tabIndex={-1}
+          ref={confirmation}
+        >
+          <span>
+            <strong>{lastChoice.title}</strong> ·{" "}
+            {
+              {
+                watch: "Saved to Watchlist",
+                good: "Marked as liked",
+                bad: "Marked as disliked",
+                nope: "Passed",
+              }[choice.action]
+            }
+          </span>
+          <button
+            className="quiet"
+            disabled={state.busy || !state.undoableIds?.includes(lastChoice.id)}
+            onClick={async () => {
+              await store.undo(lastChoice.id);
+              setOpened(lastChoice.id);
+            }}
+          >
+            Undo
           </button>
           <button
             className="quiet"
-            disabled={state.busy || !state.canUndo}
-            onClick={store.undo}
+            aria-label="Dismiss reaction confirmation"
+            onClick={() => setLastChoice(null)}
           >
-            Undo last reaction
+            ×
           </button>
         </div>
-      </div>
+      )}
       {state.ready && readiness.needsMore && (
         <div className="shortlist-note" role="status">
           <strong>Still learning your taste</strong>
@@ -255,32 +327,22 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           )}
           <div
             className="recommendations-stack"
-            aria-label="Anime leaderboard: tiers 1 to 25"
+            aria-label="Ranked anime recommendations"
           >
-            {picks.map((pick) => {
-              const reaction = state.reactions[pick.anime.id]?.action;
-              const known = knownIds.has(pick.anime.id);
-              const reacted = !!reaction || known;
-              const feedback =
-                {
-                  good: "Seen · Liked",
-                  bad: "Seen · Disliked",
-                  watch: "Saved to Watchlist",
-                  nope: "Passed",
-                }[reaction] ||
-                (known ? "Already on your MAL list or favorites" : "");
+            {picks.map((pick, index) => {
+              const rank = index + 1;
               const expanded = openedId === pick.anime.id;
               const panelId = `recommendation-panel-${pick.anime.id}`;
               const headingId = `recommendation-heading-${pick.anime.id}`;
-              const medal = ["Gold", "Silver", "Bronze"][pick.tier - 1];
+              const medal = ["Gold", "Silver", "Bronze"][index];
               return (
                 <RecommendationExposure
                   animeId={pick.anime.id}
                   surface="recommendations"
-                  position={pick.tier}
+                  position={rank}
                   onSeen={store.recordRecommendationExposure}
                   key={pick.anime.id}
-                  className={`leaderboard-row ${reacted ? "reacted" : ""} ${medal ? `medal-${pick.tier}` : ""}`}
+                  className={`leaderboard-row ${medal ? `medal-${rank}` : ""}`}
                 >
                   <h2 className="leaderboard-heading">
                     <button
@@ -299,16 +361,34 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                     >
                       <span
                         className="leaderboard-number"
-                        aria-label={`${medal ? medal + ", " : ""}Tier ${pick.tier}`}
+                        aria-label={`${medal ? medal + ", " : ""}Rank ${rank}`}
                       >
-                        {pick.tier}
+                        {rank}
                       </span>
+                      {pick.anime.image && (
+                        <img
+                          className="leaderboard-cover"
+                          src={coverUrl(pick.anime)}
+                          alt=""
+                          width="32"
+                          height="44"
+                          loading={index > 4 ? "lazy" : "eager"}
+                        />
+                      )}
                       <span className="leaderboard-title">
                         <AnimeTitle anime={pick.anime} />
                       </span>
-                      {feedback && (
-                        <span className="reaction-feedback">{feedback}</span>
-                      )}
+                      <span className="leaderboard-facts">
+                        {[
+                          pick.anime.year,
+                          pick.anime.format?.replaceAll("_", " ").toUpperCase(),
+                          pick.anime.episodes
+                            ? `${pick.anime.episodes} episodes`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
                       <Icon name="chevron" />
                     </button>
                   </h2>
@@ -360,32 +440,40 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                           }
                           onPreferences={onPreferences}
                           reason={pick.reason}
-                          saved={pick.saved}
                           compact
+                          showGenreFocus={false}
                           dynamic={state.settings?.dynamic !== false}
                           busy={state.busy || state.recommendationsLoading}
-                          reactionDisabled={reacted}
-                          canUndo={state.undoableIds?.includes(pick.anime.id)}
-                          onUndo={() => store.undo(pick.anime.id)}
-                          detailsOpen={about === pick.anime.id}
-                          onDetails={() =>
-                            setAbout(
-                              about === pick.anime.id ? null : pick.anime.id,
-                            )
+                          detailsOpen={
+                            about === pick.anime.id ? detailsTab : false
                           }
-                          onReact={(action) => store.react(action, pick.anime)}
+                          onDetails={() => {
+                            setDetailsTab("synopsis");
+                            setAbout(pick.anime.id);
+                          }}
+                          onWhy={() => {
+                            setDetailsTab("why");
+                            setAbout(pick.anime.id);
+                          }}
+                          onReact={(action) => {
+                            setLastChoice({
+                              id: pick.anime.id,
+                              title: pick.anime.title,
+                            });
+                            store.react(action, pick.anime);
+                          }}
                         />
                         {about === pick.anime.id && (
-                          <div className="recommendation-details">
-                            <AnimeDetails
-                              reactions={state.reactions}
-                              onSaveFeedback={store.setReactionFeedback}
-                              anime={pick.anime}
-                              reason={pick.detailReason || pick.reason}
-                              reasons={pick.whyReasons}
-                              onClose={() => setAbout(null)}
-                            />
-                          </div>
+                          <AnimeDetails
+                            modal
+                            initialTab={detailsTab}
+                            reactions={state.reactions}
+                            onSaveFeedback={store.setReactionFeedback}
+                            anime={pick.anime}
+                            reason={pick.detailReason || pick.reason}
+                            reasons={pick.whyReasons}
+                            onClose={() => setAbout(null)}
+                          />
                         )}
                       </>
                     )}
@@ -401,7 +489,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
               {state.preview
                 ? "The demo contains only seven sample anime."
                 : "React to more anime in Discover to help us learn your taste, then refresh picks. You can also broaden your viewing preferences."}{" "}
-              Saved, seen and rejected shows are excluded from new batches.
+              Refresh picks to find more eligible matches.
               <button className="quiet" onClick={onDiscover}>
                 Explore more in Discover
               </button>

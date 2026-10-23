@@ -61,6 +61,7 @@ export function AnimeCard({
   selectedNodes = [],
   restrictNodes = false,
   onPreferences,
+  showGenreFocus = true,
 }) {
   const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
   const image = useRef(null);
@@ -157,54 +158,60 @@ export function AnimeCard({
         {previewsEnabled && <TrailerPreview key={anime.id} anime={anime} />}
       </div>
       <div className="card-content">
-        {compact ? (
-          <h2>
-            <AnimeTitle anime={anime} />
-          </h2>
-        ) : (
-          <h1 id="anime-title" aria-live="polite">
-            <AnimeTitle anime={anime} />
-          </h1>
+        <div className="anime-summary">
+          {compact ? (
+            <h2>
+              <AnimeTitle anime={anime} />
+            </h2>
+          ) : (
+            <h1 id="anime-title" aria-live="polite">
+              <AnimeTitle anime={anime} />
+            </h1>
+          )}
+          <div className="metadata">
+            {[
+              anime.year,
+              anime.format
+                ? anime.format.replaceAll("_", " ").toUpperCase()
+                : null,
+              anime.episodes ? `${anime.episodes} episodes` : null,
+              compact && anime.duration ? `${anime.duration} min` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+          <p
+            className={`release-status ${isUnreleased(anime) ? "unreleased" : ""}`}
+          >
+            {releaseLabel(anime)}
+            {!compact && anime.duration
+              ? ` · ${anime.duration} min/episode`
+              : ""}
+          </p>
+          <p className="runtime-estimate">{runtimeLabel(anime)}</p>
+        </div>
+        <GenreBadges anime={anime} />
+        {showGenreFocus && (
+          <GenreFocus
+            genres={selectedGenres}
+            restricted={restrictGenres}
+            themes={selectedThemes}
+            categories={selectedCategories}
+            nodes={selectedNodes}
+            restrictNodes={restrictNodes}
+            onChange={onPreferences}
+          />
         )}
-        {compact && (
+        {compact && reason && (
           <p className="match-reason">
             {reason}
             {saved ? " · On your watchlist" : ""}
           </p>
         )}
-        <div className="metadata">
-          {[
-            anime.year,
-            !compact && anime.format
-              ? anime.format.replaceAll("_", " ").toUpperCase()
-              : null,
-            anime.episodes ? `${anime.episodes} episodes` : null,
-            compact && anime.duration ? `${anime.duration} min` : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </div>
-        <p
-          className={`release-status ${isUnreleased(anime) ? "unreleased" : ""}`}
-        >
-          {releaseLabel(anime)}
-          {!compact && anime.duration ? ` · ${anime.duration} min/episode` : ""}
-        </p>
-        <p className="runtime-estimate">{runtimeLabel(anime)}</p>
-        <GenreBadges anime={anime} />
-        <GenreFocus
-          genres={selectedGenres}
-          restricted={restrictGenres}
-          themes={selectedThemes}
-          categories={selectedCategories}
-          nodes={selectedNodes}
-          restrictNodes={restrictNodes}
-          onChange={onPreferences}
-        />
         <p className="synopsis">
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
-        <div className={compact ? undefined : "discover-links"}>
+        <div className={!compact || onWhy ? "discover-links" : undefined}>
           <button
             id={compact ? `details-toggle-${anime.id}` : "details-toggle"}
             className="details-toggle"
@@ -218,7 +225,7 @@ export function AnimeCard({
             <span>
               {detailsOpen
                 ? "Hide details"
-                : compact
+                : compact && !onWhy
                   ? "More about this anime"
                   : "More details"}
             </span>
@@ -226,7 +233,7 @@ export function AnimeCard({
               <Icon name="chevron" />
             </span>
           </button>
-          {!compact && onWhy && (
+          {onWhy && (
             <button
               className="details-toggle why-toggle"
               aria-expanded={detailsOpen === "why"}
