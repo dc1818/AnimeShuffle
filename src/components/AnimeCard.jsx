@@ -195,9 +195,7 @@ export function AnimeCard({
         )}
       </div>
       <div className="card-content">
-        {!compact && (
-          <p className="swipe-guide">Swipe the artwork</p>
-        )}
+        {!compact && <p className="swipe-guide">Swipe the artwork</p>}
         <div className="anime-summary">
           {compact ? (
             <h2>
@@ -273,7 +271,7 @@ export function AnimeCard({
               <Icon name="chevron" />
             </span>
           </button>
-          {onWhy && (
+          {compact && onWhy && (
             <button
               className="details-toggle why-toggle"
               aria-expanded={detailsOpen === "why"}

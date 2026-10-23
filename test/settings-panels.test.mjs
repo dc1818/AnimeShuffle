@@ -116,7 +116,7 @@ test("sectioned settings and preferences preserve state, account controls and sa
     await act(async () => root.render(React.createElement(Wrapper)));
     assert.equal(
       document.querySelectorAll('input[name="animated-background"]').length,
-      7,
+      9,
     );
     await click('input[value="off"]');
     assert.equal(current.settings.dynamic, false);

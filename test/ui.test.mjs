@@ -158,8 +158,13 @@ for (const [staticMode, android] of [
       assert.equal(document.body.style.overflow, "hidden");
       await click("Hide details");
       assert.equal(document.getElementById("details-card"), null);
-      const whyOpener = button("Why this pick?");
+      assert.equal(
+        document.querySelector(".discover-layout .why-toggle"),
+        null,
+      );
+      const whyOpener = button("More details");
       whyOpener.focus();
+      await click("More details");
       await click("Why this pick?");
       assert.equal(
         document.querySelector('[role="tab"][aria-selected="true"]')

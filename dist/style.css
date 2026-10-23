@@ -9198,3 +9198,127 @@ summary:focus-visible {
     max-width: calc(100% - 26px);
   }
 }
+
+/* Discover has one full-width route into Details; Why remains a Details tab. */
+.discover-links:not(:has(.why-toggle)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* More visible scene motion, using compositor-friendly transforms and opacity. */
+.ambient[data-motion="true"] .painted-scene-art {
+  animation: painted-camera 18s ease-in-out infinite alternate;
+}
+@keyframes painted-camera {
+  from {
+    transform: scale(1.06) translate(-1.2%, -0.6%);
+  }
+  to {
+    transform: scale(1.1) translate(1.2%, 0.6%);
+  }
+}
+.painted-atmosphere i {
+  width: 7px;
+  height: 7px;
+  animation: painted-float 8s ease-in-out infinite alternate;
+  opacity: 0.65;
+}
+.painted-sakura .painted-atmosphere i {
+  width: 15px;
+  height: 9px;
+  animation: petal-flight 10s linear infinite;
+}
+.painted-skyline .painted-atmosphere i {
+  box-shadow: 0 0 8px 2px #ffe8aa55;
+}
+.painted-orbit .painted-atmosphere i {
+  width: 100px;
+  height: 2px;
+  border-radius: 100%;
+  background: linear-gradient(90deg, transparent, #d7f4ff);
+  animation: orbital-streak 9s linear infinite;
+}
+.painted-skyislands .painted-atmosphere i {
+  display: none;
+}
+.painted-mountains .painted-atmosphere {
+  animation: none;
+  background: none;
+}
+.painted-clouds {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.painted-clouds span {
+  position: absolute;
+  inset: 20% -20% -15%;
+  background:
+    radial-gradient(ellipse at 20% 70%, #d5e4ef88, transparent 38%),
+    radial-gradient(ellipse at 75% 60%, #cfdeed66, transparent 35%);
+  animation: cloud-crossing 13s ease-in-out infinite alternate;
+}
+.painted-clouds span + span {
+  inset: 5% -30% 0;
+  opacity: 0.5;
+  animation-duration: 19s;
+  animation-delay: -8s;
+  animation-direction: alternate-reverse;
+}
+.painted-skyislands .painted-clouds span {
+  background:
+    radial-gradient(ellipse at 25% 70%, #fff0dfaa, transparent 42%),
+    radial-gradient(ellipse at 80% 80%, #e8eaff99, transparent 40%);
+}
+@keyframes painted-float {
+  from {
+    transform: translate(-40px, 60px);
+    opacity: 0.2;
+  }
+  to {
+    transform: translate(70px, -95px);
+    opacity: 0.9;
+  }
+}
+@keyframes petal-flight {
+  0% {
+    transform: translate(-80px, -180px) rotate(-60deg);
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(170px, 240px) rotate(220deg);
+    opacity: 0;
+  }
+}
+@keyframes orbital-streak {
+  0%,
+  65% {
+    transform: translate(-220px, -70px) rotate(18deg);
+    opacity: 0;
+  }
+  70% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(400px, 140px) rotate(18deg);
+    opacity: 0;
+  }
+}
+@keyframes cloud-crossing {
+  from {
+    transform: translate(-10%, -2%);
+    opacity: 0.25;
+  }
+  to {
+    transform: translate(12%, 3%);
+    opacity: 0.7;
+  }
+}
+/* Pause the camera as well as foreground effects while hidden or behind a dialog. */
+.ambient[data-paused="true"] .painted-scene *,
+body:has(dialog[open]) .ambient .painted-scene * {
+  animation-play-state: paused;
+}

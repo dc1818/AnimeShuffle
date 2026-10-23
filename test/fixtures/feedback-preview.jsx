@@ -3,7 +3,10 @@ import { Recommendations } from "../../src/components/Recommendations.jsx";
 import { Watchlist } from "../../src/components/Watchlist.jsx";
 import { normalizePreferences } from "../../src/lib/preferences.js";
 import { BackgroundOptions } from "../../src/components/BackgroundOptions.jsx";
-import { AmbientBackground } from "../../src/components/AmbientBackground.jsx";
+import {
+  AmbientBackground,
+  BACKGROUND_STYLES,
+} from "../../src/components/AmbientBackground.jsx";
 // Isolated responsive fixture: sample titles, in-memory feedback, no account,
 // analytics, recommendations requests, or changes to the visitor's profile.
 import React, { useMemo, useState } from "react";
@@ -176,9 +179,11 @@ function Fixture() {
               value={backgroundStyle}
               onChange={(e) => setBackgroundStyle(e.target.value)}
             >
-              <option value="aurora">Aurora ribbons</option>
-              <option value="liquid">Liquid light</option>
-              <option value="comet">Comet drift</option>
+              {BACKGROUND_STYLES.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
           <small>Layout preview · No profile changes</small>

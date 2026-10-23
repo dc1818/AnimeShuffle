@@ -8,6 +8,8 @@ export const BACKGROUND_STYLES = [
   ["sakura", "Sakura riverside"],
   ["skyline", "Lantern town"],
   ["mountains", "Mountain sanctuary"],
+  ["orbit", "Orbital frontier"],
+  ["skyislands", "Skybound ruins"],
 ];
 
 let accelerated;
@@ -100,33 +102,42 @@ export function AmbientBackground({
       data-motion={motion && !preview}
       aria-hidden="true"
     >
-      {showLayers && ["sakura", "skyline", "mountains"].includes(mode) && (
-        <div className={`painted-scene painted-${mode}`}>
-          <img
-            className="painted-scene-art"
-            src={`/backgrounds/${mode}-${preview ? "preview" : "painted"}.webp`}
-            alt=""
-            decoding="async"
-            loading={preview ? "lazy" : "eager"}
-          />
-          <div className="painted-scene-tint" />
-          <div className="painted-scene-shade" />
-          {!preview && (
-            <div className="painted-atmosphere">
-              {Array.from({ length: mode === "sakura" ? 12 : 7 }, (_, n) => (
-                <i
-                  key={n}
-                  style={{
-                    "--n": n,
-                    left: `${5 + ((n * 17) % 90)}%`,
-                    top: `${8 + ((n * 23) % 80)}%`,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {showLayers &&
+        ["sakura", "skyline", "mountains", "orbit", "skyislands"].includes(
+          mode,
+        ) && (
+          <div className={`painted-scene painted-${mode}`}>
+            <img
+              className="painted-scene-art"
+              src={`/backgrounds/${mode}-${preview ? "preview" : "painted"}.webp`}
+              alt=""
+              decoding="async"
+              loading={preview ? "lazy" : "eager"}
+            />
+            <div className="painted-scene-tint" />
+            <div className="painted-scene-shade" />
+            {!preview && ["mountains", "skyislands"].includes(mode) && (
+              <div className="painted-clouds">
+                <span />
+                <span />
+              </div>
+            )}
+            {!preview && (
+              <div className="painted-atmosphere">
+                {Array.from({ length: mode === "orbit" ? 8 : 20 }, (_, n) => (
+                  <i
+                    key={n}
+                    style={{
+                      "--n": n,
+                      left: `${5 + ((n * 17) % 90)}%`,
+                      top: `${8 + ((n * 23) % 80)}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       {showLayers && mode === "aurora" && (
         <svg
           className="aurora-ribbons"
