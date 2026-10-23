@@ -43,8 +43,8 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
   return (
     <details className="taxonomy-preferences" open={expanded || undefined}>
       <summary>
-        Explore anime categories{" "}
-        <span>
+        <span className="taxonomy-heading">Explore anime categories</span>
+        <span className="taxonomy-count">
           {selected.length ? `${selected.length} selected` : "Optional"}
         </span>
       </summary>
