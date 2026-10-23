@@ -129,6 +129,11 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
     await act(async () => document.querySelector(".details-toggle").click());
     const modal = document.querySelector("dialog.details-modal");
     assert.ok(modal?.open);
+    assert.deepEqual(
+      [...modal.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent),
+      ["Synopsis", "Details"],
+    );
+    assert.equal(modal.querySelector(".why-card"), null);
     assert.match(modal.querySelector("h2").textContent, /Anime 1/);
     await act(async () =>
       finishDetails({

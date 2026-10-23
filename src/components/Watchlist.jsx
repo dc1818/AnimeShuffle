@@ -892,7 +892,7 @@ function WatchlistDetails({ anime, state, store, onClose }) {
       loading={loading}
       error={error}
       onClose={onClose}
-      reason="This anime is saved on your watchlist."
+      showWhy={false}
       reactions={state.reactions}
       onSaveFeedback={store.setReactionFeedback}
     />

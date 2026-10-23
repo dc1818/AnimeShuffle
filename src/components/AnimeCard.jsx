@@ -311,6 +311,7 @@ export function AnimeDetails({
   reasons,
   onClose,
   initialTab = "synopsis",
+  showWhy = true,
   responsive = false,
   modal = false,
   loading = false,
@@ -347,16 +348,16 @@ export function AnimeDetails({
     "Synopsis",
     "Details",
     ...(mediaEnabled ? ["Trailers", "Images"] : []),
-    "Why this pick?",
+    ...(showWhy ? ["Why this pick?"] : []),
   ];
   const [activeTab, setActiveTab] = useState(
-    initialTab === "why" ? tabs.length - 1 : 0,
+    showWhy && initialTab === "why" ? tabs.length - 1 : 0,
   );
   // A direct explanation request opens Why; ordinary details starts at Synopsis.
   useEffect(() => {
-    setActiveTab(initialTab === "why" ? tabs.length - 1 : 0);
+    setActiveTab(showWhy && initialTab === "why" ? tabs.length - 1 : 0);
     setEditingId(null);
-  }, [anime.id, initialTab]);
+  }, [anime.id, initialTab, showWhy]);
   function changeTab(event, index) {
     let next;
     if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
@@ -522,7 +523,7 @@ export function AnimeDetails({
               </p>
             )}
             <div
-              className={`details-tabs${mediaEnabled ? " with-media" : ""}`}
+              className={`details-tabs${mediaEnabled ? " with-media" : ""}${showWhy ? "" : " without-why"}`}
               role="tablist"
               aria-label="Anime information"
             >
@@ -611,62 +612,70 @@ export function AnimeDetails({
                   />
                 </div>
               ))}
-            <div
-              role="tabpanel"
-              id={`${tabId}-panel-${tabs.length - 1}`}
-              aria-labelledby={`${tabId}-tab-${tabs.length - 1}`}
-              hidden={activeTab !== tabs.length - 1}
-              tabIndex={0}
-            >
-              <div className="why-card">
-                <Icon name="shuffle" />
-                <div>
-                  <h3>Why this pick?</h3>
-                  <ul className="why-reasons">
-                    {(reasons?.length
-                      ? reasons
-                      : [reason || "Something new for your next watch."]
-                    ).map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              {recent && onSaveFeedback && (
-                <section
-                  className="why-feedback-entry"
-                  aria-label="Your recent reaction"
-                >
-                  <span className="feedback-eyebrow">YOUR RECENT REACTION</span>
-                  <div className="why-feedback-title">
-                    {coverUrl(recent.anime) && (
-                      <img src={coverUrl(recent.anime)} alt="" loading="lazy" />
-                    )}
-                    <div>
-                      <strong>
-                        {englishTitle(recent.anime) ||
-                          primaryTitle(recent.anime)}
-                      </strong>
-                      <span className={`feedback-badge ${recent.action}`}>
-                        {reactionLabel(recent.action)}
-                      </span>
-                    </div>
+            {showWhy && (
+              <div
+                role="tabpanel"
+                id={`${tabId}-panel-${tabs.length - 1}`}
+                aria-labelledby={`${tabId}-tab-${tabs.length - 1}`}
+                hidden={activeTab !== tabs.length - 1}
+                tabIndex={0}
+              >
+                <div className="why-card">
+                  <Icon name="shuffle" />
+                  <div>
+                    <h3>Why this pick?</h3>
+                    <ul className="why-reasons">
+                      {(reasons?.length
+                        ? reasons
+                        : [reason || "Something new for your next watch."]
+                      ).map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
                   </div>
-                  <button
-                    ref={feedbackTrigger}
-                    className="primary"
-                    onClick={() => setEditingId(recent.anime.id)}
+                </div>
+                {recent && onSaveFeedback && (
+                  <section
+                    className="why-feedback-entry"
+                    aria-label="Your recent reaction"
                   >
-                    Add a reason for this reaction
-                  </button>
-                  <p className="feedback-hint">
-                    About{" "}
-                    {englishTitle(recent.anime) || primaryTitle(recent.anime)},
-                    which you marked {reactionLabel(recent.action)}.
-                  </p>
-                </section>
-              )}
-            </div>
+                    <span className="feedback-eyebrow">
+                      YOUR RECENT REACTION
+                    </span>
+                    <div className="why-feedback-title">
+                      {coverUrl(recent.anime) && (
+                        <img
+                          src={coverUrl(recent.anime)}
+                          alt=""
+                          loading="lazy"
+                        />
+                      )}
+                      <div>
+                        <strong>
+                          {englishTitle(recent.anime) ||
+                            primaryTitle(recent.anime)}
+                        </strong>
+                        <span className={`feedback-badge ${recent.action}`}>
+                          {reactionLabel(recent.action)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      ref={feedbackTrigger}
+                      className="primary"
+                      onClick={() => setEditingId(recent.anime.id)}
+                    >
+                      Add a reason for this reaction
+                    </button>
+                    <p className="feedback-hint">
+                      About{" "}
+                      {englishTitle(recent.anime) || primaryTitle(recent.anime)}
+                      , which you marked {reactionLabel(recent.action)}.
+                    </p>
+                  </section>
+                )}
+              </div>
+            )}
             <a
               className="external-button"
               href={`https://myanimelist.net/anime/${anime.id}`}
