@@ -47,7 +47,16 @@ test("category browsing expands in place, saves optional interests, and preserve
     await act(async () => render());
     const click = async (text) => {
       const b = [...document.querySelectorAll("button")].find(
-        (b) => b.textContent === text || b.getAttribute("aria-label") === text,
+        (b) =>
+          b.textContent === text ||
+          b.getAttribute("aria-label") === text ||
+          (/^(Expand|Collapse) /.test(text) &&
+            b.classList.contains("interest-browse-children") &&
+            b
+              .getAttribute("aria-label")
+              .endsWith(` of ${text.replace(/^(Expand|Collapse) /, "")}`) &&
+            b.getAttribute("aria-expanded") ===
+              String(text.startsWith("Collapse"))),
       );
       assert.ok(b, text);
       await act(async () => b.click());
@@ -221,7 +230,9 @@ test("category browsing expands in place, saves optional interests, and preserve
       await act(async () => button.click());
       assert.equal(button.getAttribute("aria-expanded"), "true");
       assert.ok(
-        document.querySelector(`[aria-label="Collapse Level 1"]`),
+        document.querySelector(
+          `[data-node-id="level-1"] > .interest-browse-children[aria-expanded="true"]`,
+        ),
         "Ancestors stay visible",
       );
     }

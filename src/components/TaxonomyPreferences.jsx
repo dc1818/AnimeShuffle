@@ -247,7 +247,7 @@ export function TaxonomyPreferences({
           <button
             type="button"
             className="interest-browse-children"
-            aria-label={`${open ? "Collapse" : "Expand"} ${node.label}`}
+            aria-label={`${open ? "Hide subcategories" : `Show subcategories (${children.length})`} of ${node.label}`}
             aria-expanded={open}
             aria-controls={childrenId}
             onClick={() => expand(path)}
