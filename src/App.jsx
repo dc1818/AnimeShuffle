@@ -232,6 +232,8 @@ function ConnectedApp({ store, state }) {
       <AmbientBackground
         enabled={state.settings.dynamic !== false}
         style={state.settings.backgroundStyle}
+        animated={state.settings.backgroundAnimated !== false}
+        matchAnime={state.settings.backgroundMatchAnime !== false}
       />
       {state.malSyncProgress && (
         <div className="notice" role="status">

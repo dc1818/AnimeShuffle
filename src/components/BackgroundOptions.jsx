@@ -10,7 +10,7 @@ export function BackgroundOptions({ settings, onChange }) {
   return (
     <fieldset className="background-options">
       <legend>Background</legend>
-      <p>Colors follow the anime on screen.</p>
+      <p>Choose a scene, then set its colors and motion.</p>
       <div className="background-options-grid">
         {[...BACKGROUND_STYLES, ["off", "Off"]].map(([key, label]) => (
           <label className="background-choice" key={key}>
@@ -40,8 +40,31 @@ export function BackgroundOptions({ settings, onChange }) {
           </label>
         ))}
       </div>
+      <div className="background-controls">
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.backgroundAnimated !== false}
+            disabled={selected === "off"}
+            onChange={(e) => onChange({ backgroundAnimated: e.target.checked })}
+          />{" "}
+          Animate background
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.backgroundMatchAnime !== false}
+            disabled={selected === "off"}
+            onChange={(e) =>
+              onChange({ backgroundMatchAnime: e.target.checked })
+            }
+          />{" "}
+          Match the displayed anime’s colors
+        </label>
+      </div>
       <p className="background-motion-note">
-        Motion respects your device, reduced-motion settings and performance.
+        Turn animation off for a still scene. Motion also respects your device,
+        reduced-motion settings and performance.
       </p>
     </fieldset>
   );

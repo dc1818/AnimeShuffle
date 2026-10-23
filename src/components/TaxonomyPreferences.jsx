@@ -59,6 +59,8 @@ export function TaxonomyPreferences({
   const [reading, setReading] = useState(null);
   const searchInput = useRef(null);
   const opener = useRef(null);
+  const browser = useRef(null);
+  const [revealed, setRevealed] = useState(null);
   const reader = TAXONOMY_BY_ID.get(reading);
   const notes = categoryNotes[reading];
   const paneId = `${id}-category-help`;
@@ -81,6 +83,40 @@ export function TaxonomyPreferences({
       target?.focus({ preventScroll: true });
     }
   }, [reading]);
+  const reveal = (nodeId) => {
+    const path = tree.paths.get(nodeId);
+    if (!path) return;
+    setOpened(
+      (previous) =>
+        new Set([
+          ...previous,
+          ...path
+            .slice(1)
+            .map((_, index) => path.slice(0, index + 2).join("/")),
+        ]),
+    );
+    setQuery("");
+    opener.current = null;
+    setReading(null);
+    setRevealed({ path: path.join("/") });
+  };
+  useEffect(() => {
+    if (!revealed) return;
+    const row = [
+      ...(browser.current?.querySelectorAll("[data-path]") || []),
+    ].find((el) => el.dataset.path === revealed.path);
+    const control = row?.querySelector(
+      ".interest-row input, .interest-row button",
+    );
+    control?.focus({ preventScroll: true });
+    row
+      ?.querySelector(".interest-row")
+      ?.scrollIntoView?.({
+        block: "center",
+        inline: "nearest",
+        behavior: "instant",
+      });
+  }, [revealed]);
   const info = (node) => (
     <InfoButton
       node={node}
@@ -237,7 +273,7 @@ export function TaxonomyPreferences({
         Expand a category to see its types. Check to add an interest. Tap ⓘ for
         its meaning.
       </p>
-      <div className="interest-browser">
+      <div className="interest-browser" ref={browser}>
         <div className="interest-list">
           {search ? (
             <>
@@ -323,7 +359,8 @@ export function TaxonomyPreferences({
                       <button
                         type="button"
                         key={node.id}
-                        onClick={() => read(node.id)}
+                        onClick={() => reveal(node.id)}
+                        title={`Show ${node.label} in the category tree`}
                       >
                         {node.label}
                       </button>

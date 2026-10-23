@@ -42,9 +42,17 @@ export function CategoryPopover({ id, title, anchor, onClose, children }) {
     else dialog.setAttribute("open", "");
     position();
     dialog.querySelector("h4")?.focus({ preventScroll: true });
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(position)
+        : null;
+    observer?.observe(dialog);
+    window.visualViewport?.addEventListener("scroll", position);
     window.addEventListener("resize", position);
     window.visualViewport?.addEventListener("resize", position);
     return () => {
+      observer?.disconnect();
+      window.visualViewport?.removeEventListener("scroll", position);
       window.removeEventListener("resize", position);
       window.visualViewport?.removeEventListener("resize", position);
       if (dialog.close) dialog.close();
@@ -94,7 +102,7 @@ export function CategoryPopover({ id, title, anchor, onClose, children }) {
           ×
         </button>
       </div>
-      {children}
+      <div className="interest-reader-body">{children}</div>
     </dialog>
   );
 }

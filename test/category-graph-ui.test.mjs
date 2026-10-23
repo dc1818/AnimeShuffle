@@ -108,6 +108,19 @@ test("category browsing expands in place, saves optional interests, and preserve
     await click("Collapse Mecha");
     await click("Close category details");
     assert.equal(document.activeElement.getAttribute("type"), "search");
+    // Related links reveal their target, restore tree focus, and never select it.
+    await click("Expand Mecha");
+    await click("About Real Robot");
+    const related = document.querySelector(".interest-context-links button");
+    const relatedLabel = related.textContent;
+    await act(async () => related.click());
+    assert.equal(document.querySelector(".category-popover"), null);
+    assert.ok(document.activeElement.closest("[data-node-id]"));
+    assert.match(
+      document.activeElement.closest(".interest-row").textContent,
+      new RegExp(relatedLabel),
+    );
+    assert.deepEqual(value.preferredNodes, []);
     // Structural families expand without changing taste preferences.
     await click("Collapse Subject / Theme");
     assert.deepEqual(value.preferredNodes, []);

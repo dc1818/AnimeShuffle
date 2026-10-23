@@ -116,13 +116,25 @@ test("sectioned settings and preferences preserve state, account controls and sa
     await act(async () => root.render(React.createElement(Wrapper)));
     assert.equal(
       document.querySelectorAll('input[name="animated-background"]').length,
-      4,
+      7,
     );
     await click('input[value="off"]');
     assert.equal(current.settings.dynamic, false);
     await click('input[value="comet"]');
     assert.equal(current.settings.dynamic, true);
     assert.equal(current.settings.backgroundStyle, "comet");
+    await click('input[value="sakura"]');
+    assert.equal(current.settings.backgroundStyle, "sakura");
+    const motionControl = [
+      ...document.querySelectorAll(".background-controls input"),
+    ][0];
+    const colorControl = [
+      ...document.querySelectorAll(".background-controls input"),
+    ][1];
+    await act(async () => motionControl.click());
+    assert.equal(current.settings.backgroundAnimated, false);
+    await act(async () => colorControl.click());
+    assert.equal(current.settings.backgroundMatchAnime, false);
     assert.equal(document.querySelector(".apk-download"), null);
     await section("Account & MyAnimeList");
     assert.ok(
@@ -148,7 +160,7 @@ test("sectioned settings and preferences preserve state, account controls and sa
     assert.ok(document.querySelector(".apk-download").disabled);
     assert.equal(document.querySelectorAll(".shortcut-list > div").length, 7);
     await section("Appearance");
-    assert.ok(document.querySelector('input[value="comet"]').checked);
+    assert.ok(document.querySelector('input[value="sakura"]').checked);
     await section("Viewing preferences");
     assert.equal(
       document.querySelector(".workspace-intro h3").textContent,
