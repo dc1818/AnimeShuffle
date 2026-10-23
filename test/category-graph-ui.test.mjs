@@ -53,6 +53,22 @@ test("category browsing drills down, saves optional interests, and preserves ind
     };
     await click("Expand Subject / Theme");
     await click("Expand Mecha");
+    // Reading help never saves an interest; add/remove is an explicit action.
+    const about = document.querySelector('[aria-label="About Real Robot"]');
+    await click("About Real Robot");
+    assert.deepEqual(value.preferredNodes, []);
+    assert.equal(about.getAttribute("aria-expanded"), "true");
+    assert.match(
+      document.querySelector(".interest-reader").textContent,
+      /operational constraints/,
+    );
+    await click("+ Add Real Robot");
+    assert.deepEqual(value.preferredNodes, ["real-robot"]);
+    await click("✓ Added · remove Real Robot");
+    assert.deepEqual(value.preferredNodes, []);
+    await click("Close category details");
+    assert.equal(document.activeElement, about);
+    assert.equal(document.querySelector(".interest-reader"), null);
     const select = document.querySelector('[aria-label="Select Real Robot"]');
     assert.ok(select);
     await act(async () => select.click());

@@ -128,20 +128,26 @@ export function PreferencesEditor({
       {section === "taste" && (
         <>
           <TaxonomyPreferences value={value} setValue={setValue} expanded />
-          <TasteSetup
-            value={value}
-            setValue={setValue}
-            store={store}
-            preview={state.preview}
-            showGenres={false}
-            editing
-          />
-          <GenrePreferences
-            value={value}
-            setValue={setValue}
-            mode="taste"
-            showTaxonomy={false}
-          />
+          <details className="taste-secondary">
+            <summary>Favorite anime</summary>
+            <TasteSetup
+              value={value}
+              setValue={setValue}
+              store={store}
+              preview={state.preview}
+              showGenres={false}
+              editing
+            />
+          </details>
+          <details className="taste-secondary">
+            <summary>Genres</summary>
+            <GenrePreferences
+              value={value}
+              setValue={setValue}
+              mode="taste"
+              showTaxonomy={false}
+            />
+          </details>
         </>
       )}
       {section === "format" && (
