@@ -8,11 +8,21 @@ test("every active category and structural group has useful local reading help",
     const definition = categoryDefinition(node);
     assert.ok(definition.length >= 30, node.id);
     assert.doesNotMatch(definition, /not available.*yet/, node.id);
-    if (node.definition)
-      assert.equal(
-        definition,
-        node.definition,
-        "Keep researched meanings intact",
-      );
   }
+});
+
+test("editorial explanations take precedence without changing taxonomy source meaning", () => {
+  assert.match(
+    categoryDefinition({ id: "real-robot", definition: "Mecha convention" }),
+    /maintenance/,
+  );
+  assert.match(categoryDefinition({ id: "shounen" }), /teenage boys/);
+  assert.match(categoryDefinition({ id: "iyashikei" }), /soothing/);
+  assert.equal(
+    categoryDefinition({
+      id: "future-node",
+      definition: "New researched meaning.",
+    }),
+    "New researched meaning.",
+  );
 });

@@ -9109,45 +9109,6 @@ summary:focus-visible {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* Original illustrated environments. Only the selected full-size asset is loaded. */
-.painted-scene {
-  position: absolute;
-  inset: 0;
-  isolation: isolate;
-}
-.painted-scene-art {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-.painted-scene-tint,
-.painted-scene-shade {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.painted-scene-tint {
-  background: linear-gradient(120deg, rgb(var(--cool)), rgb(var(--warm)));
-  mix-blend-mode: color;
-  opacity: 0.8;
-}
-.ambient[data-match-anime="false"] .painted-scene-tint {
-  display: none;
-}
-.painted-scene-shade {
-  background: linear-gradient(#07101955, #07101922 45%, #07101988);
-}
-.ambient:has(.painted-scene)::before {
-  display: none;
-}
-.background-preview .painted-scene-shade {
-  opacity: 0.3;
-}
-.background-preview .painted-scene-tint {
-  opacity: 0.2;
-}
 @media (max-width: 560px) {
   .interest-browse-children {
     margin-left: 26px;
@@ -9159,12 +9120,147 @@ summary:focus-visible {
 .discover-links:not(:has(.why-toggle)) {
   grid-template-columns: minmax(0, 1fr);
 }
-/* Scene pixels animate locally; the base painting never pans, scales or rotates. */
-.painted-scene-motion {
+/* The entire visible row belongs to its native action, including the left inset. */
+.interest-row,
+.interest-row.is-main,
+.interest-search-results > .interest-row {
+  padding: 0;
+  gap: 0;
+  align-items: stretch;
+}
+.interest-row > .interest-branch-toggle {
+  border-radius: inherit;
+  padding-left: 12px;
+}
+.interest-row > .interest-selection {
+  align-self: stretch;
+  border-radius: inherit;
+  touch-action: manipulation;
+}
+.interest-row > .interest-info-wrap {
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 44px;
+}
+.interest-row .interest-info {
+  height: 100%;
+  min-height: 44px;
+}
+
+/* Fixed scene artwork with independent objects; anime colors belong to objects only. */
+.scene-environment {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  --scene-cool: var(--cool);
+  --scene-warm: var(--warm);
   pointer-events: none;
-  opacity: 0;
+}
+.ambient[data-match-anime="false"] .scene-environment {
+  --scene-cool: 98, 184, 207;
+  --scene-warm: 239, 183, 106;
+}
+.ambient:has(.scene-environment)::before {
+  display: none;
+}
+.scene-accent-fill {
+  fill: rgb(var(--scene-cool));
+}
+.scene-warm-fill {
+  fill: rgb(var(--scene-warm));
+}
+.scene-accent-stroke {
+  stroke: rgb(var(--scene-cool));
+}
+.scene-warm-stroke {
+  stroke: rgb(var(--scene-warm));
+}
+.scene-sign-scroll {
+  animation: scene-sign 20s linear infinite;
+}
+.scene-train {
+  transform: translateX(590px);
+  animation: scene-rail 24s linear infinite;
+}
+.scene-orrery {
+  transform-origin: 0 0;
+  animation: scene-orbit 24s linear infinite;
+}
+.scene-skyship {
+  transform: translateX(470px);
+  animation: scene-sail 40s linear infinite;
+}
+.scene-shuttle {
+  transform: translateX(600px);
+  animation: scene-launch 22s linear infinite;
+}
+.scene-engine {
+  animation: scene-thrust 1.8s ease-in-out infinite alternate;
+}
+.scene-runway-light {
+  animation: scene-beacon 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--lamp) * -0.4s);
+}
+@keyframes scene-sign {
+  from {
+    transform: translateX(480px);
+  }
+  to {
+    transform: translateX(-950px);
+  }
+}
+@keyframes scene-rail {
+  from {
+    transform: translateX(-1100px);
+  }
+  to {
+    transform: translateX(2300px);
+  }
+}
+@keyframes scene-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes scene-sail {
+  from {
+    transform: translateX(-200px);
+  }
+  to {
+    transform: translateX(1900px);
+  }
+}
+@keyframes scene-launch {
+  0% {
+    transform: translate(-300px, 0);
+  }
+  35% {
+    transform: translate(740px, 0);
+  }
+  50% {
+    transform: translate(740px, 0);
+  }
+  100% {
+    transform: translate(2100px, -100px);
+  }
+}
+@keyframes scene-thrust {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scene-beacon {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
 }

@@ -1,18 +1,12 @@
-# Original Anime Shuffle backgrounds
+# Scene backgrounds
 
-Generated with the built-in image-generation tool for this project on 2026-10-23. These are original generated scenes, not screenshots or licensed footage from an anime. No external image host is required.
+Original background paintings generated with the built-in image tool on 2026-10-23. No franchise screenshots, external hotlinks or paid runtime generation. Full paintings are 1672 × 941; picker thumbnails fit 480 × 270. Only WebP conversion and thumbnail resizing were applied.
 
-Production assets: `sakura-painted.webp`, `skyline-painted.webp`, `mountains-painted.webp`. Picker thumbnails: corresponding `*-preview.webp`. WebP encoding and thumbnail sizing are the only post-generation operations. Each painting is 1672 × 941; thumbnails fit 480 × 270.
+Prompt set:
+- Evening express: hand-painted anime city and elevated railway platform at blue hour; empty horizontal foreground track; front-facing blank upper-left sign; fixed camera, no train/people/particles/text. `rail-scene.webp`, `rail-preview.webp`.
+- Sky observatory: floating stone observatory over clouds at dusk; empty brass ring instruments and botanical details; quiet center; fixed camera, no people/particles/text. `observatory-scene.webp`, `observatory-preview.webp`.
+- Orbital hangar: hand-painted anime industrial launch bay opening toward Earth; empty lower launch lane, mechanical edge details; fixed camera, no ships/people/particles/text. `hangar-scene.webp`, `hangar-preview.webp`.
 
-Prompt set / art direction:
-- **Lantern town**: original hand-painted anime environment, quiet Japanese hillside town at blue hour, layered tiled rooftops, lantern-lit lanes and telephone poles on the outer thirds, distant mountains, navy twilight and amber windows, fine background-painting detail and natural brushwork, calm center for UI and phone cropping. No people, text, logos, UI, flat vector or glossy 3D.
-- **Sakura riverside**: original hand-painted anime background, cherry trees arching from the edges, delicate pink blossoms, calm river, footbridge and distant lanterns, stone embankment, layered homes, gouache texture and fine drawn detail, lavender dusk and blue shadows, calm center for UI and phone cropping. No people, text, logos, UI, flat vector, 3D or neon.
-- **Mountain sanctuary**: original hand-painted anime mountain valley before dawn, pine silhouettes framing edges, layered blue mist, secluded wooden shrine and warm lantern near stone steps at lower right, quiet misty center and pale moon, gouache and fine foliage, muted teal/navy and ivory. No people, text, logos, UI, simplistic geometry or 3D.
+SceneEnvironment supplies independent SVG train, sign text, astronomical instrument, airship, shuttle and dock-light layers. CSS moves these objects with translation/rotation and varies light opacity. The painting itself is never transformed, warped, recolored or used in a displacement shader. Anime palette variables color only signs, vehicle stripes, instrument accents and lamps. Still mode retains a composed static frame. Aurora, Liquid and Comet remain as the existing abstract choices. Previous painted-scene keys map to the new choices for saved-settings compatibility.
 
-A bounded WebGL renderer animates masked regions of the original paintings; these are not frame-animated video assets. Color matching tints the image using the current anime's palette. Motion-off preserves the painting. Style keys remain compatible with saved preferences from the earlier SVG scenes.
-
-Additional original built-in imagegen artwork (2026-10-23):
-- **Orbital frontier** (`orbit-painted.webp`, `orbit-preview.webp`): hand-painted anime space-opera environment viewed from a deserted orbital platform, immense luminous planet, ringed moon, distant cruiser, industrial docking silhouettes, fine mechanical detail, gouache texture, navy/turquoise with amber lights; quiet UI center, phone-compatible crop, no people/text/logos or recognizable franchise designs.
-- **Skybound ruins** (`skyislands-painted.webp`, `skyislands-preview.webp`): hand-painted anime fantasy archipelago of floating mossy islands above clouds, cascading waterfalls, ruined stone towers and bridges, windblown greenery and distant airship; indigo/peach twilight, detailed gouache painting, quiet center for UI and phone crop; no Japanese village/shrine, people/text/logos or recognizable franchise designs.
-
-Illustrated scenes use a fixed camera. PaintedSceneMotion animates river/lake ripples, blossom clusters, waterfalls, existing cloud regions and existing lantern/engine light. Architecture, island edges, ships and framing stay stationary. No floating particle overlays. Region coordinates use original image space and the same cover crop as the static image on phones and desktop. The renderer caps resolution at 1600px and draws at 24fps, pauses for hidden tabs/open dialogs, and falls back to the painting for reduced motion, disabled animation, missing hardware support, shader/context failure or sustained slow frames.
+Motion respects the normal production hardware, reduced-motion, visibility, dialog and frame-performance safeguards. The isolated feedback-preview scene fixture can demonstrate object animation separately from the hardware gate and does not write visitor/account data.

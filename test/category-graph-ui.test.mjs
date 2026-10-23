@@ -89,7 +89,7 @@ test("category browsing expands in place, saves optional interests, and preserve
     assert.equal(about.getAttribute("aria-expanded"), "true");
     assert.match(
       document.querySelector(".interest-reader").textContent,
-      /operational constraints/,
+      /maintenance and supplies/,
     );
     assert.equal(document.querySelector(".interest-reader-select"), null);
     assert.match(

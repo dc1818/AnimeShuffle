@@ -2,8 +2,8 @@ import glossary from "./category-glossary.json" with { type: "json" };
 
 // Editorial reading help only: never used to assign anime tags or score recommendations.
 export const categoryDefinition = (node) =>
-  node?.definition ||
   glossary[node?.id] ||
+  node?.definition ||
   "A definition is not available for this category yet.";
 export const categoryNotes = {
   "real-robot": {

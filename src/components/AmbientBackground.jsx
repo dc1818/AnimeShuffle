@@ -1,4 +1,8 @@
-import { PaintedSceneMotion } from "./PaintedSceneMotion.jsx";
+import {
+  SceneEnvironment,
+  SCENE_STYLES,
+  resolveBackgroundStyle,
+} from "./SceneEnvironment.jsx";
 import { supportsBackgroundMotion } from "../lib/background-performance.js";
 import { useEffect, useId, useState } from "react";
 
@@ -6,11 +10,7 @@ export const BACKGROUND_STYLES = [
   ["aurora", "Aurora ribbons"],
   ["liquid", "Liquid light"],
   ["comet", "Comet drift"],
-  ["sakura", "Sakura riverside"],
-  ["skyline", "Lantern town"],
-  ["mountains", "Mountain sanctuary"],
-  ["orbit", "Orbital frontier"],
-  ["skyislands", "Skybound ruins"],
+  ...SCENE_STYLES,
 ];
 
 let accelerated;
@@ -41,8 +41,10 @@ export function AmbientBackground({
     return () => media.removeEventListener("change", update);
   }, [enabled, preview, animated]);
   const id = useId().replace(/:/g, "");
-  const mode = BACKGROUND_STYLES.some(([key]) => key === style)
-    ? style
+  const mode = BACKGROUND_STYLES.some(
+    ([key]) => key === resolveBackgroundStyle(style),
+  )
+    ? resolveBackgroundStyle(style)
     : "aurora";
   const [paused, setPaused] = useState(
     () => document.visibilityState === "hidden",
@@ -103,25 +105,9 @@ export function AmbientBackground({
       data-motion={motion && !preview}
       aria-hidden="true"
     >
-      {showLayers &&
-        ["sakura", "skyline", "mountains", "orbit", "skyislands"].includes(
-          mode,
-        ) && (
-          <div className={`painted-scene painted-${mode}`}>
-            <img
-              className="painted-scene-art"
-              src={`/backgrounds/${mode}-${preview ? "preview" : "painted"}.webp`}
-              alt=""
-              decoding="async"
-              loading={preview ? "lazy" : "eager"}
-            />
-            {!preview && (
-              <PaintedSceneMotion mode={mode} active={motion && !paused} />
-            )}
-            <div className="painted-scene-tint" />
-            <div className="painted-scene-shade" />
-          </div>
-        )}
+      {showLayers && SCENE_STYLES.some(([key]) => key === mode) && (
+        <SceneEnvironment mode={mode} preview={preview} />
+      )}
       {showLayers && mode === "aurora" && (
         <svg
           className="aurora-ribbons"
