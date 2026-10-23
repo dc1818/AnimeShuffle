@@ -9186,3 +9186,25 @@ summary:focus-visible {
   .watchlist-export-controls { display: grid; grid-template-columns: minmax(0, 1fr); }
   .watchlist-tools-body .outline, .watchlist-tools-body .backup-format { width: 100%; }
 }
+
+/* Anchor Details navigation independently of the active panel's height.
+ * Short panels shrink downward; long panels scroll below the same header. */
+dialog.details-card.details-modal,
+[data-layout="familiar"] .cards-layout.discover-layout dialog.details-modal {
+  --details-top: max(24px, calc((100dvh - 760px) / 2));
+  top: var(--details-top);
+  bottom: auto;
+  margin: 0 auto;
+  height: auto;
+  max-height: calc(100dvh - var(--details-top) - 24px);
+}
+.details-modal .details-body {
+  scrollbar-gutter: stable;
+}
+@media (max-width: 560px), (max-height: 500px) {
+  dialog.details-card.details-modal,
+  [data-layout="familiar"] .cards-layout.discover-layout dialog.details-modal {
+    --details-top: 12px;
+    max-height: calc(100dvh - 24px);
+  }
+}
