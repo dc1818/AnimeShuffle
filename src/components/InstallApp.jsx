@@ -1,13 +1,14 @@
 import { Icon } from "./Icon.jsx";
 
-export function ApkDownloadButton({ descriptionId }) {
+export function ApkDownloadButton({ descriptionId, compact = false }) {
   return (
     <button
       className="apk-download full-width"
       disabled
       aria-describedby={descriptionId}
     >
-      <Icon name="download" /> Download Android app
+      <Icon name="download" />{" "}
+      {compact ? "Download APK" : "Download Android app"}
     </button>
   );
 }
@@ -20,7 +21,7 @@ export function InstallApp({ compact = false }) {
           <strong>Android app</strong>
           <small id="apk-settings-status">APK download · Coming soon</small>
         </span>
-        <ApkDownloadButton descriptionId="apk-settings-status" />
+        <ApkDownloadButton descriptionId="apk-settings-status" compact />
       </section>
     );
   return (

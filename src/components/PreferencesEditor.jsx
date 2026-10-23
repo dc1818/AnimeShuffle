@@ -158,24 +158,15 @@ export function PreferencesEditor({
                 <span>{any}</span>
               </label>
               {options.map((option) => (
-                <label key={option.id}>
+                <label key={option.id} title={option.detail}>
                   <input
                     type="checkbox"
                     checked={value[key].includes(option.id)}
                     onChange={() => toggle(key, option.id)}
                   />
-                  <span>
-                    {option.label}
-                    <small>{option.detail}</small>
-                  </span>
+                  <span>{option.label}</span>
                 </label>
               ))}
-              {key === "lengths" && (
-                <small>
-                  *Time examples assume 24-minute episodes. Cards use each
-                  title’s runtime.
-                </small>
-              )}
             </fieldset>
           ))}
         </>

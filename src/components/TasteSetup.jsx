@@ -68,7 +68,10 @@ export function TasteSetup({
           disabled={disabled}
         />
       )}
-      <label htmlFor="favorite-search">
+      <label
+        htmlFor="favorite-search"
+        className={editing ? "visually-hidden" : undefined}
+      >
         <strong>
           {editing ? "Favorite anime" : "Pick three anime you like"} (
           {value.favoriteAnime.length}/3)
@@ -79,7 +82,7 @@ export function TasteSetup({
           ? "Add up to three favorites to help refine your recommendations."
           : "A few favorites help us find your first picks. You can also start without them and teach us in Discover."}
       </p>
-      {preview && (
+      {preview && !editing && (
         <small>
           Preview search uses the demo catalog. The hosted app searches
           MyAnimeList.

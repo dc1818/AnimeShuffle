@@ -42,6 +42,7 @@ export function PreferencePanel({
             <label className="panel-mobile-select">
               <span className="sr-only">{title} section</span>
               <select
+                aria-label={`${title} section`}
                 value={section}
                 onChange={(e) => onSection(e.target.value)}
               >

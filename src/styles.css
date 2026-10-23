@@ -7684,3 +7684,71 @@ summary:focus-visible {
   font-size: 14px;
   font-weight: 750;
 }
+/* Keep the first useful controls in view, with full scrolling for denser taste lists. */
+.dialog.panel-dialog {
+  max-width: calc(100% - 40px);
+}
+.panel-heading h2:focus {
+  outline: none;
+}
+.panel-content .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.panel-content .background-preview {
+  height: 108px;
+}
+.panel-content .background-options {
+  padding-bottom: 8px;
+}
+.panel-content .background-motion-note {
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+.settings-link {
+  padding-block: 12px;
+}
+.settings-link strong {
+  display: block;
+  line-height: 20px;
+}
+.settings-link small {
+  line-height: 18px;
+  margin-top: 3px;
+}
+.settings-link[aria-label="Help"] {
+  display: none;
+}
+.install-app-compact {
+  padding-top: 14px;
+}
+.install-app-compact .apk-download {
+  flex: 0 0 auto;
+}
+.panel-content .favorite-selections {
+  grid-template-columns: repeat(3, minmax(0, 90px));
+}
+@media (max-width: 700px) {
+  .dialog.panel-dialog {
+    max-width: calc(100% - 16px);
+  }
+  .panel-content .background-preview {
+    height: 80px;
+  }
+  .settings-link[aria-label="Help"] {
+    display: flex;
+  }
+  .install-app-compact > .icon {
+    display: none;
+  }
+  .install-app-compact > span {
+    min-width: 100px;
+  }
+}

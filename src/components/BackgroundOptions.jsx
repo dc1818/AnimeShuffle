@@ -41,9 +41,7 @@ export function BackgroundOptions({ settings, onChange }) {
         ))}
       </div>
       <p className="background-motion-note">
-        Motion respects your device and reduced-motion settings. Animation
-        pauses when hardware acceleration can’t be verified or performance is
-        slow.
+        Motion respects your device, reduced-motion settings and performance.
       </p>
     </fieldset>
   );

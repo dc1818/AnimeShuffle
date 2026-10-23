@@ -378,7 +378,7 @@ for (const [staticMode, android] of [
         document.querySelector('[aria-label="Open settings"]').click(),
       );
       if (!staticMode) {
-        assert.equal(button("Download Android app").disabled, true);
+        assert.equal(button("Download APK").disabled, true);
         assert.match(
           document.querySelector("dialog").textContent,
           /APK download · Coming soon/,

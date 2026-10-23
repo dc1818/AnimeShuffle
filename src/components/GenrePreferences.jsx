@@ -87,11 +87,11 @@ export function GenrePreferences({ value, setValue, disabled, mode = "all" }) {
         <>
           {mode === "all" && <h3>Genres · type of story</h3>}
           <p>
-            Favorites guide your picks while leaving room for discoveries
-            outside those genres. Turn on the restriction below only if you want
-            a filter.
+            {mode === "taste"
+              ? "These interests guide your picks. Other genres can still appear."
+              : "Favorites guide your picks while leaving room for discoveries outside those genres. Turn on the restriction below only if you want a filter."}
           </p>
-          {selected.length > 0 && (
+          {mode === "all" && selected.length > 0 && (
             <p className="genre-focus" role="status">
               <span>
                 Favorites:{" "}
@@ -102,29 +102,6 @@ export function GenrePreferences({ value, setValue, disabled, mode = "all" }) {
               </span>
             </p>
           )}
-          <label>
-            <input
-              type="checkbox"
-              checked={value.restrictGenres === true}
-              onChange={(e) =>
-                setValue((current) => ({
-                  ...current,
-                  restrictGenres: e.target.checked,
-                }))
-              }
-            />
-            Only show anime from my selected genres
-          </label>
-          {value.restrictGenres && !selected.length && (
-            <p role="status">
-              Select at least one genre to enable this restriction. All genres
-              are currently allowed.
-            </p>
-          )}
-          <p>
-            With this restriction on, each anime must have at least one selected
-            genre. It may also have additional genres.
-          </p>
           <div className="genre-choices">
             <button
               className="any-choice"
@@ -153,6 +130,29 @@ export function GenrePreferences({ value, setValue, disabled, mode = "all" }) {
               </button>
             ))}
           </div>
+          <label>
+            <input
+              type="checkbox"
+              checked={value.restrictGenres === true}
+              onChange={(e) =>
+                setValue((current) => ({
+                  ...current,
+                  restrictGenres: e.target.checked,
+                }))
+              }
+            />
+            Only show anime from my selected genres
+          </label>
+          {value.restrictGenres && !selected.length && (
+            <p role="status">
+              Select at least one genre to enable this restriction. All genres
+              are currently allowed.
+            </p>
+          )}
+          <p>
+            Each title must match at least one selected genre when this is on.
+            It may also have other genres.
+          </p>
           <TaxonomyPreferences
             value={value}
             setValue={setValue}

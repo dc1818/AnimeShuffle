@@ -187,10 +187,12 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       document.querySelector(".panel-save-status").textContent,
       "Preferences saved",
     );
-    assert.match(document.body.textContent, /Favorites guide your picks/);
-    assert.match(
-      document.querySelector('.genre-focus[role="status"]').textContent,
-      /Favorites: Drama/,
+    assert.match(document.body.textContent, /These interests guide your picks/);
+    assert.equal(
+      [...document.querySelectorAll(".genre-choices button")]
+        .find((b) => b.textContent === "Drama")
+        .getAttribute("aria-pressed"),
+      "true",
     );
     assert.ok(!document.body.textContent.includes("Avant Garde"));
     await section("Advanced filters");
