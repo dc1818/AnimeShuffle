@@ -378,6 +378,7 @@ for (const [staticMode, android] of [
         document.querySelector('[aria-label="Open settings"]').click(),
       );
       if (!staticMode) {
+        await click("Help");
         assert.equal(button("Download APK").disabled, true);
         assert.match(
           document.querySelector("dialog").textContent,

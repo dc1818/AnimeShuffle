@@ -119,7 +119,7 @@ test("sectioned settings and preferences preserve state, account controls and sa
     await click('input[value="comet"]');
     assert.equal(current.settings.dynamic, true);
     assert.equal(current.settings.backgroundStyle, "comet");
-    assert.ok(document.querySelector(".apk-download").disabled);
+    assert.equal(document.querySelector(".apk-download"), null);
     await section("Account & MyAnimeList");
     assert.ok(
       document.querySelector('[aria-label="Auto-add watchlist to MyAnimeList"]')
@@ -140,11 +140,12 @@ test("sectioned settings and preferences preserve state, account controls and sa
         .click(),
     );
     assert.deepEqual(calls, [["autoAdd", true], ["sync"]]);
-    await section("Help");
+    await change(".panel-mobile-select select", "help");
+    assert.ok(document.querySelector(".apk-download").disabled);
     assert.equal(document.querySelectorAll(".shortcut-list > div").length, 7);
     await section("Appearance");
     assert.ok(document.querySelector('input[value="comet"]').checked);
-    await click('[aria-label="Viewing preferences"]');
+    await section("Viewing preferences");
     assert.equal(
       document.querySelector("h2").textContent,
       "Viewing preferences",

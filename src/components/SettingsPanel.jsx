@@ -7,6 +7,7 @@ import { PreferencePanel } from "./PreferencePanel.jsx";
 import { Icon } from "./Icon.jsx";
 const sections = [
   { id: "appearance", label: "Appearance", icon: "screen" },
+  { id: "preferences", label: "Viewing preferences", icon: "filters" },
   { id: "account", label: "Account & MyAnimeList", icon: "users" },
   { id: "help", label: "Help", icon: "info" },
 ];
@@ -35,8 +36,9 @@ export function SettingsPanel({ state, store, onNavigate, onClose }) {
       titleId="settings-title"
       sections={sections}
       section={section}
-      onSection={setSection}
-      mobileSelect={false}
+      onSection={(next) =>
+        next === "preferences" ? onNavigate("preferences") : setSection(next)
+      }
       footer={
         <>
           <span role="status">Changes save automatically.</span>
@@ -52,30 +54,6 @@ export function SettingsPanel({ state, store, onNavigate, onClose }) {
             settings={state.settings}
             onChange={store.setSettings}
           />
-          <SettingsLink
-            icon="filters"
-            title="Viewing preferences"
-            detail="Genres, audience and filters"
-            onClick={() => onNavigate("preferences")}
-            disabled={state.busy}
-          />
-          <SettingsLink
-            icon="users"
-            title="Account & MyAnimeList"
-            detail={
-              state.session.account
-                ? `Signed in as ${state.session.account.name}`
-                : "Sign in to sync across devices"
-            }
-            onClick={() => setSection("account")}
-          />
-          <SettingsLink
-            icon="info"
-            title="Help"
-            detail="Keyboard shortcuts and privacy"
-            onClick={() => setSection("help")}
-          />
-          {!state.session.staticMode && <InstallApp compact />}
         </>
       )}
       {section === "account" && (
