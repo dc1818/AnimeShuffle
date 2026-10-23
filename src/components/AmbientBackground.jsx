@@ -1,3 +1,4 @@
+import { PaintedSceneMotion } from "./PaintedSceneMotion.jsx";
 import { supportsBackgroundMotion } from "../lib/background-performance.js";
 import { useEffect, useId, useState } from "react";
 
@@ -114,28 +115,11 @@ export function AmbientBackground({
               decoding="async"
               loading={preview ? "lazy" : "eager"}
             />
+            {!preview && (
+              <PaintedSceneMotion mode={mode} active={motion && !paused} />
+            )}
             <div className="painted-scene-tint" />
             <div className="painted-scene-shade" />
-            {!preview && ["mountains", "skyislands"].includes(mode) && (
-              <div className="painted-clouds">
-                <span />
-                <span />
-              </div>
-            )}
-            {!preview && (
-              <div className="painted-atmosphere">
-                {Array.from({ length: mode === "orbit" ? 8 : 20 }, (_, n) => (
-                  <i
-                    key={n}
-                    style={{
-                      "--n": n,
-                      left: `${5 + ((n * 17) % 90)}%`,
-                      top: `${8 + ((n * 23) % 80)}%`,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         )}
       {showLayers && mode === "aurora" && (

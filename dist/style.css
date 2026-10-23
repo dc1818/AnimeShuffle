@@ -9123,8 +9123,7 @@ summary:focus-visible {
   object-position: center;
 }
 .painted-scene-tint,
-.painted-scene-shade,
-.painted-atmosphere {
+.painted-scene-shade {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -9143,49 +9142,6 @@ summary:focus-visible {
 .ambient:has(.painted-scene)::before {
   display: none;
 }
-.painted-atmosphere i {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff2bf;
-  opacity: 0.45;
-  animation: painted-drift 16s ease-in-out infinite alternate;
-  animation-delay: calc(var(--n) * -2.1s);
-}
-.painted-sakura .painted-atmosphere i {
-  width: 10px;
-  height: 6px;
-  border-radius: 80% 10% 80% 10%;
-  background: #f3c8db;
-}
-.painted-mountains .painted-atmosphere {
-  background: radial-gradient(ellipse at 35% 60%, #b8d0e622, transparent 60%);
-  animation: painted-mist 24s ease-in-out infinite alternate;
-}
-.painted-mountains .painted-atmosphere i {
-  display: none;
-}
-@keyframes painted-drift {
-  from {
-    transform: translate(-20px, -35px) rotate(-30deg);
-    opacity: 0.15;
-  }
-  to {
-    transform: translate(55px, 70px) rotate(90deg);
-    opacity: 0.65;
-  }
-}
-@keyframes painted-mist {
-  from {
-    transform: translateX(-3%);
-    opacity: 0.4;
-  }
-  to {
-    transform: translateX(3%);
-    opacity: 0.9;
-  }
-}
 .background-preview .painted-scene-shade {
   opacity: 0.3;
 }
@@ -9203,122 +9159,12 @@ summary:focus-visible {
 .discover-links:not(:has(.why-toggle)) {
   grid-template-columns: minmax(0, 1fr);
 }
-/* More visible scene motion, using compositor-friendly transforms and opacity. */
-.ambient[data-motion="true"] .painted-scene-art {
-  animation: painted-camera 18s ease-in-out infinite alternate;
-}
-@keyframes painted-camera {
-  from {
-    transform: scale(1.06) translate(-1.2%, -0.6%);
-  }
-  to {
-    transform: scale(1.1) translate(1.2%, 0.6%);
-  }
-}
-.painted-atmosphere i {
-  width: 7px;
-  height: 7px;
-  animation: painted-float 8s ease-in-out infinite alternate;
-  opacity: 0.65;
-}
-.painted-sakura .painted-atmosphere i {
-  width: 15px;
-  height: 9px;
-  animation: petal-flight 10s linear infinite;
-}
-.painted-skyline .painted-atmosphere i {
-  box-shadow: 0 0 8px 2px #ffe8aa55;
-}
-.painted-orbit .painted-atmosphere i {
-  width: 100px;
-  height: 2px;
-  border-radius: 100%;
-  background: linear-gradient(90deg, transparent, #d7f4ff);
-  animation: orbital-streak 9s linear infinite;
-}
-.painted-skyislands .painted-atmosphere i {
-  display: none;
-}
-.painted-mountains .painted-atmosphere {
-  animation: none;
-  background: none;
-}
-.painted-clouds {
+/* Scene pixels animate locally; the base painting never pans, scales or rotates. */
+.painted-scene-motion {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-}
-.painted-clouds span {
-  position: absolute;
-  inset: 20% -20% -15%;
-  background:
-    radial-gradient(ellipse at 20% 70%, #d5e4ef88, transparent 38%),
-    radial-gradient(ellipse at 75% 60%, #cfdeed66, transparent 35%);
-  animation: cloud-crossing 13s ease-in-out infinite alternate;
-}
-.painted-clouds span + span {
-  inset: 5% -30% 0;
-  opacity: 0.5;
-  animation-duration: 19s;
-  animation-delay: -8s;
-  animation-direction: alternate-reverse;
-}
-.painted-skyislands .painted-clouds span {
-  background:
-    radial-gradient(ellipse at 25% 70%, #fff0dfaa, transparent 42%),
-    radial-gradient(ellipse at 80% 80%, #e8eaff99, transparent 40%);
-}
-@keyframes painted-float {
-  from {
-    transform: translate(-40px, 60px);
-    opacity: 0.2;
-  }
-  to {
-    transform: translate(70px, -95px);
-    opacity: 0.9;
-  }
-}
-@keyframes petal-flight {
-  0% {
-    transform: translate(-80px, -180px) rotate(-60deg);
-    opacity: 0;
-  }
-  15%,
-  80% {
-    opacity: 0.85;
-  }
-  100% {
-    transform: translate(170px, 240px) rotate(220deg);
-    opacity: 0;
-  }
-}
-@keyframes orbital-streak {
-  0%,
-  65% {
-    transform: translate(-220px, -70px) rotate(18deg);
-    opacity: 0;
-  }
-  70% {
-    opacity: 0.8;
-  }
-  100% {
-    transform: translate(400px, 140px) rotate(18deg);
-    opacity: 0;
-  }
-}
-@keyframes cloud-crossing {
-  from {
-    transform: translate(-10%, -2%);
-    opacity: 0.25;
-  }
-  to {
-    transform: translate(12%, 3%);
-    opacity: 0.7;
-  }
-}
-/* Pause the camera as well as foreground effects while hidden or behind a dialog. */
-.ambient[data-paused="true"] .painted-scene *,
-body:has(dialog[open]) .ambient .painted-scene * {
-  animation-play-state: paused;
+  opacity: 0;
 }
