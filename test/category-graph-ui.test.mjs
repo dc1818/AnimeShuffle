@@ -54,6 +54,25 @@ test("category browsing expands in place, saves optional interests, and preserve
     };
     await click("Expand Subject / Theme");
     await click("Expand Mecha");
+    // Selecting the name/checkbox selects the branch; browsing remains independent.
+    const mechaCheck = document.querySelector('[aria-label="Select Mecha"]');
+    await act(async () => mechaCheck.closest("label").click());
+    assert.ok(value.preferredNodes.includes("mecha"));
+    assert.ok(value.preferredNodes.includes("real-robot"));
+    assert.ok(
+      document.querySelector('[aria-label="Select Real Robot"]').checked,
+    );
+    await act(async () =>
+      document.querySelector('[aria-label="Select Real Robot"]').click(),
+    );
+    assert.equal(mechaCheck.indeterminate, true);
+    assert.ok(!value.preferredNodes.includes("mecha"));
+    await click("Remove Super Robot");
+    // Clean any additional descendants so the remaining workflow starts empty.
+    while (value.preferredNodes.length) {
+      const remove = document.querySelector(".interest-chips button");
+      await act(async () => remove.click());
+    }
     // Reading help never saves an interest; add/remove is an explicit action.
     const about = document.querySelector('[aria-label="About Real Robot"]');
     await click("About Real Robot");
@@ -153,7 +172,7 @@ test("category browsing expands in place, saves optional interests, and preserve
         assert.ok(row, current);
         if (i < path.length - 1) {
           const button = row.querySelector(
-            ":scope > .interest-row > .interest-branch-toggle",
+            ":scope > .interest-row > .interest-branch-toggle, :scope > .interest-browse-children",
           );
           assert.ok(button, current);
           if (button.getAttribute("aria-expanded") !== "true")
@@ -197,7 +216,7 @@ test("category browsing expands in place, saves optional interests, and preserve
       );
       assert.ok(row, `future level ${i}`);
       const button = row.querySelector(
-        ":scope > .interest-row > .interest-branch-toggle",
+        ":scope > .interest-row > .interest-branch-toggle, :scope > .interest-browse-children",
       );
       await act(async () => button.click());
       assert.equal(button.getAttribute("aria-expanded"), "true");

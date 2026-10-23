@@ -5,9 +5,9 @@ export const BACKGROUND_STYLES = [
   ["aurora", "Aurora ribbons"],
   ["liquid", "Liquid light"],
   ["comet", "Comet drift"],
-  ["sakura", "Sakura breeze"],
-  ["skyline", "Moonlit skyline"],
-  ["mountains", "Ink mountains"],
+  ["sakura", "Sakura riverside"],
+  ["skyline", "Lantern town"],
+  ["mountains", "Mountain sanctuary"],
 ];
 
 let accelerated;
@@ -85,6 +85,7 @@ export function AmbientBackground({
     <div
       className="ambient"
       data-style={mode}
+      data-match-anime={matchAnime}
       style={
         !matchAnime
           ? {
@@ -100,73 +101,31 @@ export function AmbientBackground({
       aria-hidden="true"
     >
       {showLayers && ["sakura", "skyline", "mountains"].includes(mode) && (
-        <svg
-          className={`anime-scene scene-${mode}`}
-          viewBox="0 0 1440 1000"
-          preserveAspectRatio="xMidYMid slice"
-          focusable="false"
-        >
-          <circle className="scene-moon" cx="1110" cy="235" r="100" />
-          {mode === "sakura" && (
-            <>
-              <path
-                className="sakura-branch"
-                d="M-30 780 Q170 580 210 280 Q250 190 420 100 M180 470 Q320 400 430 230 M205 300 Q90 220 30 80"
-              />
-              {Array.from({ length: 18 }, (_, n) => (
-                <ellipse
+        <div className={`painted-scene painted-${mode}`}>
+          <img
+            className="painted-scene-art"
+            src={`/backgrounds/${mode}-${preview ? "preview" : "painted"}.webp`}
+            alt=""
+            decoding="async"
+            loading={preview ? "lazy" : "eager"}
+          />
+          <div className="painted-scene-tint" />
+          <div className="painted-scene-shade" />
+          {!preview && (
+            <div className="painted-atmosphere">
+              {Array.from({ length: mode === "sakura" ? 12 : 7 }, (_, n) => (
+                <i
                   key={n}
-                  className="sakura-petal"
-                  cx={80 + ((n * 173) % 1300)}
-                  cy={80 + ((n * 107) % 780)}
-                  rx="12"
-                  ry="6"
-                  style={{ "--n": n }}
+                  style={{
+                    "--n": n,
+                    left: `${5 + ((n * 17) % 90)}%`,
+                    top: `${8 + ((n * 23) % 80)}%`,
+                  }}
                 />
               ))}
-            </>
+            </div>
           )}
-          {mode === "skyline" && (
-            <>
-              <g className="scene-cloud">
-                <path d="M80 280 Q290 200 520 270 T920 250" />
-                <path d="M600 420 Q850 350 1300 390" />
-              </g>
-              <path
-                className="scene-distant"
-                d="M0 1000V670H100V570H170V690H300V520H360V650H470V590H600V700H720V560H810V660H940V500H1010V620H1120V580H1260V670H1440V1000Z"
-              />
-              <path
-                className="scene-near"
-                d="M0 1000V820H160V750H300V880H450V710H570V790H720V850H850V740H1000V800H1140V690H1240V830H1440V1000Z"
-              />
-              <path
-                className="skyline-wire"
-                d="M0 550 Q400 800 850 540 T1440 550 M180 500V1000 M1180 500V1000"
-              />
-            </>
-          )}
-          {mode === "mountains" && (
-            <>
-              <path
-                className="scene-distant"
-                d="M-100 1000L260 330 460 620 790 240 1200 760 1460 480V1000Z"
-              />
-              <path
-                className="mountain-snow"
-                d="M650 425L790 240 935 425 815 370 770 400 740 360Z M170 490L260 330 360 480 270 440 235 460Z"
-              />
-              <path
-                className="scene-near"
-                d="M-100 1000L170 690 390 860 720 540 1060 880 1320 660 1540 900V1000Z"
-              />
-              <g className="scene-cloud">
-                <path d="M-80 710 Q300 600 650 720 T1500 720" />
-                <path d="M-100 890 Q400 800 900 880 T1500 850" />
-              </g>
-            </>
-          )}
-        </svg>
+        </div>
       )}
       {showLayers && mode === "aurora" && (
         <svg

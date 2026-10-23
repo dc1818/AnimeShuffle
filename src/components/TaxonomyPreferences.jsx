@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+
+import {
+  categorySelectionIndex,
+  branchSelection,
+  toggleCategoryBranch,
+} from "../lib/category-selection.js";
 
 import { CATEGORY_TREE } from "../lib/category-tree.js";
 import { CategoryPopover } from "./CategoryPopover.jsx";
@@ -50,6 +56,7 @@ export function TaxonomyPreferences({
 }) {
   const TAXONOMY_BY_ID = tree.byId;
   const SELECTABLE_NODES = tree.selectable;
+  const groups = useMemo(() => categorySelectionIndex(tree), [tree]);
   const [opened, setOpened] = useState(
     () => new Set(["anime-taxonomy/audience-demographic"]),
   );
@@ -109,13 +116,11 @@ export function TaxonomyPreferences({
       ".interest-row input, .interest-row button",
     );
     control?.focus({ preventScroll: true });
-    row
-      ?.querySelector(".interest-row")
-      ?.scrollIntoView?.({
-        block: "center",
-        inline: "nearest",
-        behavior: "instant",
-      });
+    row?.querySelector(".interest-row")?.scrollIntoView?.({
+      block: "center",
+      inline: "nearest",
+      behavior: "instant",
+    });
   }, [revealed]);
   const info = (node) => (
     <InfoButton
@@ -134,16 +139,60 @@ export function TaxonomyPreferences({
         ),
       )
     : [];
-  const toggle = (nodeId) =>
-    setValue((p) => ({
-      ...p,
-      preferredNodes: (p.preferredNodes || []).includes(nodeId)
-        ? p.preferredNodes.filter((x) => x !== nodeId)
-        : [...(p.preferredNodes || []), nodeId].slice(0, 64),
-      ...(nodeId === "kodomo" && !p.preferredNodes?.includes(nodeId)
-        ? { childrenTitles: "include" }
-        : {}),
-    }));
+  const toggle = (nodeId, remove = false) =>
+    setValue((p) => {
+      const preferredNodes = toggleCategoryBranch(
+        groups,
+        nodeId,
+        p.preferredNodes || [],
+        remove,
+      );
+      return {
+        ...p,
+        preferredNodes,
+        ...(preferredNodes.includes("kodomo") &&
+        !p.preferredNodes?.includes("kodomo")
+          ? { childrenTitles: "include" }
+          : {}),
+      };
+    });
+  const selection = (node) => {
+    const state = branchSelection(groups, node.id, selected);
+    const hasChildren = state.ids.length > 1;
+    return (
+      <label
+        className={`interest-selection ${hasChildren ? "interest-select-group" : ""}`}
+      >
+        <input
+          type="checkbox"
+          aria-label={`Select ${node.label}`}
+          aria-description={
+            hasChildren
+              ? "Select this category and all subcategories. Show subcategories opens the branch without selecting."
+              : undefined
+          }
+          checked={state.checked}
+          aria-checked={state.mixed ? "mixed" : state.checked}
+          ref={(el) => {
+            if (el) el.indeterminate = state.mixed;
+          }}
+          onChange={() => toggle(node.id)}
+        />
+        <span>
+          <span className="interest-category-name">{node.label}</span>
+          {hasChildren && (
+            <small>
+              {state.checked
+                ? `All ${state.ids.length} selected`
+                : state.mixed
+                  ? `${state.count} of ${state.ids.length} selected · Select all`
+                  : "Select this category and all subcategories"}
+            </small>
+          )}
+        </span>
+      </label>
+    );
+  };
   const expand = (path) =>
     setOpened((prev) => {
       const next = new Set(prev);
@@ -171,54 +220,50 @@ export function TaxonomyPreferences({
         <div
           className={`interest-row ${children.length ? "has-children" : "is-leaf"} ${level === 0 ? "is-main" : ""} ${selected.includes(nodeId) ? "is-selected" : ""} ${reading === nodeId ? "is-reading" : ""}`}
         >
-          {children.length ? (
-            <>
-              {selectable && (
-                <label className="interest-branch-choice">
-                  <input
-                    className="interest-branch-check"
-                    type="checkbox"
-                    aria-label={`Select ${node.label}`}
-                    checked={selected.includes(nodeId)}
-                    disabled={
-                      !selected.includes(nodeId) && selected.length >= 64
-                    }
-                    onChange={() => toggle(nodeId)}
-                  />
-                </label>
-              )}
-              <button
-                type="button"
-                className="interest-branch-toggle"
-                aria-label={`${open ? "Collapse" : "Expand"} ${node.label}`}
-                aria-expanded={open}
-                aria-controls={childrenId}
-                onClick={() => expand(path)}
-              >
-                <svg
-                  className="interest-chevron"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
-                >
-                  <path d={open ? "M5 7l5 5 5-5" : "M7 5l5 5-5 5"} />
-                </svg>
-                <strong>{node.label}</strong>
-              </button>
-            </>
+          {selectable ? (
+            selection(node)
           ) : (
-            <label className="interest-selection">
-              <input
-                type="checkbox"
-                aria-label={`Select ${node.label}`}
-                checked={selected.includes(nodeId)}
-                disabled={!selected.includes(nodeId) && selected.length >= 64}
-                onChange={() => toggle(nodeId)}
-              />
-              <span>{node.label}</span>
-            </label>
+            <button
+              type="button"
+              className="interest-branch-toggle"
+              aria-label={`${open ? "Collapse" : "Expand"} ${node.label}`}
+              aria-expanded={open}
+              aria-controls={childrenId}
+              onClick={() => expand(path)}
+            >
+              <svg
+                className="interest-chevron"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path d={open ? "M5 7l5 5 5-5" : "M7 5l5 5-5 5"} />
+              </svg>
+              <strong>{node.label}</strong>
+            </button>
           )}
           {info(node)}
         </div>
+        {selectable && !!children.length && (
+          <button
+            type="button"
+            className="interest-browse-children"
+            aria-label={`${open ? "Collapse" : "Expand"} ${node.label}`}
+            aria-expanded={open}
+            aria-controls={childrenId}
+            onClick={() => expand(path)}
+          >
+            <svg
+              className="interest-chevron"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+            >
+              <path d={open ? "M5 7l5 5 5-5" : "M7 5l5 5-5 5"} />
+            </svg>
+            {open
+              ? "Hide subcategories"
+              : `Show subcategories (${children.length})`}
+          </button>
+        )}
         {!!children.length && open && (
           <ul id={childrenId} className="interest-children">
             {children.map((e) => branch(e.child, pathParts, e.type, level + 1))}
@@ -254,7 +299,7 @@ export function TaxonomyPreferences({
               <button
                 key={nodeId}
                 type="button"
-                onClick={() => toggle(nodeId)}
+                onClick={() => toggle(nodeId, true)}
                 aria-label={`Remove ${TAXONOMY_BY_ID.get(nodeId)?.label || nodeId}`}
               >
                 {TAXONOMY_BY_ID.get(nodeId)?.label || nodeId}
@@ -265,13 +310,11 @@ export function TaxonomyPreferences({
         ) : (
           <p>Choose a checkbox below to add an interest.</p>
         )}
-        {selected.length >= 64 && (
-          <p role="status">64 interests selected. Remove one to add another.</p>
-        )}
       </div>
       <p className="interest-legend">
-        Expand a category to see its types. Check to add an interest. Tap ⓘ for
-        its meaning.
+        Click a checkbox or category name to select it. Selecting a category
+        also selects every subcategory inside it. Use Show subcategories to
+        browse without selecting. Tap ⓘ for its meaning.
       </p>
       <div className="interest-browser" ref={browser}>
         <div className="interest-list">
@@ -289,21 +332,7 @@ export function TaxonomyPreferences({
                     key={n.id}
                     className={`interest-row ${reading === n.id ? "is-reading" : ""}`}
                   >
-                    <label className="interest-selection">
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${n.label}`}
-                        checked={selected.includes(n.id)}
-                        disabled={
-                          !selected.includes(n.id) && selected.length >= 64
-                        }
-                        onChange={() => toggle(n.id)}
-                      />
-                      <span>
-                        {n.label}
-                        <small>{n.facet}</small>
-                      </span>
-                    </label>
+                    {selection(n)}
                     {info(n)}
                   </li>
                 ))}

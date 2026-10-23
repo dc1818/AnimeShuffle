@@ -9049,3 +9049,152 @@ summary:focus-visible {
 .ambient[data-motion="false"] .ribbon-halo {
   filter: none;
 }
+
+/* Selection and browsing have explicit, different labels at every depth. */
+.interest-select-group {
+  padding: 10px 4px;
+}
+.interest-selection .interest-category-name {
+  display: block;
+  font-size: 16px;
+  line-height: 24px;
+}
+.interest-select-group .interest-category-name {
+  font-weight: 650;
+}
+.interest-selection small {
+  display: block;
+  margin-top: 3px;
+  color: #b5ccd9;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 400;
+}
+.interest-browse-children {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px 30px;
+  padding: 4px 10px;
+  min-height: 44px;
+  max-width: calc(100% - 30px);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: #91d5f3;
+  font-size: 13px;
+  text-align: left;
+  white-space: normal;
+}
+.interest-browse-children:hover {
+  background: #23465e;
+  color: #e0f5ff;
+}
+.interest-browse-children[aria-expanded="true"] {
+  background: transparent;
+}
+.interest-row:has(input[aria-checked="mixed"]) {
+  box-shadow: inset 3px 0 #8cb4c8;
+}
+.interest-chips {
+  max-height: 128px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.interest-row .interest-selection {
+  min-width: 0;
+  flex: 1;
+}
+.interest-row .interest-selection > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Original illustrated environments. Only the selected full-size asset is loaded. */
+.painted-scene {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
+.painted-scene-art {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.painted-scene-tint,
+.painted-scene-shade,
+.painted-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.painted-scene-tint {
+  background: linear-gradient(120deg, rgb(var(--cool)), rgb(var(--warm)));
+  mix-blend-mode: color;
+  opacity: 0.8;
+}
+.ambient[data-match-anime="false"] .painted-scene-tint {
+  display: none;
+}
+.painted-scene-shade {
+  background: linear-gradient(#07101955, #07101922 45%, #07101988);
+}
+.ambient:has(.painted-scene)::before {
+  display: none;
+}
+.painted-atmosphere i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff2bf;
+  opacity: 0.45;
+  animation: painted-drift 16s ease-in-out infinite alternate;
+  animation-delay: calc(var(--n) * -2.1s);
+}
+.painted-sakura .painted-atmosphere i {
+  width: 10px;
+  height: 6px;
+  border-radius: 80% 10% 80% 10%;
+  background: #f3c8db;
+}
+.painted-mountains .painted-atmosphere {
+  background: radial-gradient(ellipse at 35% 60%, #b8d0e622, transparent 60%);
+  animation: painted-mist 24s ease-in-out infinite alternate;
+}
+.painted-mountains .painted-atmosphere i {
+  display: none;
+}
+@keyframes painted-drift {
+  from {
+    transform: translate(-20px, -35px) rotate(-30deg);
+    opacity: 0.15;
+  }
+  to {
+    transform: translate(55px, 70px) rotate(90deg);
+    opacity: 0.65;
+  }
+}
+@keyframes painted-mist {
+  from {
+    transform: translateX(-3%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(3%);
+    opacity: 0.9;
+  }
+}
+.background-preview .painted-scene-shade {
+  opacity: 0.3;
+}
+.background-preview .painted-scene-tint {
+  opacity: 0.2;
+}
+@media (max-width: 560px) {
+  .interest-browse-children {
+    margin-left: 26px;
+    max-width: calc(100% - 26px);
+  }
+}

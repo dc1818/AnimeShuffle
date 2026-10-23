@@ -48,7 +48,7 @@ for (const [label, id] of Object.entries({
 export const nodeForLabel = (label) => names.get(key(label)) || null;
 export const cleanNodeIds = (input) =>
   Array.isArray(input)
-    ? [...new Set(input.filter((id) => active.has(id)))].slice(0, 64)
+    ? [...new Set(input.filter((id) => active.has(id)))]
     : [];
 const parents = new Map(data.nodes.map((n) => [n.id, []]));
 const children = new Map(data.nodes.map((n) => [n.id, []]));
