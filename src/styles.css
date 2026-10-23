@@ -6840,3 +6840,64 @@ summary:focus-visible {
     grid-row: 2;
   }
 }
+
+/* Phone metadata shares the small cover's height instead of adding another panel. */
+@media (max-width: 560px) {
+  .recommendations-page .leaderboard-row .ranked-card {
+    gap: 6px 10px;
+  }
+  .recommendations-page .ranked-card .card-content > .anime-summary {
+    align-self: start;
+  }
+  .recommendations-page .ranked-card .genre-groups {
+    display: contents;
+  }
+  .recommendations-page .ranked-card .genre-group {
+    grid-column: 1 / -1;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .recommendations-page .ranked-card .genre-group-label {
+    flex: 0 0 54px;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  .recommendations-page .ranked-card .genre-group-audience {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+  }
+  .recommendations-page .ranked-card .taxonomy-card {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .recommendations-page .ranked-card .taxonomy-card summary {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+  .recommendations-page .leaderboard-row .poster-stage {
+    grid-row: 1 / 3;
+    height: 156px;
+  }
+  .recommendations-page .ranked-card .poster {
+    height: 118px;
+  }
+  .recommendations-page .ranked-card .reactions {
+    gap: 4px 8px;
+  }
+  .recommendations-page .ranked-card .mobile-reaction-label {
+    line-height: 18px;
+  }
+  .recommendations-page
+    .ranked-card:has(.trailer-panel:not([hidden]))
+    .poster-stage {
+    grid-row: 1;
+    height: 320px;
+  }
+  .recommendations-page
+    .ranked-card:has(.trailer-panel:not([hidden]))
+    .genre-group-audience {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
