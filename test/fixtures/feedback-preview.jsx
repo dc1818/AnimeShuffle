@@ -1,7 +1,3 @@
-import {
-  SceneEnvironment,
-  SCENE_STYLES,
-} from "../../src/components/SceneEnvironment.jsx";
 import { Dialogs } from "../../src/components/Dialogs.jsx";
 import { Recommendations } from "../../src/components/Recommendations.jsx";
 import { Watchlist } from "../../src/components/Watchlist.jsx";
@@ -27,64 +23,6 @@ const sizes = [
   [1920, 1080],
   [844, 390],
 ];
-function SceneFixture() {
-  const [scene, setScene] = useState("rail"),
-    [motion, setMotion] = useState(false),
-    [palette, setPalette] = useState("blue");
-  return (
-    <>
-      <div
-        className="ambient"
-        data-motion={motion}
-        data-enabled="true"
-        style={{
-          "--cool": palette === "blue" ? "90, 182, 224" : "224, 114, 136",
-          "--warm": palette === "blue" ? "244, 195, 114" : "166, 206, 130",
-        }}
-      >
-        <SceneEnvironment mode={scene} />
-      </div>
-      <div
-        style={{
-          position: "relative",
-          zIndex: 3,
-          background: "#102131",
-          padding: 12,
-          display: "flex",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <label>
-          Scene{" "}
-          <select value={scene} onChange={(e) => setScene(e.target.value)}>
-            {SCENE_STYLES.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={motion}
-            onChange={(e) => setMotion(e.target.checked)}
-          />{" "}
-          Animate scene preview
-        </label>
-        <label>
-          Accent palette{" "}
-          <select value={palette} onChange={(e) => setPalette(e.target.value)}>
-            <option value="blue">Blue / amber</option>
-            <option value="rose">Rose / green</option>
-          </select>
-        </label>
-        <span>Isolated artwork test · No profile changes</span>
-      </div>
-    </>
-  );
-}
 function Fixture() {
   const [setupDone, setSetupDone] = useState(false);
   const [action, setAction] = useState("good"),
@@ -110,7 +48,6 @@ function Fixture() {
       : demo[0].title,
     englishTitle: "",
   };
-  if (location.search.includes("surface=scene")) return <SceneFixture />;
   if (/surface=(settings|preferences)/.test(location.search))
     return <PreferencesFixture />;
   if (location.search.includes("surface=shortlist"))
@@ -539,7 +476,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=scene") ? "&surface=scene" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=settings") ? "&surface=settings" : ""}${location.search.includes("surface=preferences") ? "&surface=preferences" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=settings") ? "&surface=settings" : ""}${location.search.includes("surface=preferences") ? "&surface=preferences" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

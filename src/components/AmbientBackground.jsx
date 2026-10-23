@@ -1,8 +1,3 @@
-import {
-  SceneEnvironment,
-  SCENE_STYLES,
-  resolveBackgroundStyle,
-} from "./SceneEnvironment.jsx";
 import { supportsBackgroundMotion } from "../lib/background-performance.js";
 import { useEffect, useId, useState } from "react";
 
@@ -10,7 +5,6 @@ export const BACKGROUND_STYLES = [
   ["aurora", "Aurora ribbons"],
   ["liquid", "Liquid light"],
   ["comet", "Comet drift"],
-  ...SCENE_STYLES,
 ];
 
 let accelerated;
@@ -41,10 +35,8 @@ export function AmbientBackground({
     return () => media.removeEventListener("change", update);
   }, [enabled, preview, animated]);
   const id = useId().replace(/:/g, "");
-  const mode = BACKGROUND_STYLES.some(
-    ([key]) => key === resolveBackgroundStyle(style),
-  )
-    ? resolveBackgroundStyle(style)
+  const mode = BACKGROUND_STYLES.some(([key]) => key === style)
+    ? style
     : "aurora";
   const [paused, setPaused] = useState(
     () => document.visibilityState === "hidden",
@@ -105,9 +97,6 @@ export function AmbientBackground({
       data-motion={motion && !preview}
       aria-hidden="true"
     >
-      {showLayers && SCENE_STYLES.some(([key]) => key === mode) && (
-        <SceneEnvironment mode={mode} preview={preview} />
-      )}
       {showLayers && mode === "aurora" && (
         <svg
           className="aurora-ribbons"

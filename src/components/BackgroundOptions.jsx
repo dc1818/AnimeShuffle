@@ -1,14 +1,11 @@
-import { resolveBackgroundStyle } from "./SceneEnvironment.jsx";
 import { AmbientBackground, BACKGROUND_STYLES } from "./AmbientBackground.jsx";
 
 export function BackgroundOptions({ settings, onChange }) {
   const selected =
     settings.dynamic === false
       ? "off"
-      : BACKGROUND_STYLES.some(
-            ([key]) => key === resolveBackgroundStyle(settings.backgroundStyle),
-          )
-        ? resolveBackgroundStyle(settings.backgroundStyle)
+      : BACKGROUND_STYLES.some(([key]) => key === settings.backgroundStyle)
+        ? settings.backgroundStyle
         : "aurora";
   return (
     <fieldset className="background-options">
@@ -65,7 +62,7 @@ export function BackgroundOptions({ settings, onChange }) {
               onChange({ backgroundMatchAnime: e.target.checked })
             }
           />{" "}
-          Match lights and accents to the anime
+          Match the displayed anime’s colors
         </label>
       </div>
       <p className="background-motion-note">
