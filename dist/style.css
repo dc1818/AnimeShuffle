@@ -5086,7 +5086,7 @@ dialog.details-card.details-modal::backdrop {
   overflow-wrap: anywhere;
 }
 .taxonomy-card summary span,
-.taxonomy-preferences summary span {
+.taxonomy-preferences summary .taxonomy-count {
   font-size: 11px;
   color: #b8cede;
   margin-left: 6px;
@@ -7951,6 +7951,7 @@ summary:focus-visible {
   font-weight: 650;
 }
 .panel-content .taxonomy-preferences .taxonomy-count {
+  margin-left: 0;
   font-size: 12px;
   font-weight: 400;
   color: #bfccd7;
