@@ -8,7 +8,7 @@ Navigation uses real hash links for Discover, Watchlist and Recommendations. Has
 
 Onboarding offers an immediate Start shuffling action with current safe defaults. Favorite titles and format are optional; genres, audience and advanced restrictions live under More preferences. Keep the start action visible during scrolling. Returning users retain automatic preference saving.
 
-On phones (640px and narrower), Watchlist keeps search and sorting visible, with other filters under a toggle that indicates active filters. Import/export has a separate disclosure. Closing a disclosure must not reset selections. Desktop keeps filters exposed.
+Watchlist uses compact horizontal cards with contained portrait covers, an always-visible More details action and a secondary actions disclosure. Use three columns on wide desktops, two on tablets and one on phones; desktop also offers a list view. Align the heading, search/sort toolbar, results count and cards within 1180px. Secondary filters collapse at every width and expose removable active chips. Clear filters includes Source; filtered empty states offer a reset. Import/export remains separate. Remember browsing state per store/account during the session. Render at most 120 cards; Jump to bottom loads only the final 60. Best-match explanations use positive model contributions, never invented confidence percentages.
 
 Use native dialogs with headings as accessible names, Escape/backdrop behavior appropriate to the flow, and visible keyboard focus. Close controls have at least 44px hit areas. Preserve browser zoom, scrolling, long-title wrapping and safe areas; never hide essential content merely to fit a viewport.
 

@@ -1,5 +1,9 @@
 /** Shared inline icons keep the interface consistent without loading an icon font. */
 const paths = {
+  filters: "M3 6h18M3 12h18M3 18h18M8 3v6M16 9v6M10 15v6",
+  grid: "M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z",
+  list: "M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1",
+  more: "M12 4h.01M12 12h.01M12 20h.01",
   download: "M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5",
   shuffle: "m3 5 4 0 10 14h4m-4-4 4 4-4 4M3 19h4l3-4m4-6 3-4h4m-4-4 4 4-4 4",
   bookmark: "M6 3h12v18l-6-4-6 4Z",

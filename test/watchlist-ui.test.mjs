@@ -186,9 +186,50 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
     await act(async () => root.render(null));
     await renderList();
     assert.equal(workers.length, 1, "Tab revisit uses cached ranking");
+    assert.equal(
+      document.querySelector('input[type="search"]').value,
+      "Anime 218",
+      "Search survives page navigation",
+    );
+    assert.equal(
+      document.querySelectorAll(".saved-card").length,
+      0,
+      "Genre filter survives page navigation",
+    );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Clear filters")
+        .click(),
+    );
     assert.match(
       document.querySelector(".saved-card").textContent,
       /Anime 218/,
+    );
+    const sourceFilter = [...document.querySelectorAll("label")]
+      .find((el) => el.textContent.startsWith("Source"))
+      .querySelector("select");
+    await act(async () => {
+      sourceFilter.value = "saved";
+      sourceFilter.dispatchEvent(new window.Event("change", { bubbles: true }));
+    });
+    assert.match(
+      document.querySelector(".empty").textContent,
+      /No titles match/,
+    );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Clear search and filters")
+        .click(),
+    );
+    assert.equal(sourceFilter.value, "all", "Clear includes source");
+    await act(async () =>
+      document.querySelector('[aria-label="List view"]').click(),
+    );
+    await act(async () => root.render(null));
+    await renderList();
+    assert.ok(
+      document.querySelector(".watchlist-list"),
+      "Layout survives page navigation",
     );
     const more = [...document.querySelectorAll("button")].find((b) =>
       b.textContent.startsWith("Show more"),
@@ -203,8 +244,34 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
       async () =>
         new Promise((resolve) => window.requestAnimationFrame(resolve)),
     );
-    assert.equal(document.querySelectorAll(".saved-card").length, 218);
+    assert.equal(
+      document.querySelectorAll(".saved-card").length,
+      60,
+      "Jump renders only the last page",
+    );
     assert.equal(scrolledTo, document.querySelector(".watchlist-bottom"));
+    assert.match(
+      document.querySelector(".watchlist-count").textContent,
+      /Showing 159–218/,
+    );
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Previous titles")
+        .click(),
+    );
+    assert.equal(document.querySelectorAll(".saved-card").length, 60);
+    assert.match(
+      document.querySelector(".watchlist-count").textContent,
+      /Showing 99–158/,
+    );
+    state = { ...state, session: { account: { id: "different-account" } } };
+    await renderList();
+    assert.equal(document.querySelector('input[type="search"]').value, "");
+    assert.equal(
+      document.querySelector(".watchlist-list"),
+      null,
+      "UI memory does not cross account scopes",
+    );
 
     const picks = list
       .slice(0, 2)

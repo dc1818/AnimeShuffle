@@ -1,11 +1,12 @@
 import {
   rankWatchlist,
   cachedWatchlistScores,
+  cachedWatchlistReasons,
 } from "../lib/watchlist-ranking.js";
 import { genreLabel } from "../lib/genres.js";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { primaryTitle, englishTitle } from "../lib/titles.js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   orderWatchlist,
   watchlistTimestamp,
@@ -22,14 +23,30 @@ import {
   LENGTH_OPTIONS,
   runtimeLabel,
 } from "../lib/preferences.js";
-import { releaseLabel } from "../lib/release.js";
 import { Icon } from "./Icon.jsx";
 import { AnimeDetails } from "./AnimeCard.jsx";
 import { WatchlistCover } from "./WatchlistCover.jsx";
 
+// Session-only UI memory, scoped to the store and account. Never exported or synced.
+const browsingSessions = new WeakMap();
+export function Watchlist(props) {
+  const scope = String(
+    props.state.session.account?.id ||
+      props.state.session.profile?.id ||
+      "guest",
+  );
+  if (!browsingSessions.has(props.store))
+    browsingSessions.set(props.store, new Map());
+  const sessions = browsingSessions.get(props.store);
+  if (!sessions.has(scope)) sessions.set(scope, {});
+  return <WatchlistView key={scope} {...props} memory={sessions.get(scope)} />;
+}
+
 /** Show site saves and MAL plans together while keeping their origin explicit. */
-export function Watchlist({ state, store, onDiscover }) {
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
+function WatchlistView({ state, store, onDiscover, memory }) {
+  const [filtersExpanded, setFiltersExpanded] = useState(
+    memory.filtersExpanded || false,
+  );
   const [removing, setRemoving] = useState(null);
   const [detailsAnime, setDetailsAnime] = useState(null);
   const importFile = useRef(null);
@@ -42,12 +59,14 @@ export function Watchlist({ state, store, onDiscover }) {
   const [pendingImport, setPendingImport] = useState(null);
   const [importMessage, setImportMessage] = useState("");
   const [importing, setImporting] = useState(false);
-  const [tab, setTab] = useState("all");
-  const [sort, setSort] = useState("match");
-  const [query, setQuery] = useState("");
-  const [release, setRelease] = useState("all");
-  const [preferences, setPreferences] = useState(defaultPreferences);
-  const [genre, setGenre] = useState("all");
+  const [tab, setTab] = useState(memory.tab ?? "all");
+  const [sort, setSort] = useState(memory.sort ?? "match");
+  const [query, setQuery] = useState(memory.query ?? "");
+  const [release, setRelease] = useState(memory.release ?? "all");
+  const [preferences, setPreferences] = useState(
+    () => memory.preferences ?? defaultPreferences(),
+  );
+  const [genre, setGenre] = useState(memory.genre ?? "all");
   const combined = useMemo(
     () => combinedWatchlist(state.reactions, state.list),
     [state.reactions, state.list],
@@ -61,18 +80,52 @@ export function Watchlist({ state, store, onDiscover }) {
   );
   const [ranking, setRanking] = useState(null);
   const [rankingFailed, setRankingFailed] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(60);
+  const [visibleCount, setVisibleCount] = useState(memory.visibleCount || 60);
+  const [pageStart, setPageStart] = useState(memory.pageStart || 0);
+  const [layout, setLayout] = useState(memory.layout || "grid");
+  const top = useRef(null);
+  const restored = useRef(false);
+  useLayoutEffect(() => {
+    Object.assign(memory, {
+      tab,
+      sort,
+      query,
+      release,
+      preferences,
+      genre,
+      filtersExpanded,
+      visibleCount,
+      pageStart,
+      layout,
+    });
+  });
+  useLayoutEffect(() => {
+    const y = memory.scrollY || 0;
+    const frame = y
+      ? window.requestAnimationFrame(() => {
+          window.scrollTo({ top: y, behavior: "instant" });
+        })
+      : null;
+    const rememberScroll = () => {
+      memory.scrollY = window.scrollY;
+    };
+    window.addEventListener("scroll", rememberScroll, { passive: true });
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", rememberScroll);
+    };
+  }, [memory]);
   const bottom = useRef(null);
   const [jumpRequested, setJumpRequested] = useState(false);
   useEffect(() => {
     if (!jumpRequested) return;
     const frame = window.requestAnimationFrame(() => {
-      bottom.current?.scrollIntoView({
+      (jumpRequested === "top" ? top : bottom).current?.scrollIntoView({
         behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")
           .matches
           ? "instant"
           : "smooth",
-        block: "end",
+        block: jumpRequested === "top" ? "start" : "end",
       });
       setJumpRequested(false);
     });
@@ -108,7 +161,12 @@ export function Watchlist({ state, store, onDiscover }) {
     };
   }, [state.reactions, state.list, state.preferences, combined.length, sort]);
   useEffect(() => {
+    if (!restored.current) {
+      restored.current = true;
+      return;
+    }
     setVisibleCount(60);
+    setPageStart(0);
   }, [tab, sort, query, release, preferences, genre]);
   // Render saved titles immediately, then apply personalized ordering when ready.
   const effectiveSort = sort === "match" && !scores ? "newest" : sort;
@@ -124,17 +182,52 @@ export function Watchlist({ state, store, onDiscover }) {
       }),
     [source, preferences, genre, effectiveSort, query, release, scores],
   );
+  const reasons = cachedWatchlistReasons(
+    state.reactions,
+    state.list,
+    state.preferences,
+  );
+  const activeFilters = [
+    tab !== "all" && {
+      label: tab === "mal" ? "MAL" : "Anime Shuffle",
+      clear: () => setTab("all"),
+    },
+    release !== "all" && {
+      label: release.replaceAll("_", " "),
+      clear: () => setRelease("all"),
+    },
+    genre !== "all" && {
+      label: genreLabel(genre),
+      clear: () => setGenre("all"),
+    },
+    ...["formats", "lengths"].flatMap((key) =>
+      preferences[key].map((value) => ({
+        label:
+          [...FORMAT_OPTIONS, ...LENGTH_OPTIONS].find((o) => o.id === value)
+            ?.label || value,
+        clear: () => setPreferences((p) => ({ ...p, [key]: [] })),
+      })),
+    ),
+    !preferences.includeUnknown && {
+      label: "Known lengths / formats",
+      clear: () => setPreferences((p) => ({ ...p, includeUnknown: true })),
+    },
+  ].filter(Boolean);
+  function clearFilters() {
+    setTab("all");
+    setQuery("");
+    setRelease("all");
+    setGenre("all");
+    setPreferences(defaultPreferences());
+  }
+  const start = Math.min(pageStart, Math.max(0, items.length - 60));
+  const end = Math.min(start + visibleCount, items.length);
   return (
-    <section aria-labelledby="watchlist-heading">
+    <section className="watchlist-page" aria-labelledby="watchlist-heading">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Your next obsessions</span>
           <h1 id="watchlist-heading">Watchlist</h1>
-          <p>
-            Your next watch, ordered by your taste. Unreleased shows come after
-            available picks in Best match. Your site saves and MAL Plan to Watch
-            appear together, with duplicates combined.
-          </p>
+          <p>Your saved anime, ordered by your taste.</p>
         </div>
         {state.session.connected && (
           <button
@@ -179,15 +272,29 @@ export function Watchlist({ state, store, onDiscover }) {
           aria-controls="watchlist-extra-filters"
           onClick={() => setFiltersExpanded((value) => !value)}
         >
-          {filtersExpanded ? "Hide filters" : "Filters"}
-          {(tab !== "all" ||
-            release !== "all" ||
-            genre !== "all" ||
-            preferences.formats.length > 0 ||
-            preferences.lengths.length > 0 ||
-            !preferences.includeUnknown) &&
-            " · Active"}
+          <Icon name="filters" /> {filtersExpanded ? "Hide filters" : "Filters"}
+          {activeFilters.length > 0 && ` · ${activeFilters.length}`}
         </button>
+        <div
+          className="watchlist-layout-switch"
+          role="group"
+          aria-label="Watchlist layout"
+        >
+          <button
+            aria-label="Grid view"
+            aria-pressed={layout === "grid"}
+            onClick={() => setLayout("grid")}
+          >
+            <Icon name="grid" />
+          </button>
+          <button
+            aria-label="List view"
+            aria-pressed={layout === "list"}
+            onClick={() => setLayout("list")}
+          >
+            <Icon name="list" />
+          </button>
+        </div>
         <div
           id="watchlist-extra-filters"
           className={`watchlist-extra-filters${filtersExpanded ? " expanded" : ""}`}
@@ -274,32 +381,50 @@ export function Watchlist({ state, store, onDiscover }) {
               <option value="include">Include unknown lengths / formats</option>
               <option value="hide">Hide unknown lengths / formats</option>
             </select>
-          </label>
+          </label>{" "}
+          <details className="watchlist-sort-help">
+            <summary>How is this list ordered?</summary>
+            <p>
+              Best match uses your reactions and viewing preferences, with
+              unreleased anime after available picks. Site saves and MAL Plan to
+              Watch are combined without duplicates. MAL-only entries have no
+              known date added, so they appear after dated saves when sorting by
+              date.
+            </p>
+          </details>
         </div>
       </div>
       <div className="watchlist-actions">
-        {items.length > 8 && (
+        <div className="watchlist-active-filters" aria-label="Active filters">
+          {activeFilters.map((filter) => (
+            <button
+              key={filter.label}
+              className="filter-chip"
+              onClick={filter.clear}
+              aria-label={`Remove filter: ${filter.label}`}
+            >
+              {filter.label}
+              <Icon name="close" />
+            </button>
+          ))}
+          {(activeFilters.length > 0 || query) && (
+            <button className="quiet" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
+        </div>
+        {items.length > 60 && (
           <button
-            className="outline watchlist-jump"
+            className="quiet"
             onClick={() => {
-              setVisibleCount(items.length);
-              setJumpRequested(true);
+              setPageStart(Math.max(0, items.length - 60));
+              setVisibleCount(60);
+              setJumpRequested("bottom");
             }}
           >
             Jump to bottom <Icon name="chevron" />
           </button>
-        )}
-        <button
-          className="quiet"
-          onClick={() => {
-            setPreferences(defaultPreferences());
-            setQuery("");
-            setRelease("all");
-            setGenre("all");
-          }}
-        >
-          Clear filters
-        </button>
+        )}{" "}
         <details className="watchlist-tools">
           <summary>Import / export</summary>
           <div className="watchlist-tools-body">
@@ -462,10 +587,14 @@ export function Watchlist({ state, store, onDiscover }) {
           <p role="status">{importMessage}</p>
         </div>
       )}
-      <p className="watchlist-count">
+      <p
+        className="watchlist-count"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {items.length} of {source.length} saved titles
-        {source.some((entry) => entry.mal && !entry.addedAt) &&
-          " · MAL-only entries have no known date added."}
+        {items.length > 60 && ` · Showing ${start + 1}–${end}`}
       </p>
       {removing && (
         <RemoveWatchlistDialog
@@ -491,111 +620,205 @@ export function Watchlist({ state, store, onDiscover }) {
           onClose={() => setDetailsAnime(null)}
         />
       )}
-      <div className="watchlist-grid">
-        {items
-          .slice(0, visibleCount)
-          .map(({ anime, addedAt, site, mal }, index) => (
-            <article className="saved-card" key={anime.id}>
-              <WatchlistCover
-                key={anime.image}
-                anime={anime}
-                priority={index < 8}
-              />
-              <div className="saved-content">
-                <h3>
-                  <AnimeTitle anime={anime} />
-                </h3>
-                <p>{anime.genres?.slice(0, 3).map(genreLabel).join(" · ")}</p>
-                <p>
-                  {releaseLabel(anime)} · {runtimeLabel(anime)}
-                </p>
-                <small>
-                  {addedAt
-                    ? `Added ${new Date(addedAt).toLocaleDateString()}`
-                    : "Date added unknown"}
-                </small>
-                {mal &&
-                  Number.isFinite(Date.parse(anime.listStatus?.updated_at)) && (
-                    <small>
-                      MAL last updated{" "}
-                      {watchlistTimestamp(anime.listStatus.updated_at)}
-                    </small>
-                  )}
-                <div className="saved-footer">
-                  <button
-                    className="outline details-toggle"
-                    onClick={() => setDetailsAnime(anime)}
-                  >
-                    More details <Icon name="chevron" />
-                  </button>
+      <div className="watchlist-pagination" ref={top}>
+        {start > 0 && (
+          <button
+            className="outline"
+            onClick={() => {
+              setPageStart(Math.max(0, start - 60));
+              setVisibleCount(60);
+              setJumpRequested("top");
+            }}
+          >
+            Previous titles
+          </button>
+        )}
+      </div>
+      <div
+        className={`watchlist-grid ${layout === "list" ? "watchlist-list" : ""}`}
+      >
+        {items.slice(start, end).map(({ anime, addedAt, site, mal }, index) => (
+          <article className="saved-card" key={anime.id}>
+            <WatchlistCover
+              key={anime.image}
+              anime={anime}
+              priority={index < 8}
+            />
+            <div className="saved-content">
+              <h3>
+                <AnimeTitle anime={anime} />
+              </h3>
+              <p className="saved-format">
+                {{ movie: "Movie", special: "Special", music: "Music" }[
+                  anime.format
+                ] ||
+                  anime.format?.toUpperCase() ||
+                  "Format unknown"}
+                {anime.episodes > 0 &&
+                  ` · ${anime.episodes} episode${anime.episodes === 1 ? "" : "s"}`}
+              </p>
+              <p className="saved-genres">
+                {anime.genres?.slice(0, 3).map(genreLabel).join(" · ")}
+              </p>
+              <p>
+                {runtimeLabel(anime)}
+                {anime.status === "not_yet_aired" && " · Not yet aired"}
+                {anime.status === "currently_airing" && " · Airing"}
+              </p>
+              {sort === "match" && reasons?.[anime.id] && (
+                <p className="saved-match-reason">{reasons[anime.id]}</p>
+              )}
+              <span
+                className="saved-source"
+                title={
+                  site && mal
+                    ? "Found on Anime Shuffle and MAL Plan to Watch"
+                    : mal
+                      ? "MAL Plan to Watch"
+                      : "Found on Anime Shuffle"
+                }
+              >
+                {site && mal ? "Shuffle + MAL" : mal ? "MAL" : "Anime Shuffle"}
+              </span>
+              <div className="saved-footer">
+                <button
+                  className="outline details-toggle"
+                  onClick={() => setDetailsAnime(anime)}
+                >
+                  More details <Icon name="chevron" />
+                </button>
+                <WatchlistActions anime={anime}>
                   <a
                     href={`https://myanimelist.net/anime/${anime.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    View on MAL ↗
+                    View on MAL <Icon name="external" />
                   </a>
                   <small>
-                    {site && mal
-                      ? "Found on Anime Shuffle · MAL Plan to Watch"
-                      : mal
-                        ? "MAL Plan to Watch"
-                        : "Found on Anime Shuffle"}
+                    {addedAt
+                      ? `Added ${new Date(addedAt).toLocaleDateString()}`
+                      : "Date added unknown"}
                   </small>
+                  {mal &&
+                    Number.isFinite(
+                      Date.parse(anime.listStatus?.updated_at),
+                    ) && (
+                      <small>
+                        MAL last updated{" "}
+                        {watchlistTimestamp(anime.listStatus.updated_at)}
+                      </small>
+                    )}
+                  {site &&
+                    state.session.connected &&
+                    !state.list.some((a) => a.id === anime.id) && (
+                      <button
+                        disabled={state.busy}
+                        onClick={() => store.saveToMal(anime)}
+                      >
+                        Add to MAL
+                      </button>
+                    )}
                   <button
-                    className="quiet"
+                    className="saved-remove"
                     disabled={state.busy}
                     onClick={() => (mal ? setRemoving(anime) : remove(anime))}
                   >
                     Remove
                   </button>
-                  {site && (
-                    <>
-                      {state.session.connected &&
-                        !state.list.some((a) => a.id === anime.id) && (
-                          <button
-                            className="outline"
-                            disabled={state.busy}
-                            onClick={() => store.saveToMal(anime)}
-                          >
-                            Add to MAL
-                          </button>
-                        )}
-                    </>
-                  )}
-                </div>
+                </WatchlistActions>
               </div>
-            </article>
-          ))}
+            </div>
+          </article>
+        ))}
       </div>
-      {items.length > visibleCount && (
-        <button
-          className="outline"
-          onClick={() => setVisibleCount((count) => count + 60)}
-        >
-          Show more ({visibleCount} of {items.length})
-        </button>
-      )}
+      <div className="watchlist-pagination watchlist-pagination-bottom">
+        {end < items.length && (
+          <button
+            className="outline"
+            onClick={() => {
+              if (visibleCount < 120) setVisibleCount((count) => count + 60);
+              else {
+                setPageStart(start + 60);
+                setJumpRequested("top");
+              }
+            }}
+          >
+            Show more ({end} of {items.length})
+          </button>
+        )}
+        {items.length > 0 && (
+          <button
+            className="quiet"
+            onClick={() => {
+              if (start > 0) {
+                setPageStart(0);
+                setVisibleCount(60);
+              }
+              setJumpRequested("top");
+            }}
+          >
+            Back to top
+          </button>
+        )}
+      </div>
       {!items.length && (
         <div className="empty">
           <Icon name="bookmark" />
           <h2>
-            {source.length
-              ? "No saved anime match these filters"
+            {combined.length
+              ? "No titles match your search or filters"
               : "Room for your next favorite"}
           </h2>
           <p>
-            {tab === "mal"
-              ? "Your imported MAL Plan to Watch list is empty."
+            {combined.length
+              ? "Try a different search or clear your filters to see your saved anime."
               : "Choose “Would watch” on an anime to save it here."}
           </p>
-          <button className="primary" onClick={onDiscover}>
-            Discover anime
-          </button>
+          {combined.length ? (
+            <button className="primary" onClick={clearFilters}>
+              Clear search and filters
+            </button>
+          ) : (
+            <button className="primary" onClick={onDiscover}>
+              Discover anime
+            </button>
+          )}
         </div>
       )}
       <div ref={bottom} className="watchlist-bottom" />
     </section>
+  );
+}
+
+function WatchlistActions({ anime, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const outside = (event) => {
+      if (!ref.current?.contains(event.target))
+        ref.current?.removeAttribute("open");
+    };
+    document.addEventListener("click", outside);
+    return () => document.removeEventListener("click", outside);
+  }, []);
+  return (
+    <details
+      ref={ref}
+      className="saved-menu"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          ref.current.removeAttribute("open");
+          ref.current.querySelector("summary").focus();
+        }
+      }}
+    >
+      <summary aria-label={`Actions for ${primaryTitle(anime)}`}>
+        <Icon name="more" />
+      </summary>
+      <div className="saved-menu-panel">{children}</div>
+    </details>
   );
 }
 

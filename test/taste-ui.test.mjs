@@ -322,7 +322,10 @@ test("watchlist labels MAL update time and requires a cancellable removal confir
     await act(async () =>
       root.render(React.createElement(Watchlist, { state, store })),
     );
-    assert.match(document.body.textContent, /Found on Anime Shuffle/);
+    assert.equal(
+      document.querySelector(".saved-source").textContent,
+      "Shuffle + MAL",
+    );
     assert.equal(
       button("Import watchlist").parentElement,
       button("Export watchlist").parentElement,

@@ -67,6 +67,11 @@ function Fixture() {
     const list = Array.from({ length: 218 }, (_, i) => ({
       ...demo[i % demo.length],
       id: i + 10000,
+      title:
+        i < demo.length
+          ? demo[i].title
+          : `Layout sample ${i + 1}: ${demo[i % demo.length].title}`,
+      englishTitle: "",
       listStatus: { status: "plan_to_watch" },
     }));
     return (

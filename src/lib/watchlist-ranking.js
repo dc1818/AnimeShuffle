@@ -1,6 +1,13 @@
 // Reuse scores across tab switches and unrelated store updates. Keep just one
 // input snapshot; fresh reactions, MAL metadata or preferences invalidate it.
 let cached;
+export function cachedWatchlistReasons(reactions, list, preferences) {
+  return cached?.reactions === reactions &&
+    cached.list === list &&
+    cached.preferences === preferences
+    ? cached.reasons
+    : null;
+}
 export function cachedWatchlistScores(reactions, list, preferences) {
   return cached?.reactions === reactions &&
     cached.list === list &&
@@ -37,7 +44,10 @@ export function rankWatchlist(reactions, list, preferences) {
       }
     };
     entry.cancel = () => finish(new Error("Watchlist changed"));
-    worker.onmessage = ({ data }) => finish(null, data);
+    worker.onmessage = ({ data }) => {
+      entry.reasons = data.reasons || {};
+      finish(null, data.scores || data);
+    };
     worker.onerror = () => finish(new Error("Watchlist ranking unavailable"));
     timer = setTimeout(
       () => finish(new Error("Watchlist ranking timed out")),
