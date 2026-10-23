@@ -507,8 +507,13 @@ test("recommendation details and page markup stay stable after equivalent backgr
         .dispatchEvent(new window.Event("cancel", { cancelable: true })),
     );
     assert.equal(document.querySelector("dialog[open]"), null);
-    const why = document.querySelector(".why-toggle");
-    why.focus();
+    assert.equal(document.querySelector(".why-toggle"), null);
+    const more = document.querySelector(".details-toggle");
+    more.focus();
+    await act(async () => more.click());
+    const why = [...document.querySelectorAll('[role="tab"]')].find(
+      (tab) => tab.textContent === "Why this pick?",
+    );
     await act(async () => why.click());
     assert.ok(document.querySelector("dialog[open]"));
     assert.match(
@@ -520,7 +525,7 @@ test("recommendation details and page markup stay stable after equivalent backgr
         .querySelector("dialog")
         .dispatchEvent(new window.Event("cancel", { cancelable: true })),
     );
-    assert.equal(document.activeElement, why);
+    assert.equal(document.activeElement, more);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();

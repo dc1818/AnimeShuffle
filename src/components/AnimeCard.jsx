@@ -271,22 +271,7 @@ export function AnimeCard({
               <Icon name="chevron" />
             </span>
           </button>
-          {compact && onWhy && (
-            <button
-              className="details-toggle why-toggle"
-              aria-expanded={detailsOpen === "why"}
-              aria-controls="details-card"
-              onClick={onWhy}
-            >
-              <span>
-                <Icon name="compass" />
-              </span>
-              <span>Why this pick?</span>
-              <span>
-                <Icon name="chevron" />
-              </span>
-            </button>
-          )}
+
         </div>
         {selectionNote && (
           <p className="runtime-estimate" role="status">
