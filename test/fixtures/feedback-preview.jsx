@@ -428,6 +428,12 @@ function PreferencesFixture() {
   };
   return (
     <>
+      <AmbientBackground
+        enabled={settings.dynamic !== false}
+        style={settings.backgroundStyle}
+        animated={settings.backgroundAnimated !== false}
+        matchAnime={settings.backgroundMatchAnime !== false}
+      />
       <div className="fixture-menu">
         <h1>Anime Shuffle</h1>
         <p>Layout preview · changes stay in memory</p>
