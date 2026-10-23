@@ -8929,7 +8929,8 @@ summary:focus-visible {
   box-shadow: none;
 }
 .interest-row:not(.is-main) > .interest-branch-toggle[aria-expanded]:hover {
-  background: #254a65;
+  background: #ffffff08;
+  color: #b9edff;
 }
 
 /* Anime scenery remains visible in still mode; only transforms animate. */
