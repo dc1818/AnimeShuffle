@@ -421,12 +421,37 @@ test("recommendation details and page markup stay stable after equivalent backgr
       throw Error("Unexpected reload");
     },
   };
+  let preferenceOpens = 0;
   const render = () =>
     root.render(
-      React.createElement(Recommendations, { state, store, onDiscover() {} }),
+      React.createElement(Recommendations, {
+        state,
+        store,
+        onDiscover() {},
+        onPreferences() {
+          preferenceOpens++;
+        },
+      }),
     );
   try {
     await act(async () => render());
+    const helpToggle = document.querySelector(
+      '[aria-controls="recommendations-help"]',
+    );
+    const help = document.getElementById("recommendations-help");
+    assert.equal(help.hidden, true);
+    await act(async () => helpToggle.click());
+    assert.equal(help.hidden, false);
+    assert.equal(helpToggle.getAttribute("aria-expanded"), "true");
+    assert.match(help.textContent, /numeric ratings are optional/);
+    await act(async () =>
+      document.querySelector(".recommendations-utility").click(),
+    );
+    assert.equal(preferenceOpens, 1);
+    await act(async () => helpToggle.click());
+    assert.equal(help.hidden, true);
+    assert.equal(document.querySelectorAll(".ranked-card").length, 1);
+
     await act(async () =>
       [...document.querySelectorAll("button")]
         .find((button) => button.textContent.includes("More details"))

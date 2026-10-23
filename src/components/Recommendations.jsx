@@ -53,6 +53,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
     setLastChoice(null);
   }, [state.session?.account?.id]);
   const [detailsTab, setDetailsTab] = useState("synopsis");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [opened, setOpened] = useState(undefined);
   useEffect(() => {
     // Open the first row only after the complete verified batch is published.
@@ -194,22 +195,39 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
         </div>
       </header>
       <div className="recommendations-toolbar">
-        <button className="quiet" onClick={onPreferences}>
+        <button className="recommendations-utility" onClick={onPreferences}>
           <Icon name="filters" />
           Viewing preferences
         </button>
-        <details className="recommendations-help">
-          <summary>How recommendations work</summary>
-          <p>
-            Your favorites, reactions, viewing preferences and connected MAL
-            list guide these picks; numeric ratings are optional. The remaining
-            picks stay in order until you choose Refresh picks. Saving, rating
-            or passing a title removes it from this list. Undo restores an
-            eligible title to its original place. You may see fewer than 25
-            picks when eligible titles run low.
-          </p>
-        </details>
+        <button
+          className="recommendations-utility"
+          aria-expanded={helpOpen}
+          aria-controls="recommendations-help"
+          onClick={() => setHelpOpen((open) => !open)}
+        >
+          <Icon name="info" />
+          <span>How picks work</span>
+          <Icon name="chevron" />
+        </button>
       </div>
+      <section
+        id="recommendations-help"
+        className="recommendations-help"
+        hidden={!helpOpen}
+        aria-labelledby="recommendations-help-title"
+      >
+        <h2 id="recommendations-help-title">How recommendations work</h2>
+        <p>
+          Your favorites, reactions, viewing preferences and connected MAL list
+          guide these picks; numeric ratings are optional.
+        </p>
+        <p>
+          The remaining picks stay in order until you choose Refresh picks.
+          Saving, rating or passing a title removes it from this list. Undo
+          restores an eligible title to its original place. You may see fewer
+          than 25 picks when eligible titles run low.
+        </p>
+      </section>
       {choice && (
         <div
           className="recommendation-confirmation"
@@ -383,7 +401,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                           pick.anime.year,
                           pick.anime.format?.replaceAll("_", " ").toUpperCase(),
                           pick.anime.episodes
-                            ? `${pick.anime.episodes} episodes`
+                            ? `${pick.anime.episodes} ${pick.anime.episodes === 1 ? "episode" : "episodes"}`
                             : null,
                         ]
                           .filter(Boolean)
