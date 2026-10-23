@@ -11,7 +11,13 @@ import {
 import { GENRES } from "../lib/preferences.js";
 
 /** An empty selection removes the explicit genre filter, keeping learned taste. */
-export function GenrePreferences({ value, setValue, disabled, mode = "all" }) {
+export function GenrePreferences({
+  value,
+  setValue,
+  disabled,
+  mode = "all",
+  showTaxonomy = true,
+}) {
   const selected = value.favoriteGenres || [];
   return (
     <fieldset
@@ -156,11 +162,13 @@ export function GenrePreferences({ value, setValue, disabled, mode = "all" }) {
             Each title must match at least one selected genre when this is on.
             It may also have other genres.
           </p>
-          <TaxonomyPreferences
-            value={value}
-            setValue={setValue}
-            expanded={mode === "taste"}
-          />
+          {showTaxonomy && (
+            <TaxonomyPreferences
+              value={value}
+              setValue={setValue}
+              expanded={mode === "taste"}
+            />
+          )}
         </>
       )}
       {(mode === "all" || mode === "themes") && (

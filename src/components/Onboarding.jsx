@@ -123,7 +123,7 @@ export function AccountForm({ mode, store, onNavigate, onComplete }) {
 }
 
 /** Empty selections mean “any”; multiple choices are ORed within each category. */
-export function ViewingPreferences({ state, store, onComplete }) {
+export function ViewingPreferences({ state, store, onComplete, onSettings }) {
   // Returning accounts only edit feed filters here; keep their learned taste
   // and the separate Settings auto-add choice intact.
   const initialSetup = !state.onboardingComplete;
@@ -204,6 +204,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
         error={error}
         onRetry={() => save(valueRef.current, false)}
         onComplete={onComplete}
+        onSettings={onSettings}
       />
     );
 

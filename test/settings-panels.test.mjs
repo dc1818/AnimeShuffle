@@ -98,7 +98,11 @@ test("sectioned settings and preferences preserve state, account controls and sa
     act(async () => document.querySelector(selector).click());
   const section = async (text) =>
     act(async () =>
-      [...document.querySelectorAll(".panel-navigation button")]
+      [
+        ...document.querySelectorAll(
+          ".panel-navigation button, .preference-section-tabs button",
+        ),
+      ]
         .find((b) => b.textContent === text)
         .click(),
     );
@@ -147,7 +151,7 @@ test("sectioned settings and preferences preserve state, account controls and sa
     assert.ok(document.querySelector('input[value="comet"]').checked);
     await section("Viewing preferences");
     assert.equal(
-      document.querySelector("h2").textContent,
+      document.querySelector(".workspace-intro h3").textContent,
       "Viewing preferences",
     );
     assert.equal(saves.length, 0);
@@ -194,6 +198,16 @@ test("sectioned settings and preferences preserve state, account controls and sa
         .find((b) => b.textContent === "Retry")
         .click(),
     );
+    assert.equal(current.preferences.includeUnknown, false);
+    await section("Account & MyAnimeList");
+    assert.match(
+      document.querySelector(".account-identity").textContent,
+      /Sample account/,
+    );
+    await section("Viewing preferences");
+    await click(".workspace-back");
+    assert.ok(document.querySelector(".background-options"));
+    await section("Viewing preferences");
     assert.equal(current.preferences.includeUnknown, false);
     await act(async () =>
       [...document.querySelectorAll("button")]

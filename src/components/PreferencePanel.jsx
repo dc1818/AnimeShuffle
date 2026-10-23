@@ -11,6 +11,8 @@ export function PreferencePanel({
   children,
   footer,
   mobileSelect = true,
+  workspaceNavigation,
+  onWorkspaceNavigate,
 }) {
   const id = useId();
   const content = useRef(null);
@@ -18,19 +20,42 @@ export function PreferencePanel({
     if (content.current) content.current.scrollTop = 0;
   }, [section]);
   return (
-    <div className="preference-panel">
+    <div
+      className={`preference-panel ${workspaceNavigation ? "settings-preferences-workspace" : ""}`}
+    >
       <header className="panel-heading">
-        <h2 id={titleId}>{title}</h2>
+        {workspaceNavigation && (
+          <button
+            className="workspace-back"
+            onClick={() => onWorkspaceNavigate("appearance")}
+          >
+            ← Settings
+          </button>
+        )}
+        <h2 id={titleId}>{workspaceNavigation ? "Settings" : title}</h2>
       </header>
       <div className="panel-workspace">
-        <nav className="panel-navigation" aria-label={`${title} sections`}>
-          {sections.map((item) => (
+        <nav
+          className="panel-navigation"
+          aria-label={
+            workspaceNavigation ? "Settings sections" : `${title} sections`
+          }
+        >
+          {(workspaceNavigation || sections).map((item) => (
             <button
               key={item.id}
               type="button"
-              aria-current={item.id === section ? "page" : undefined}
+              aria-current={
+                item.id === (workspaceNavigation ? "preferences" : section)
+                  ? "page"
+                  : undefined
+              }
               aria-controls={`${id}-content`}
-              onClick={() => onSection(item.id)}
+              onClick={() =>
+                workspaceNavigation
+                  ? onWorkspaceNavigate(item.id)
+                  : onSection(item.id)
+              }
             >
               <Icon name={item.icon} />
               <span>{item.label}</span>
@@ -38,6 +63,29 @@ export function PreferencePanel({
           ))}
         </nav>
         <div className="panel-main">
+          {workspaceNavigation && (
+            <div className="workspace-intro">
+              <h3>Viewing preferences</h3>
+              <p>Choose what you enjoy. Changes save automatically.</p>
+            </div>
+          )}
+          {workspaceNavigation && (
+            <nav
+              className="preference-section-tabs"
+              aria-label="Viewing preferences sections"
+            >
+              {sections.map((item) => (
+                <button
+                  key={item.id}
+                  aria-current={item.id === section ? "page" : undefined}
+                  aria-controls={`${id}-content`}
+                  onClick={() => onSection(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          )}
           {mobileSelect ? (
             <label className="panel-mobile-select">
               <span className="sr-only">{title} section</span>

@@ -51,33 +51,43 @@ test("category browsing drills down, saves optional interests, and preserves ind
       assert.ok(b, text);
       await act(async () => b.click());
     };
-    await click("Subject / ThemeBrowse family");
-    await click("Explore Mecha: 7 categories");
-    assert.ok(
-      document
-        .querySelector(".taxonomy-breadcrumbs")
-        .textContent.includes("Mecha"),
-    );
-    const select = [...document.querySelectorAll(".taxonomy-choice")].find(
-      (b) => b.textContent.startsWith("Real Robot"),
-    );
+    await click("Expand Subject / Theme");
+    await click("Expand Mecha");
+    const select = document.querySelector('[aria-label="Select Real Robot"]');
+    assert.ok(select);
     await act(async () => select.click());
     assert.deepEqual(value.preferredNodes, ["real-robot"]);
     assert.equal(value.restrictNodes, false);
     assert.deepEqual(value.requiredThemes, ["School"]);
     await act(async () =>
-      document.querySelector("input[type=checkbox]").click(),
+      document.querySelector(".interest-restrict input").click(),
     );
     assert.equal(value.restrictNodes, true);
     assert.match(document.body.textContent, /unknown tags are excluded/);
+    await click("Collapse Mecha");
+    assert.equal(
+      document.querySelector('[aria-label="Select Real Robot"]'),
+      null,
+    );
+    await click("Expand Mecha");
+    assert.equal(
+      document.querySelector('[aria-label="Select Real Robot"]').checked,
+      true,
+    );
     await click("Remove Real Robot");
     assert.deepEqual(value.preferredNodes, []);
-    await click("All categories");
     assert.equal(
-      document.querySelector(".taxonomy-breadcrumbs").textContent,
-      "All categories",
+      document.querySelector('[aria-label="Select Real Robot"]').checked,
+      false,
     );
-    assert.equal(document.querySelector("button[aria-pressed=true]"), null);
+    // Structural families expand without changing taste preferences.
+    await click("Collapse Subject / Theme");
+    assert.deepEqual(value.preferredNodes, []);
+    // The audience leaf preserves the existing Kids content behavior.
+    await act(async () =>
+      document.querySelector('[aria-label="Select Kodomo"]').click(),
+    );
+    assert.equal(value.childrenTitles, "include");
     await act(async () => root.unmount());
     dom.window.close();
   } finally {

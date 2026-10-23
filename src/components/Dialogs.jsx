@@ -1,5 +1,5 @@
 import { SettingsPanel } from "./SettingsPanel.jsx";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccountForm, ViewingPreferences } from "./Onboarding.jsx";
 import { Icon } from "./Icon.jsx";
 
@@ -76,6 +76,12 @@ export function Dialogs({
   onNavigate,
   authError = "",
 }) {
+  const [settingsSection, setSettingsSection] = useState("appearance");
+  const returnToSettings = (section = "appearance") => {
+    if (section === "preferences") return;
+    setSettingsSection(section);
+    onNavigate("settings");
+  };
   if (!kind) return null;
   if (
     state.session.staticMode &&
@@ -140,7 +146,12 @@ export function Dialogs({
         closeOnOutside
         onClose={onClose}
       >
-        <ViewingPreferences state={state} store={store} onComplete={onClose} />
+        <ViewingPreferences
+          state={state}
+          store={store}
+          onComplete={onClose}
+          onSettings={returnToSettings}
+        />
       </Dialog>
     );
   if (kind === "welcome")
@@ -259,6 +270,7 @@ export function Dialogs({
       onClose={onClose}
     >
       <SettingsPanel
+        initialSection={settingsSection}
         state={state}
         store={store}
         onNavigate={onNavigate}

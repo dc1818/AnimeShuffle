@@ -183,9 +183,9 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     );
 
     assert.deepEqual(saved[0].favoriteGenres, ["Drama"]);
-    assert.equal(
+    assert.match(
       document.querySelector(".panel-save-status").textContent,
-      "Preferences saved",
+      /Preferences saved$/,
     );
     assert.match(document.body.textContent, /These interests guide your picks/);
     assert.equal(
@@ -216,9 +216,9 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
         .find((b) => b.textContent === "Any genre")
         .click(),
     );
-    assert.equal(
+    assert.match(
       document.querySelector(".panel-save-status").textContent,
-      "Changes need attention",
+      /Changes need attention$/,
     );
     assert.match(
       document.querySelector('[role="alert"]').textContent,
@@ -231,9 +231,9 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
         .click(),
     );
     assert.deepEqual(saved[0].favoriteGenres, []);
-    assert.equal(
+    assert.match(
       document.querySelector(".panel-save-status").textContent,
-      "Preferences saved",
+      /Preferences saved$/,
     );
 
     await act(async () =>

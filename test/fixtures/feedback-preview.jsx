@@ -380,6 +380,7 @@ function PreferencesFixture() {
     normalizePreferences({
       favoriteAnime: demo.slice(0, 3),
       favoriteGenres: ["Action", "Sci-Fi"],
+      preferredNodes: ["isekai", "seinen"],
     }),
   );
   const [settings, setSettings] = useState({

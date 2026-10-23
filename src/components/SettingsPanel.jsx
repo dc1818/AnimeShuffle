@@ -5,7 +5,7 @@ import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { missingMalPlans } from "../lib/watchlist.js";
 import { PreferencePanel } from "./PreferencePanel.jsx";
 import { Icon } from "./Icon.jsx";
-const sections = [
+export const SETTINGS_SECTIONS = [
   { id: "appearance", label: "Appearance", icon: "screen" },
   { id: "preferences", label: "Viewing preferences", icon: "filters" },
   { id: "account", label: "Account & MyAnimeList", icon: "users" },
@@ -28,13 +28,19 @@ function SettingsLink({ icon, title, detail, onClick, disabled }) {
     </button>
   );
 }
-export function SettingsPanel({ state, store, onNavigate, onClose }) {
-  const [section, setSection] = useState("appearance");
+export function SettingsPanel({
+  state,
+  store,
+  onNavigate,
+  onClose,
+  initialSection = "appearance",
+}) {
+  const [section, setSection] = useState(initialSection);
   return (
     <PreferencePanel
       title="Settings"
       titleId="settings-title"
-      sections={sections}
+      sections={SETTINGS_SECTIONS}
       section={section}
       onSection={(next) =>
         next === "preferences" ? onNavigate("preferences") : setSection(next)

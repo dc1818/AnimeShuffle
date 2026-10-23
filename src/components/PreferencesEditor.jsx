@@ -1,3 +1,5 @@
+import { TaxonomyPreferences } from "./TaxonomyPreferences.jsx";
+import { SETTINGS_SECTIONS } from "./SettingsPanel.jsx";
 import { useState } from "react";
 import { PreferencePanel } from "./PreferencePanel.jsx";
 import { TasteSetup } from "./TasteSetup.jsx";
@@ -53,6 +55,7 @@ export function PreferencesEditor({
   error,
   onRetry,
   onComplete,
+  onSettings,
 }) {
   const [section, setSection] = useState("taste");
   const set = (key, next) => setValue((p) => ({ ...p, [key]: next }));
@@ -79,9 +82,16 @@ export function PreferencesEditor({
       sections={sections}
       section={section}
       onSection={setSection}
+      workspaceNavigation={onSettings ? SETTINGS_SECTIONS : undefined}
+      onWorkspaceNavigate={onSettings}
       footer={
         <>
           <div className="panel-save-status" role="status">
+            {section === "taste" && (
+              <span className="interest-footer-count">
+                {value.preferredNodes?.length || 0} interests selected ·{" "}
+              </span>
+            )}
             {error
               ? "Changes need attention"
               : saving
@@ -117,6 +127,7 @@ export function PreferencesEditor({
       )}
       {section === "taste" && (
         <>
+          <TaxonomyPreferences value={value} setValue={setValue} expanded />
           <TasteSetup
             value={value}
             setValue={setValue}
@@ -125,7 +136,12 @@ export function PreferencesEditor({
             showGenres={false}
             editing
           />
-          <GenrePreferences value={value} setValue={setValue} mode="taste" />
+          <GenrePreferences
+            value={value}
+            setValue={setValue}
+            mode="taste"
+            showTaxonomy={false}
+          />
         </>
       )}
       {section === "format" && (
