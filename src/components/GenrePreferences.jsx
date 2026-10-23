@@ -14,7 +14,10 @@ import { GENRES } from "../lib/preferences.js";
 export function GenrePreferences({ value, setValue, disabled, mode = "all" }) {
   const selected = value.favoriteGenres || [];
   return (
-    <fieldset className="preference-group" disabled={disabled}>
+    <fieldset
+      className={`preference-group genre-preferences genre-preferences-${mode}`}
+      disabled={disabled}
+    >
       <legend>
         {mode === "all"
           ? "Genres and themes"

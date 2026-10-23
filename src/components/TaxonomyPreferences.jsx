@@ -49,25 +49,8 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
         </span>
       </summary>
       <p>
-        Follow broad categories into more specific ones, or search by name. A
-        category can appear in several places.
-      </p>
-      <label className="taxonomy-restrict">
-        <input
-          type="checkbox"
-          checked={value.restrictNodes === true}
-          onChange={(e) =>
-            setValue((p) => ({ ...p, restrictNodes: e.target.checked }))
-          }
-        />{" "}
-        Only show anime matching my selected categories
-      </label>
-      <p className="taxonomy-help">
-        {value.restrictNodes && selected.length
-          ? "Matches at least one selected category, plus your other viewing filters. Titles with unknown tags are excluded."
-          : "Selections guide your taste; other categories can still appear."}{" "}
-        Category coverage varies by title. Related links help you browse; they
-        do not imply a match.
+        Search for a specific interest or browse a category below. Select as
+        many as you like.
       </p>
       {!!selected.length && (
         <div
@@ -165,6 +148,23 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
           );
         })}
       </div>
+      <label className="taxonomy-restrict">
+        <input
+          type="checkbox"
+          checked={value.restrictNodes === true}
+          onChange={(e) =>
+            setValue((p) => ({ ...p, restrictNodes: e.target.checked }))
+          }
+        />{" "}
+        Only show anime matching my selected categories
+      </label>
+      <p className="taxonomy-help">
+        {value.restrictNodes && selected.length
+          ? "Matches at least one selected category, plus your other viewing filters. Titles with unknown tags are excluded."
+          : "Selections guide your taste; other categories can still appear."}{" "}
+        Category coverage varies by title. Related links help you browse; they
+        do not imply a match.
+      </p>
       {!unique.length && (
         <p role="status">
           No categories found. Try another name or go back to a broader

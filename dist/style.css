@@ -7752,3 +7752,124 @@ summary:focus-visible {
     min-width: 100px;
   }
 }
+
+/* Preference editor: stable grids, readable labels, selection before restrictions. */
+@media (min-width: 701px) {
+  .settings-link[aria-label="Account & MyAnimeList"] {
+    display: none;
+  }
+}
+.dialog .panel-content p,
+.panel-content .setting-help {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.panel-content .preference-group {
+  min-inline-size: 0;
+}
+.panel-content .taste-setup > label.visually-hidden {
+  margin: -1px;
+}
+.panel-content .genre-preferences-taste > .genre-choices,
+.panel-content .main-category-preferences > .genre-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+.panel-content .genre-choices button {
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.panel-content .genre-preferences-taste > .genre-choices button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+.panel-content .genre-preferences-taste > .genre-choices button::after {
+  content: "";
+  width: 12px;
+  flex: 0 0 12px;
+  margin-left: 4px;
+}
+.panel-content
+  .genre-preferences-taste
+  > .genre-choices
+  button[aria-pressed="true"]::after {
+  content: "✓";
+}
+.panel-content .favorite-selections {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.panel-content .favorite-selections > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 4px 10px;
+  border: 1px solid var(--panel-rule);
+  border-radius: 5px;
+  padding: 8px;
+  background: #10283a;
+}
+.panel-content .favorite-selections img {
+  grid-row: 1 / 3;
+  width: 48px;
+  height: 72px;
+  aspect-ratio: auto;
+}
+.panel-content .favorite-selections span {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.panel-content .favorite-selections button {
+  position: static;
+  justify-self: end;
+  width: 44px;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 22px;
+}
+.panel-content .taxonomy-preferences > label:not(.taxonomy-restrict) {
+  display: block;
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.panel-content .taxonomy-restrict {
+  margin-top: 20px;
+  border-top: 1px solid var(--panel-rule);
+}
+.panel-content .taxonomy-choice {
+  text-align: left;
+}
+.panel-content label:has(> input[type="checkbox"]:not([role="switch"])) {
+  line-height: 20px;
+}
+@media (max-width: 900px) {
+  .panel-content .genre-preferences-taste > .genre-choices,
+  .panel-content .main-category-preferences > .genre-choices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .panel-content .favorite-selections {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .panel-content .favorite-selections > div {
+    grid-template-columns: 40px minmax(0, 1fr) 44px;
+    grid-template-rows: auto;
+    align-items: center;
+  }
+  .panel-content .favorite-selections img {
+    grid-row: auto;
+    width: 40px;
+    height: 56px;
+  }
+}
+@media (max-width: 420px) {
+  .panel-content .genre-preferences-taste > .genre-choices,
+  .panel-content .main-category-preferences > .genre-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
