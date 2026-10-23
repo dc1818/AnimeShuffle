@@ -17,7 +17,10 @@ import {
 
 /** Accordion leaderboard: native buttons support Enter/Space and one expanded row at a time. */
 export function Recommendations({ state, store, onDiscover, onPreferences }) {
-  const count = reactionCount(state.reactions);
+  const count = useMemo(
+    () => reactionCount(state.reactions),
+    [state.reactions],
+  );
   const unlocked =
     count >= RECOMMENDATION_MINIMUM || state.recommendationsReady;
   // A session batch is a snapshot: decisions mute rows; only Refresh replaces it.
@@ -62,8 +65,17 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
     [state.reactions, state.list, state.preferences],
   );
   const readiness = useMemo(
-    () => tasteReadiness(state.reactions, state.list, state.preferences),
-    [state.reactions, state.list, state.preferences],
+    () => tasteReadiness(state.reactions, state.list, state.preferences, taste),
+    [state.reactions, state.list, state.preferences, taste],
+  );
+  const knownIds = useMemo(
+    () =>
+      new Set(
+        [...state.list, ...state.preferences.favoriteAnime].map(
+          (anime) => anime.id,
+        ),
+      ),
+    [state.list, state.preferences.favoriteAnime],
   );
   const hasTaste =
     state.preferences.favoriteGenres.length > 0 ||
@@ -247,11 +259,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
           >
             {picks.map((pick) => {
               const reaction = state.reactions[pick.anime.id]?.action;
-              const known =
-                state.list.some((a) => a.id === pick.anime.id) ||
-                state.preferences.favoriteAnime.some(
-                  (a) => a.id === pick.anime.id,
-                );
+              const known = knownIds.has(pick.anime.id);
               const reacted = !!reaction || known;
               const feedback =
                 {

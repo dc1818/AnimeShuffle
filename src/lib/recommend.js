@@ -537,8 +537,12 @@ export function rankRecommendations(
 }
 
 /** Eight informative titles is an onboarding heuristic, not a statistical confidence score. */
-export function tasteReadiness(reactions = {}, list = [], preferences) {
-  const taste = buildTaste(reactions, list, preferences, [], false);
+export function tasteReadiness(
+  reactions = {},
+  list = [],
+  preferences,
+  taste = buildTaste(reactions, list, preferences, [], false),
+) {
   const informative = [...taste.records.values()].filter(
     (r) => r.weight !== 0 && r.anime.genres?.length,
   );

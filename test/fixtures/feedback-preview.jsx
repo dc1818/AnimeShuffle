@@ -1,11 +1,12 @@
 import { Dialogs } from "../../src/components/Dialogs.jsx";
+import { Recommendations } from "../../src/components/Recommendations.jsx";
 import { Watchlist } from "../../src/components/Watchlist.jsx";
 import { normalizePreferences } from "../../src/lib/preferences.js";
 import { BackgroundOptions } from "../../src/components/BackgroundOptions.jsx";
 import { AmbientBackground } from "../../src/components/AmbientBackground.jsx";
 // Isolated responsive fixture: sample titles, in-memory feedback, no account,
 // analytics, recommendations requests, or changes to the visitor's profile.
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AnimeCard, AnimeDetails } from "../../src/components/AnimeCard.jsx";
 import { demo } from "../../src/lib/demo.js";
@@ -44,6 +45,8 @@ function Fixture() {
       : demo[0].title,
     englishTitle: "",
   };
+  if (location.search.includes("surface=shortlist"))
+    return <ShortlistFixture />;
   if (location.search.includes("surface=onboarding")) {
     return setupDone ? (
       <p>Ready to discover. Preview only — no profile changes.</p>
@@ -266,6 +269,97 @@ function Fixture() {
             />
           )}
         </div>
+      </main>
+    </>
+  );
+}
+// Exercise the complete page without account writes, ranking requests or analytics.
+function ShortlistFixture() {
+  const [state, setState] = useState(() => ({
+    ready: true,
+    onboardingComplete: true,
+    preview: true,
+    busy: false,
+    recommendationsReady: true,
+    recommendationsLoading: false,
+    recommendationPicks: demo.map((anime, i) => ({
+      anime,
+      tier: i + 1,
+      reason: "Sample recommendation for layout review.",
+      whyReasons: ["Sample explanation for this preview."],
+    })),
+    preferences: normalizePreferences({ favoriteGenres: ["Action"] }),
+    reactions: {},
+    list: [],
+    settings: { dynamic: false },
+    undoableIds: [],
+    canUndo: false,
+  }));
+  const store = useMemo(
+    () => ({
+      visitRecommendations() {},
+      react(action, anime) {
+        setState((s) => ({
+          ...s,
+          reactions: { ...s.reactions, [anime.id]: { action, anime } },
+          undoableIds: [anime.id],
+          canUndo: true,
+        }));
+      },
+      undo(id) {
+        setState((s) => {
+          const reactions = { ...s.reactions };
+          delete reactions[id || s.undoableIds[0]];
+          return { ...s, reactions, undoableIds: [], canUndo: false };
+        });
+      },
+      loadRecommendations() {
+        setState((s) => ({
+          ...s,
+          recommendationsLoading: true,
+          recommendationProgress: 50,
+        }));
+        setTimeout(
+          () =>
+            setState((s) => ({
+              ...s,
+              recommendationsLoading: false,
+              recommendationProgress: null,
+            })),
+          1500,
+        );
+      },
+    }),
+    [],
+  );
+  return (
+    <>
+      <header className="topbar">
+        <a className="brand" href="/">
+          Anime Shuffle
+        </a>
+        <nav>
+          <a className="nav-button" href="/#discover">
+            Discover
+          </a>
+          <a className="nav-button" href="/#watchlist">
+            Watchlist
+          </a>
+          <a className="nav-button active" href="/#recommendations">
+            Recommendations
+          </a>
+        </nav>
+      </header>
+      <p style={{ padding: "0 24px" }}>
+        Layout preview · seven sample picks · no profile changes
+      </p>
+      <main className="page-shell">
+        <Recommendations
+          state={state}
+          store={store}
+          onDiscover={() => {}}
+          onPreferences={() => {}}
+        />
       </main>
     </>
   );
