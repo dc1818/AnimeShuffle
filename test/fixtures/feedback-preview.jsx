@@ -290,7 +290,12 @@ function ShortlistFixture() {
     })),
     preferences: normalizePreferences({ favoriteGenres: ["Action"] }),
     reactions: {},
-    list: [],
+    // Synthetic history belongs only to this fixture; no account data is read.
+    list: Array.from({ length: 8 }, (_, i) => ({
+      ...demo[i % demo.length],
+      id: 900000 + i,
+      listStatus: { status: "completed", score: 8 },
+    })),
     settings: { dynamic: false },
     undoableIds: [],
     canUndo: false,
@@ -380,7 +385,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}
