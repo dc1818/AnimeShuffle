@@ -8,8 +8,8 @@ export function swipeChoice(dx, dy, threshold = 72) {
 }
 
 export const swipeLabels = {
-  good: "← Good",
-  bad: "Bad →",
-  watch: "↑ Would watch",
-  nope: "↓ Won’t watch",
+  good: "Good",
+  bad: "Bad",
+  watch: "Would watch",
+  nope: "Won’t watch",
 };

@@ -196,12 +196,7 @@ export function AnimeCard({
       </div>
       <div className="card-content">
         {!compact && (
-          <p className="swipe-guide">
-            Swipe the artwork or tap below
-            <br />
-            <span>← Good · Bad →</span>
-            <span>↑ Would watch · ↓ Won’t watch</span>
-          </p>
+          <p className="swipe-guide">Swipe the artwork</p>
         )}
         <div className="anime-summary">
           {compact ? (

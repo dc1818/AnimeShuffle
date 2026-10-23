@@ -7021,9 +7021,6 @@ summary:focus-visible {
     text-align: center;
     margin: 0 0 10px;
   }
-  .swipe-guide span {
-    display: block;
-  }
   .discover-card .swipe-feedback {
     position: absolute;
     inset: 0;
