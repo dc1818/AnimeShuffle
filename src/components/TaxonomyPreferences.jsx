@@ -122,6 +122,11 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
                 type="button"
                 className="taxonomy-choice"
                 title={n.definition || n.label}
+                aria-label={
+                  selectable
+                    ? `${selected.includes(n.id) ? "Remove" : "Add"} ${n.label} ${selected.includes(n.id) ? "from" : "to"} my interests`
+                    : `Browse ${n.label}`
+                }
                 aria-pressed={selectable ? selected.includes(n.id) : undefined}
                 onClick={() => (selectable ? toggle(n.id) : open(n.id))}
               >
@@ -133,6 +138,13 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
                       ? "Browse family"
                       : n.facet}
                 </small>
+                <span className="taxonomy-action">
+                  {selectable
+                    ? selected.includes(n.id)
+                      ? "✓ Added · remove"
+                      : "+ Add"
+                    : "Browse ›"}
+                </span>
               </button>
               {!!nested && selectable && (
                 <button
@@ -141,7 +153,7 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
                   onClick={() => open(n.id)}
                   aria-label={`Explore ${n.label}: ${nested} categories`}
                 >
-                  {nested} ›
+                  Browse {nested} subcategories ›
                 </button>
               )}
             </div>

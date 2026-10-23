@@ -39,3 +39,5 @@ Preference refinement: Appearance uses the desktop sidebar for account navigatio
 Settings navigation places Viewing preferences immediately after Appearance. On phones, use the same destinations in a section selector instead of links inside Appearance. Appearance contains background controls only; the disabled Android APK notice belongs under Help.
 
 Layered navy refinement: separate dark navigation/header/footer from a slightly lighter workspace. Use restrained blue selected controls with explicit checkmarks rather than bright filled tiles throughout. Category exploration has 16px interior padding (14px phone), a separate optional/count label, readable 12px metadata, and browse rows with chevrons. Preserve the existing background previews and Aurora behavior; no decorative imagery behind form text. Settings uses a shorter desktop dialog to reduce empty space, with full-height phone scrolling.
+
+Category selection uses explicit + Add and ✓ Added · remove states with accessible action names. Structural groups say Browse; separate subcategory navigation says Browse N subcategories so it cannot be mistaken for saving an interest.

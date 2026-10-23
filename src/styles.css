@@ -8026,3 +8026,50 @@ summary:focus-visible {
     grid-column: 2;
   }
 }
+
+/* Category choices explicitly distinguish saving an interest from browsing deeper. */
+.panel-content .taxonomy-choice:not([aria-pressed]) {
+  padding-right: 8px;
+}
+.panel-content .taxonomy-choice:not([aria-pressed])::after {
+  content: none;
+}
+.taxonomy-choice .taxonomy-action {
+  align-self: flex-start;
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border: 1px solid #689bb6;
+  border-radius: 4px;
+  color: #d7f5ff;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+  background: #1b3e55;
+}
+.taxonomy-choice[aria-pressed="true"] .taxonomy-action {
+  border-color: #7cddf4;
+  color: #effbff;
+  background: #245573;
+}
+.taxonomy-choice:not([aria-pressed]) .taxonomy-action {
+  padding-left: 0;
+  background: transparent;
+  border-color: transparent;
+}
+.panel-content .taxonomy-preferences .taxonomy-drill {
+  flex: 0 0 88px;
+  align-self: stretch;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 0;
+  border-left: 1px solid var(--panel-rule);
+  border-radius: 0;
+  background: transparent;
+  color: #bce7f7;
+  margin: 8px 0 8px 8px;
+  padding: 8px;
+}
+.panel-content .taxonomy-preferences .taxonomy-drill:hover {
+  background: #1b3448;
+}
