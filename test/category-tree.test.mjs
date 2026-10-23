@@ -4,6 +4,13 @@ import { CATEGORY_TREE, createCategoryTree } from "../src/lib/category-tree.js";
 import { TAXONOMY_EDGES, TAXONOMY_NODES } from "../src/lib/anime-taxonomy.js";
 
 test("all active categories are reachable and hierarchy and related connections remain distinct", () => {
+  const reachable = (parent, target, seen = new Set()) => {
+    if (seen.has(parent)) return false;
+    seen.add(parent);
+    return CATEGORY_TREE.children(parent).some(
+      (e) => e.child === target || reachable(e.child, target, seen),
+    );
+  };
   for (const node of CATEGORY_TREE.selectable)
     assert.ok(CATEGORY_TREE.paths.has(node.id), node.id);
   for (const edge of TAXONOMY_EDGES) {
@@ -16,9 +23,7 @@ test("all active categories are reachable and hierarchy and related connections 
       edge.type === "related"
         ? CATEGORY_TREE.related(edge.parent).some((n) => n.id === edge.child) ||
             CATEGORY_TREE.parents(edge.parent).some((n) => n.id === edge.child)
-        : CATEGORY_TREE.children(edge.parent).some(
-            (e) => e.child === edge.child,
-          ),
+        : reachable(edge.parent, edge.child),
       `${edge.parent} → ${edge.child}`,
     );
   }
@@ -27,6 +32,14 @@ test("all active categories are reachable and hierarchy and related connections 
     "__other-categories",
     "magical-sex-shift",
   ]);
+  assert.ok(
+    !CATEGORY_TREE.children("fantasy").some((e) => e.child === "urban-fantasy"),
+  );
+  assert.ok(
+    CATEGORY_TREE.children("contemporary-fantasy").some(
+      (e) => e.child === "urban-fantasy",
+    ),
+  );
   assert.ok(CATEGORY_TREE.children("mecha").every((e) => e.type !== "related"));
   assert.ok(
     CATEGORY_TREE.related("mecha").some((n) => n.id === "science-fiction"),
@@ -51,7 +64,7 @@ test("all browse paths terminate and cycle links are excluded when expanding anc
     }
   };
   walk(CATEGORY_TREE.root);
-  assert.ok(leaves >= 280);
+  assert.ok(leaves >= 200);
   assert.ok(maxDepth >= 5);
   const tree = createCategoryTree(
     [

@@ -25,6 +25,26 @@ export function createCategoryTree(nodes, edges, root = "anime-taxonomy") {
     if (!previous || previous.type === "related")
       children.get(edge.parent).set(edge.child, edge);
   }
+  // Hide redundant ancestor shortcuts in the UI: A > C is already visible via A > B > C.
+  // Preserve independent multi-parent routes and the original taxonomy/parent metadata.
+  const redundant = [];
+  for (const [parent, direct] of children) {
+    for (const child of direct.keys()) {
+      const queue = [...direct.keys()].filter((id) => id !== child);
+      const seen = new Set([parent]);
+      for (let i = 0; i < queue.length; i++) {
+        const id = queue[i];
+        if (id === child) {
+          redundant.push([parent, child]);
+          break;
+        }
+        if (seen.has(id)) continue;
+        seen.add(id);
+        queue.push(...(children.get(id)?.keys() || []));
+      }
+    }
+  }
+  for (const [parent, child] of redundant) children.get(parent).delete(child);
   const childEdges = (id) => [...(children.get(id)?.values() || [])];
   const paths = new Map([[root, [root]]]);
   const queue = [root];

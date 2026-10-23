@@ -148,7 +148,7 @@ test("category browsing expands in place, saves optional interests, and preserve
         }
       }
     }
-    assert.ok(leafPaths.length >= 280);
+    assert.ok(leafPaths.length >= 200);
     assert.deepEqual(
       value.preferredNodes,
       ["kodomo"],

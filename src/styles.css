@@ -8921,3 +8921,13 @@ summary:focus-visible {
     background: #020c1470;
   }
 }
+
+/* Expanded child rows remain plain; global expanded-button styles must not color them. */
+.interest-row:not(.is-main) > .interest-branch-toggle[aria-expanded] {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.interest-row:not(.is-main) > .interest-branch-toggle[aria-expanded]:hover {
+  background: #254a65;
+}
