@@ -1,5 +1,9 @@
 /** Shared inline icons keep the interface consistent without loading an icon font. */
 const paths = {
+  screen: "M3 4h18v13H3ZM8 21h8M12 17v4",
+  users:
+    "M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM1 22v-3a7 7 0 0 1 14 0v3M16 4a4 4 0 0 1 0 8M18 15a6 6 0 0 1 5 6",
+  heart: "M12 21 3 12C-3 5 7-1 12 6c5-7 15-1 9 6Z",
   filters: "M3 6h18M3 12h18M3 18h18M8 3v6M16 9v6M10 15v6",
   grid: "M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z",
   list: "M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1",

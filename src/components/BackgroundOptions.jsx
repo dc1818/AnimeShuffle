@@ -9,12 +9,8 @@ export function BackgroundOptions({ settings, onChange }) {
         : "aurora";
   return (
     <fieldset className="background-options">
-      <legend>Animated background</legend>
-      <p>
-        Follows the current anime’s colors. Motion automatically stops when
-        hardware acceleration cannot be verified, reduced motion is on, or
-        performance is slow.
-      </p>
+      <legend>Background</legend>
+      <p>Colors follow the anime on screen.</p>
       <div className="background-options-grid">
         {[...BACKGROUND_STYLES, ["off", "Off"]].map(([key, label]) => (
           <label className="background-choice" key={key}>
@@ -44,6 +40,11 @@ export function BackgroundOptions({ settings, onChange }) {
           </label>
         ))}
       </div>
+      <p className="background-motion-note">
+        Motion respects your device and reduced-motion settings. Animation
+        pauses when hardware acceleration can’t be verified or performance is
+        slow.
+      </p>
     </fieldset>
   );
 }

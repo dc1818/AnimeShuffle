@@ -11,7 +11,18 @@ export function ApkDownloadButton({ descriptionId }) {
     </button>
   );
 }
-export function InstallApp() {
+export function InstallApp({ compact = false }) {
+  if (compact)
+    return (
+      <section className="install-app-compact" aria-label="Android app">
+        <Icon name="download" />
+        <span>
+          <strong>Android app</strong>
+          <small id="apk-settings-status">APK download · Coming soon</small>
+        </span>
+        <ApkDownloadButton descriptionId="apk-settings-status" />
+      </section>
+    );
   return (
     <section className="install-app" aria-labelledby="install-app-title">
       <div className="install-app-heading">

@@ -1,3 +1,4 @@
+import { PreferencesEditor } from "./PreferencesEditor.jsx";
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { useEffect, useRef, useState } from "react";
 import { GenrePreferences } from "./GenrePreferences.jsx";
@@ -132,6 +133,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
   const valueRef = useRef(value);
   const saving = useRef(false);
   const [saved, setSaved] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const saveVersion = useRef(0);
   useEffect(() => {
     if (!saved) return;
@@ -161,6 +163,7 @@ export function ViewingPreferences({ state, store, onComplete }) {
   async function save(preferences, closeWhenDone = true) {
     if (!initialSetup) {
       const version = ++saveVersion.current;
+      setAutoSaving(true);
       setSaved(false);
       setError("");
       try {
@@ -168,6 +171,8 @@ export function ViewingPreferences({ state, store, onComplete }) {
         if (version === saveVersion.current) setSaved(true);
       } catch (failure) {
         if (version === saveVersion.current) setError(failure.message);
+      } finally {
+        if (version === saveVersion.current) setAutoSaving(false);
       }
       return;
     }
@@ -187,6 +192,21 @@ export function ViewingPreferences({ state, store, onComplete }) {
       setPending(false);
     }
   }
+  if (!initialSetup)
+    return (
+      <PreferencesEditor
+        state={state}
+        store={store}
+        value={value}
+        setValue={setValue}
+        saved={saved}
+        saving={autoSaving}
+        error={error}
+        onRetry={() => save(valueRef.current, false)}
+        onComplete={onComplete}
+      />
+    );
+
   return (
     <>
       <span className="eyebrow">

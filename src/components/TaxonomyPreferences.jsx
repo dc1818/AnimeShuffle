@@ -6,7 +6,7 @@ import {
   nodeParents,
 } from "../lib/anime-taxonomy.js";
 /** Browse any depth without mounting a 287-node tree or duplicating shared nodes. */
-export function TaxonomyPreferences({ value, setValue }) {
+export function TaxonomyPreferences({ value, setValue, expanded = false }) {
   const [trail, setTrail] = useState(["anime-taxonomy"]),
     [query, setQuery] = useState(""),
     [limit, setLimit] = useState(40);
@@ -41,7 +41,7 @@ export function TaxonomyPreferences({ value, setValue }) {
     setLimit(40);
   };
   return (
-    <details className="taxonomy-preferences">
+    <details className="taxonomy-preferences" open={expanded || undefined}>
       <summary>
         Explore anime categories{" "}
         <span>

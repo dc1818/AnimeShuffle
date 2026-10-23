@@ -75,7 +75,7 @@ for (const [staticMode, android] of [
     const root = createRoot(document.getElementById("root"));
     const button = (text) =>
       [...document.querySelectorAll("button, nav a")].find(
-        (b) => b.textContent.trim() === text,
+        (b) => (b.getAttribute("aria-label") || b.textContent.trim()) === text,
       );
     async function click(text) {
       const element = button(text);
@@ -393,14 +393,16 @@ for (const [staticMode, android] of [
         document.querySelector("dialog").textContent,
         /Add to home screen|Installs from your browser|Install Anime Shuffle/i,
       );
+      await click("Format & length");
       await act(async () =>
-        [...document.querySelectorAll(".preference-option")]
+        [...document.querySelectorAll(".panel-checks label")]
           .find((element) => element.textContent.startsWith("Movies"))
+          .querySelector("input")
           .click(),
       );
       await act(async () => new Promise((resolve) => setTimeout(resolve, 30)));
       assert.equal(
-        document.querySelector(".preference-save-toast").textContent,
+        document.querySelector(".panel-save-status").textContent,
         "Preferences saved",
       );
       assert.equal(

@@ -12,6 +12,7 @@ export function TasteSetup({
   disabled,
   preview,
   showGenres = true,
+  editing = false,
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -69,12 +70,14 @@ export function TasteSetup({
       )}
       <label htmlFor="favorite-search">
         <strong>
-          Pick three anime you like ({value.favoriteAnime.length}/3)
+          {editing ? "Favorite anime" : "Pick three anime you like"} (
+          {value.favoriteAnime.length}/3)
         </strong>
       </label>
       <p>
-        A few favorites help us find your first picks. You can also start
-        without them and teach us in Discover.
+        {editing
+          ? "Add up to three favorites to help refine your recommendations."
+          : "A few favorites help us find your first picks. You can also start without them and teach us in Discover."}
       </p>
       {preview && (
         <small>

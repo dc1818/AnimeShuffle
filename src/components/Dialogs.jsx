@@ -1,7 +1,4 @@
-import { BackgroundOptions } from "./BackgroundOptions.jsx";
-import { InstallApp } from "./InstallApp.jsx";
-import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
-import { missingMalPlans } from "../lib/watchlist.js";
+import { SettingsPanel } from "./SettingsPanel.jsx";
 import { useEffect, useRef } from "react";
 import { AccountForm, ViewingPreferences } from "./Onboarding.jsx";
 import { Icon } from "./Icon.jsx";
@@ -15,6 +12,7 @@ function Dialog({
   dismissable = true,
   busy = false,
   closeOnOutside = false,
+  className = "",
 }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -27,13 +25,13 @@ function Dialog({
       heading.focus({ preventScroll: true });
       dialog.scrollTop = 0;
     }
-    return () => ref.current?.close();
-  }, []);
+    return () => dialog.close();
+  }, [labelledBy]);
   return (
     <dialog
       ref={ref}
       aria-labelledby={labelledBy}
-      className={`dialog ${welcome ? "welcome" : ""}`}
+      className={`dialog ${welcome ? "welcome" : ""} ${className}`}
       onClick={(event) => {
         if (
           !closeOnOutside ||
@@ -132,6 +130,11 @@ export function Dialogs({
     return (
       <Dialog
         labelledBy="preferences-title"
+        className={
+          state.onboardingComplete
+            ? "panel-dialog preferences-panel-dialog"
+            : ""
+        }
         busy={!state.onboardingComplete && state.busy}
         dismissable={state.onboardingComplete}
         closeOnOutside
@@ -249,160 +252,18 @@ export function Dialogs({
       </Dialog>
     );
   return (
-    <Dialog labelledBy="settings-title" closeOnOutside onClose={onClose}>
-      <span className="eyebrow">Make it yours</span>
-      <h2 id="settings-title">Settings</h2>
-      {!state.session.staticMode && <InstallApp />}
-      {state.session.cloudSync && state.session.account && (
-        <div className="setting-row">
-          <div>
-            <strong>Account sync</strong>
-            <p>
-              Preferences and saved anime follow this account across devices.
-              Sign-in lasts up to 30 days.
-            </p>
-          </div>
-          <button
-            className="outline"
-            disabled={state.busy}
-            onClick={store.syncAccount}
-          >
-            Sync now
-          </button>
-        </div>
-      )}
-      {state.session.account && (
-        <p>
-          Signed in as <strong>{state.session.account.name}</strong> ·{" "}
-          {state.session.account.provider === "mal"
-            ? "MyAnimeList"
-            : "Anime Shuffle"}
-        </p>
-      )}
-      <button
-        className="outline full-width"
-        disabled={state.busy}
-        onClick={() => onNavigate("preferences")}
-      >
-        Viewing preferences
-      </button>
-      {!state.session.account && !state.session.staticMode && (
-        <button className="quiet" onClick={() => onNavigate("welcome")}>
-          Sign in or create an account
-        </button>
-      )}
-      <p>
-        {state.profile
-          ? `Connected as ${state.profile.name}`
-          : state.session.staticMode
-            ? "You’re using the GitHub Pages demo. Preferences and reactions stay in this browser. Accounts and MAL sync require the server version."
-            : state.session.oauthConfigured
-              ? "MyAnimeList is ready to connect."
-              : "Live discovery needs the app operator to configure MAL credentials."}
-      </p>
-      {!state.session.connected && state.session.oauthConfigured && (
-        <a className="primary" href="/auth/start">
-          Connect MyAnimeList
-        </a>
-      )}
-      <MalWatchlistOption
-        enabled={state.settings.autoAdd}
-        disabled={!state.session.connected || state.busy}
-        onChange={store.setAutoAdd}
+    <Dialog
+      labelledBy="settings-title"
+      className="panel-dialog settings-panel-dialog"
+      closeOnOutside
+      onClose={onClose}
+    >
+      <SettingsPanel
+        state={state}
+        store={store}
+        onNavigate={onNavigate}
+        onClose={onClose}
       />
-      {state.session.connected && (
-        <>
-          <p>
-            Your MAL watching, completed, and dropped entries inform
-            recommendations even without ratings. Plan to Watch appears in your
-            site watchlist.
-          </p>
-          <button
-            className="outline full-width"
-            disabled={
-              state.busy || !missingMalPlans(state.reactions, state.list).length
-            }
-            onClick={store.syncSavedToMal}
-          >
-            Add missing site saves to MAL (
-            {missingMalPlans(state.reactions, state.list).length})
-          </button>
-          {state.malSyncProgress && (
-            <p role="status">
-              Adding to MAL · {state.malSyncProgress.done} of{" "}
-              {state.malSyncProgress.total}
-            </p>
-          )}
-          {state.malSyncError && (
-            <p className="form-error" role="alert">
-              {state.malSyncError}
-            </p>
-          )}
-        </>
-      )}
-      <BackgroundOptions
-        settings={state.settings}
-        onChange={store.setSettings}
-      />
-      <div className="setting-row">
-        <div>
-          <strong>Keyboard shortcuts</strong>
-          <p>1–4 react · Space skips · U undoes · I opens details.</p>
-        </div>
-      </div>
-      {!state.session.oauthConfigured &&
-        !state.session.staticMode &&
-        !state.session.hosted && (
-          <div className="setup-help">
-            <h3>Connect your local app</h3>
-            <ol>
-              <li>
-                Copy <code>.env.example</code> to <code>.env</code> in the app
-                folder.
-              </li>
-              <li>Enter your MAL Client ID and Client Secret there.</li>
-              <li>
-                Register this exact redirect:{" "}
-                <code>{location.origin}/auth/callback</code>
-              </li>
-              <li>Restart the app, then connect MAL.</li>
-            </ol>
-            <p>
-              Credentials stay on this computer. Never commit them to a public
-              repository.
-            </p>
-            <a
-              href="https://myanimelist.net/apiconfig"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open MAL API settings <Icon name="external" />
-            </a>
-          </div>
-        )}
-      {state.session.connected &&
-        state.session.account?.provider === "local" && (
-          <button
-            className="outline"
-            disabled={state.busy}
-            onClick={async () => {
-              if (await store.disconnect(true)) location.reload();
-            }}
-          >
-            Disconnect MyAnimeList
-          </button>
-        )}
-      {state.session.account && (
-        <button
-          className="outline full-width"
-          disabled={state.busy}
-          onClick={async () => {
-            if (await store.disconnect()) location.reload();
-          }}
-        >
-          Sign out
-        </button>
-      )}
     </Dialog>
   );
 }

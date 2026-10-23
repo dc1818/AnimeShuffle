@@ -45,6 +45,8 @@ function Fixture() {
       : demo[0].title,
     englishTitle: "",
   };
+  if (/surface=(settings|preferences)/.test(location.search))
+    return <PreferencesFixture />;
   if (location.search.includes("surface=shortlist"))
     return <ShortlistFixture />;
   if (location.search.includes("surface=onboarding")) {
@@ -369,6 +371,83 @@ function ShortlistFixture() {
     </>
   );
 }
+function PreferencesFixture() {
+  const [kind, setKind] = useState(
+    location.search.includes("surface=settings") ? "settings" : "preferences",
+  );
+  const [connected, setConnected] = useState(false);
+  const [preferences, setPreferences] = useState(() =>
+    normalizePreferences({
+      favoriteAnime: demo.slice(0, 3),
+      favoriteGenres: ["Action", "Sci-Fi"],
+    }),
+  );
+  const [settings, setSettings] = useState({
+    dynamic: true,
+    backgroundStyle: "aurora",
+    autoAdd: false,
+  });
+  const store = useMemo(
+    () => ({
+      setSettings: (patch) => setSettings((p) => ({ ...p, ...patch })),
+      setAutoAdd: async (autoAdd) => setSettings((p) => ({ ...p, autoAdd })),
+      saveViewingPreferences: async (value) => setPreferences(value),
+      searchAnime: async (query) =>
+        demo.filter((a) => a.title.toLowerCase().includes(query.toLowerCase())),
+      syncAccount: async () => {},
+      syncSavedToMal: async () => {},
+      disconnect: async () => false,
+    }),
+    [],
+  );
+  const state = {
+    session: {
+      hosted: true,
+      oauthConfigured: true,
+      connected,
+      cloudSync: connected,
+      ...(connected
+        ? {
+            account: {
+              id: "preview",
+              name: "Preview account",
+              provider: "local",
+            },
+          }
+        : {}),
+    },
+    profile: connected ? { name: "Preview MAL connection" } : null,
+    settings,
+    preferences,
+    preview: true,
+    onboardingComplete: true,
+    reactions: {},
+    list: [],
+    busy: false,
+  };
+  return (
+    <>
+      <div className="fixture-menu">
+        <h1>Anime Shuffle</h1>
+        <p>Layout preview · changes stay in memory</p>
+        <button onClick={() => setKind("settings")}>Open Settings</button>
+        <button onClick={() => setKind("preferences")}>
+          Open Viewing preferences
+        </button>
+        <button onClick={() => setConnected((v) => !v)}>
+          Toggle sample account
+        </button>
+      </div>
+      <Dialogs
+        kind={kind}
+        state={state}
+        store={store}
+        onClose={() => setKind(null)}
+        onNavigate={(next) => setKind(next === "welcome" ? "settings" : next)}
+      />
+    </>
+  );
+}
 function Board() {
   return (
     <div style={{ padding: 20 }}>
@@ -385,7 +464,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
+              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=settings") ? "&surface=settings" : ""}${location.search.includes("surface=preferences") ? "&surface=preferences" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

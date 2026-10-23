@@ -139,14 +139,24 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       /Pick three anime|Auto-add watchlist/,
     );
     for (const text of [
-      "Genres and themes",
+      "Favorite anime",
       "Any genre",
-      "What would you like to watch?",
-      "How long a series?",
-      "Finished shows only",
-      "Include unknown lengths or formats",
+      "Format & length",
+      "Content & audience",
+      "Advanced filters",
     ])
       assert.ok(document.body.textContent.includes(text));
+    const section = async (label) =>
+      act(async () =>
+        [...document.querySelectorAll(".panel-navigation button")]
+          .find((b) => b.textContent === label)
+          .click(),
+      );
+    assert.equal(
+      document.querySelector('[aria-label="Finished shows only"]'),
+      null,
+      "Only the chosen section mounts",
+    );
 
     assert.equal(
       saved,
@@ -174,7 +184,7 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
 
     assert.deepEqual(saved[0].favoriteGenres, ["Drama"]);
     assert.equal(
-      document.querySelector(".preference-save-toast").textContent,
+      document.querySelector(".panel-save-status").textContent,
       "Preferences saved",
     );
     assert.match(document.body.textContent, /Favorites guide your picks/);
@@ -183,15 +193,13 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
       /Favorites: Drama/,
     );
     assert.ok(!document.body.textContent.includes("Avant Garde"));
+    await section("Advanced filters");
     const movieSwitch = document.querySelector(
       '[aria-label="Include non-canon movies"]',
     );
     assert.equal(movieSwitch.checked, false);
-    assert.equal(
-      movieSwitch.closest("fieldset").querySelector("legend").textContent,
-      "Movie continuity",
-    );
     await act(async () => movieSwitch.click());
+    await section("Taste");
     await act(async () =>
       [...document.querySelectorAll("button")]
         .find((b) => b.textContent === "Experimental")
@@ -206,7 +214,10 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
         .find((b) => b.textContent === "Any genre")
         .click(),
     );
-    assert.equal(document.querySelector(".preference-save-toast"), null);
+    assert.equal(
+      document.querySelector(".panel-save-status").textContent,
+      "Changes need attention",
+    );
     assert.match(
       document.querySelector('[role="alert"]').textContent,
       /Storage unavailable/,
@@ -219,7 +230,7 @@ test("returning accounts edit viewing filters without repeating onboarding or ch
     );
     assert.deepEqual(saved[0].favoriteGenres, []);
     assert.equal(
-      document.querySelector(".preference-save-toast").textContent,
+      document.querySelector(".panel-save-status").textContent,
       "Preferences saved",
     );
 
