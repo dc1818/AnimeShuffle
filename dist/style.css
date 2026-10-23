@@ -8376,3 +8376,33 @@ summary:focus-visible {
     font-size: 14px;
   }
 }
+
+/* Keep the interest list usable in short landscape windows. */
+@media (max-height: 520px) {
+  .settings-preferences-workspace .panel-heading {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .settings-preferences-workspace .workspace-intro {
+    padding: 8px 20px 4px;
+  }
+  .dialog .settings-preferences-workspace .workspace-intro h3 {
+    font-size: 18px;
+  }
+  .settings-preferences-workspace .workspace-intro p {
+    display: none;
+  }
+  .settings-preferences-workspace .preference-section-tabs button {
+    min-height: 44px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .settings-preferences-workspace .panel-footer {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .settings-preferences-workspace .panel-mobile-select {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}
