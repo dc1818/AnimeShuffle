@@ -6969,3 +6969,103 @@ summary:focus-visible {
     grid-row: auto;
   }
 }
+
+/* Discover: touch gestures only on the artwork. Everything else can scroll. */
+.swipe-guide,
+.swipe-feedback {
+  display: none;
+}
+@media (max-width: 700px) {
+  .cards-layout.discover-layout {
+    overflow: clip;
+  }
+  .discover-card.swipe-enabled {
+    transition:
+      transform 180ms ease-out,
+      opacity 160ms ease-out;
+  }
+  .discover-card.swipe-dragging {
+    transform: translate(var(--swipe-x, 0px), var(--swipe-y, 0px))
+      rotate(var(--swipe-rotate, 0deg));
+    transition: none;
+  }
+  .discover-card.swipe-leaving {
+    transition:
+      transform 160ms ease-in,
+      opacity 160ms ease-in;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .discover-card.swipe-enabled .poster-stage {
+    touch-action: pinch-zoom;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .discover-card .poster-stage:has(.trailer-panel:not([hidden])) {
+    touch-action: auto;
+  }
+  .discover-card .poster {
+    -webkit-user-drag: none;
+  }
+  [data-layout="familiar"]
+    .cards-layout.discover-layout
+    .discover-card.swipe-enabled
+    .poster-stage {
+    height: clamp(180px, 32svh, 320px);
+  }
+  .discover-card .swipe-guide {
+    display: block;
+    color: #bdd0df;
+    font-size: 12px;
+    line-height: 1.6;
+    text-align: center;
+    margin: 0 0 10px;
+  }
+  .swipe-guide span {
+    display: block;
+  }
+  .discover-card .swipe-feedback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 6;
+    pointer-events: none;
+  }
+  .swipe-stamp {
+    padding: 14px 18px;
+    border: 2px solid currentColor;
+    border-radius: 10px;
+    background: #0b1725f2;
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .swipe-stamp small {
+    display: block;
+    color: #edf4fa;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .swipe-stamp.good {
+    color: #61e7b8;
+  }
+  .swipe-stamp.bad {
+    color: #ff7b91;
+  }
+  .swipe-stamp.watch {
+    color: #65cafa;
+  }
+  .swipe-stamp.nope {
+    color: #c6a5ef;
+  }
+  .swipe-stamp.blocked {
+    color: #d3dce5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discover-card.swipe-enabled,
+  .discover-card.swipe-leaving {
+    transition: none;
+  }
+}

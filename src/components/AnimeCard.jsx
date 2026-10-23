@@ -12,6 +12,8 @@ import { runtimeLabel } from "../lib/preferences.js";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 import { synopsisText } from "../lib/synopsis.js";
+import { useDiscoverSwipe } from "./useDiscoverSwipe.js";
+import { swipeLabels } from "../lib/discover-swipe.js";
 
 // Pages cannot proxy images; its sample covers load directly from MAL.
 export const coverUrl = (anime) => {
@@ -64,6 +66,13 @@ export function AnimeCard({
   showGenreFocus = true,
 }) {
   const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
+  const { drag, handlers: swipeHandlers } = useDiscoverSwipe({
+    identity: anime.id,
+    enabled: !compact,
+    disabled: busy || reactionDisabled || !!detailsOpen,
+    unreleased: isUnreleased(anime),
+    onReact,
+  });
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [sampled, setSampled] = useState(null);
@@ -106,7 +115,16 @@ export function AnimeCard({
   }
   return (
     <article
-      className={`anime-card ${compact ? "ranked-card" : "discover-card"} ${tier <= 3 ? "medal-" + tier : ""}`}
+      className={`anime-card ${compact ? "ranked-card" : "discover-card swipe-enabled"} ${drag ? "swipe-dragging" : ""} ${drag?.leaving ? "swipe-leaving" : ""} ${tier <= 3 ? "medal-" + tier : ""}`}
+      style={
+        drag
+          ? {
+              "--swipe-x": `${drag.x}px`,
+              "--swipe-y": `${drag.y}px`,
+              "--swipe-rotate": `${Math.max(-10, Math.min(10, drag.x / 20))}deg`,
+            }
+          : undefined
+      }
       aria-label={compact ? anime.title : "Current anime"}
       aria-busy={busy}
     >
@@ -122,7 +140,10 @@ export function AnimeCard({
           Tier {tier}
         </div>
       )}
-      <div className={`poster-stage${previewsEnabled ? " has-preview" : ""}`}>
+      <div
+        className={`poster-stage${previewsEnabled ? " has-preview" : ""}`}
+        {...(!compact ? swipeHandlers : {})}
+      >
         <div
           className="poster-glow"
           style={{
@@ -156,8 +177,32 @@ export function AnimeCard({
         </span>
         <div className="poster-fade" />
         {previewsEnabled && <TrailerPreview key={anime.id} anime={anime} />}
+        {!compact && (
+          <div className="swipe-feedback" aria-live="polite" role="status">
+            {drag?.action && (
+              <span
+                className={`swipe-stamp ${drag.blocked ? "blocked" : drag.action}`}
+              >
+                {drag.blocked ? "Not aired yet" : swipeLabels[drag.action]}
+                <small>
+                  {drag.blocked
+                    ? "Choose Would watch or Won’t watch"
+                    : "Release to confirm"}
+                </small>
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <div className="card-content">
+        {!compact && (
+          <p className="swipe-guide">
+            Swipe the artwork or tap below
+            <br />
+            <span>← Good · Bad →</span>
+            <span>↑ Would watch · ↓ Won’t watch</span>
+          </p>
+        )}
         <div className="anime-summary">
           {compact ? (
             <h2>
@@ -272,6 +317,7 @@ export function AnimeCard({
                 className={`reaction ${action}`}
                 disabled={
                   busy ||
+                  drag?.leaving ||
                   reactionDisabled ||
                   (["good", "bad"].includes(action) && isUnreleased(anime))
                 }
