@@ -54,6 +54,7 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
   const id = useId();
   const [reading, setReading] = useState(null);
   const heading = useRef(null);
+  const searchInput = useRef(null);
   const opener = useRef(null);
   const reader = TAXONOMY_BY_ID.get(reading);
   const notes = categoryNotes[reading];
@@ -61,6 +62,7 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
   const closeReader = () => {
     setReading(null);
     if (opener.current?.isConnected) opener.current.focus();
+    else searchInput.current?.focus();
   };
   const read = (nodeId, button) => {
     if (nodeId === reading) {
@@ -74,7 +76,9 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
     if (reading) {
       heading.current?.focus({ preventScroll: true });
       heading.current?.scrollIntoView?.({
-        block: "nearest",
+        block: window.matchMedia?.("(max-width: 1000px)").matches
+          ? "start"
+          : "nearest",
         behavior: "instant",
       });
     }
@@ -192,6 +196,7 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
         Search interests
       </label>
       <input
+        ref={searchInput}
         id={`${id}-search`}
         type="search"
         placeholder="Search by name or meaning…"

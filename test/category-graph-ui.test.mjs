@@ -96,6 +96,11 @@ test("category browsing drills down, saves optional interests, and preserves ind
       document.querySelector('[aria-label="Select Real Robot"]').checked,
       false,
     );
+    // Close help safely even if collapsing its branch removed the original opener.
+    await click("About Real Robot");
+    await click("Collapse Mecha");
+    await click("Close category details");
+    assert.equal(document.activeElement.getAttribute("type"), "search");
     // Structural families expand without changing taste preferences.
     await click("Collapse Subject / Theme");
     assert.deepEqual(value.preferredNodes, []);
