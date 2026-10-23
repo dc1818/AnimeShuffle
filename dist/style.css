@@ -8073,3 +8073,25 @@ summary:focus-visible {
 .panel-content .taxonomy-preferences .taxonomy-drill:hover {
   background: #1b3448;
 }
+
+.admin-browser-signals {
+  display: grid;
+  grid-template-columns: minmax(100px, 160px) minmax(0, 1fr);
+  gap: 10px 16px;
+}
+.admin-browser-signals dt {
+  font-weight: 650;
+}
+.admin-browser-signals dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .admin-browser-signals {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .admin-browser-signals dd {
+    margin-bottom: 12px;
+  }
+}

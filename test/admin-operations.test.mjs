@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { createCloudApp } from "../cloudflare/app.mjs";
-import { createAdminOperations } from "../lib/admin-operations.mjs";
+import {
+  createAdminOperations,
+  requestBrowser,
+} from "../lib/admin-operations.mjs";
 import { createResearchStore } from "../lib/research-profiles.mjs";
 const origin = "https://shuffle.example";
 function storage() {
@@ -618,4 +621,21 @@ test("category audit is paged by primary key, validates cursors and records unkn
   assert.equal(last.data.contentCovered, 0);
   assert.equal((await owner.req("/api/admin/taxonomy?after=-1")).status, 400);
   assert.equal((await owner.req("/api/admin/taxonomy?after=NaN")).status, 400);
+});
+
+test("browser telemetry labels claims without asserting agent or human identity", () => {
+  const info = (ua) =>
+    requestBrowser(new Request(origin, { headers: { "user-agent": ua } }));
+  assert.equal(
+    info("Mozilla/5.0 Chrome/130.0 Safari/537.36").automation,
+    "unknown",
+  );
+  assert.equal(
+    info("Mozilla/5.0 HeadlessChrome/130.0 Safari/537.36").automation,
+    "possible",
+  );
+  assert.equal(info("ChatGPT-User/1.0").reportedAgent, "ChatGPT-User");
+  assert.equal(info("Firefox/130.0").browser, "Firefox");
+  assert.match(info("ChatGPT-User/1.0").attribution, /Unverified/);
+  assert.ok(info("x".repeat(1000)).userAgent.length <= 320);
 });

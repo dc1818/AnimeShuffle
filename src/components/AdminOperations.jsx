@@ -325,7 +325,9 @@ export function AdminOperations({ section, api, currentAccount }) {
             Guest profiles are anonymous, self-reported browser snapshots. Their
             full preferences and history remain in the browser. Clearing browser
             storage starts a new identity. Guest accounts cannot be edited
-            remotely through this page.
+            remotely through this page. Open a guest below to inspect its latest
+            IP, browser and automation hints. These signals do not prove that a
+            visit came from this chat or that a visitor is human.
           </p>
           <Table
             rows={data.guests}
@@ -346,7 +348,7 @@ export function AdminOperations({ section, api, currentAccount }) {
                       )
                     }
                   >
-                    Guest {g.id.slice(6, 14)}
+                    Guest {g.id.slice(6, 14)} · Inspect IP & activity
                   </button>
                 ),
               ],
@@ -388,6 +390,24 @@ export function AdminOperations({ section, api, currentAccount }) {
                   {selected.network
                     ? `${selected.network.ip || "IP unavailable"} · ${selected.network.country} · ${selected.network.region || "Region unavailable"} · ${selected.network.city || "City unavailable"} · ${when(selected.network.observedAt)}`
                     : "No retained network observation."}
+                </p>
+                <dl className="admin-browser-signals">
+                  <dt>Browser</dt>
+                  <dd>{selected.network?.browser || "Not yet observed"}</dd>
+                  <dt>Automation signal</dt>
+                  <dd>
+                    {selected.network?.reportedAgent
+                      ? `Possible automation: ${selected.network.reportedAgent} (unverified)`
+                      : "Unknown — no identifying automation signal"}
+                  </dd>
+                  <dt>Reported user agent</dt>
+                  <dd>{selected.network?.userAgent || "Not yet observed"}</dd>
+                </dl>
+                <p className="muted">
+                  IPs can be shared and user agents can be changed. These
+                  signals cannot identify this chat or justify deleting a
+                  profile. Observations are retained for up to 30 days and
+                  refresh on activity.
                 </p>
                 <details>
                   <summary>All reported viewing preferences</summary>
