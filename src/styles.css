@@ -269,7 +269,6 @@ svg.icon {
       transparent 36%
     ),
     #0b1217;
-  transition: background 1s;
 }
 .ambient::before {
   content: "";
@@ -299,6 +298,7 @@ svg.icon {
 }
 .aurora-ribbon {
   fill: none;
+  transform-box: fill-box;
   transform-origin: center;
   animation: ribbon-flow 12s ease-in-out infinite alternate;
 }
@@ -450,6 +450,10 @@ svg.icon {
   }
 }
 .ambient[data-paused="true"] * {
+  animation-play-state: paused;
+}
+/* Dialogs already obscure the artwork; avoid spending frames behind them. */
+body:has(dialog[open]) .ambient * {
   animation-play-state: paused;
 }
 .ambient[data-enabled="false"] {
@@ -5650,22 +5654,36 @@ summary:focus-visible {
   margin: 12px 0;
 }
 .discover-links {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
   margin: 4px 0 18px;
+  border: 1px solid #527389;
+  border-radius: 8px;
+  background: #102532;
+}
+.discover-links:has(.why-toggle)::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: #7393a8;
+  pointer-events: none;
 }
 [data-layout="familiar"]
   .cards-layout.discover-layout
   .discover-links
   .details-toggle {
   min-height: 44px;
-  padding: 8px 4px;
+  padding: 8px 6px;
   width: 100%;
   border: 0;
   border-radius: 6px;
   background: transparent;
-  justify-content: flex-start;
+  justify-content: center;
   color: var(--discover-link);
   gap: 7px;
   font-size: 14px;
