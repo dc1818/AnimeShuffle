@@ -49,8 +49,8 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
         </span>
       </summary>
       <p>
-        Search for a specific interest or browse a category below. Select as
-        many as you like.
+        Browse opens a category group. Choose + Add to save an interest to your
+        taste preferences; choose Added again to remove it.
       </p>
       {!!selected.length && (
         <div
