@@ -8495,11 +8495,11 @@ summary:focus-visible {
   line-height: 1.5;
   box-shadow: 0 3px 10px #0005;
 }
-.interest-info-wrap:not(.tooltip-dismissed):focus-within .interest-tooltip {
+.interest-info-wrap:not(.tooltip-dismissed) > .interest-info:focus-visible:not([aria-expanded="true"]) + .interest-tooltip {
   display: block;
 }
 @media (hover: hover) {
-  .interest-info-wrap:not(.tooltip-dismissed):hover .interest-tooltip {
+  .interest-info-wrap:not(.tooltip-dismissed):hover > .interest-info:not([aria-expanded="true"]) + .interest-tooltip {
     display: block;
   }
 }

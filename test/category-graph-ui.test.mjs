@@ -87,6 +87,7 @@ test("category browsing expands in place, saves optional interests, and preserve
     await click("About Real Robot");
     assert.deepEqual(value.preferredNodes, []);
     assert.equal(about.getAttribute("aria-expanded"), "true");
+    assert.ok(about.parentElement.classList.contains("tooltip-dismissed"), "Opening the explanation dismisses the hover tooltip");
     assert.match(
       document.querySelector(".interest-reader").textContent,
       /maintenance and supplies/,
