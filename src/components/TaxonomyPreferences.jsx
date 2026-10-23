@@ -1,10 +1,8 @@
-import { useEffect, useId, useRef, useState } from "react";
-import {
-  TAXONOMY_BY_ID,
-  SELECTABLE_NODES,
-  nodeChildren,
-  nodeParents,
-} from "../lib/anime-taxonomy.js";
+import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
+import { nodeParents } from "../lib/anime-taxonomy.js";
+
+import { CATEGORY_TREE, INLINE_TREE_LEVELS } from "../lib/category-tree.js";
+import { CategoryPopover } from "./CategoryPopover.jsx";
 
 import { categoryDefinition, categoryNotes } from "../lib/category-help.js";
 
@@ -45,7 +43,14 @@ function InfoButton({ node, active, paneId, onRead }) {
 }
 
 /** Expand only visible branches. Shared DAG nodes use one selection, independent of path. */
-export function TaxonomyPreferences({ value, setValue, expanded = false }) {
+export function TaxonomyPreferences({
+  value,
+  setValue,
+  expanded = false,
+  tree = CATEGORY_TREE,
+}) {
+  const TAXONOMY_BY_ID = tree.byId;
+  const SELECTABLE_NODES = tree.selectable;
   const [opened, setOpened] = useState(
     () => new Set(["anime-taxonomy/audience-demographic"]),
   );
@@ -53,7 +58,32 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
   const [limit, setLimit] = useState(40);
   const id = useId();
   const [reading, setReading] = useState(null);
-  const heading = useRef(null);
+  const treeStart = useRef(null);
+  const [focusPath, setFocusPath] = useState(null);
+  const scrollHistory = useRef(new Map());
+  const navigationPending = useRef(false);
+  const navigateBranch = (path) => {
+    const scroller = treeStart.current?.closest(".panel-content");
+    scrollHistory.current.set(
+      focusPath?.join("/") || "",
+      scroller?.scrollTop || 0,
+    );
+    navigationPending.current = true;
+    setFocusPath(path);
+    setQuery("");
+  };
+  useLayoutEffect(() => {
+    if (!navigationPending.current) return;
+    navigationPending.current = false;
+    const scroller = treeStart.current?.closest(".panel-content");
+    treeStart.current?.focus({ preventScroll: true });
+    if (scroller)
+      scroller.scrollTop =
+        scrollHistory.current.get(focusPath?.join("/") || "") ??
+        scroller.scrollTop +
+          treeStart.current.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top;
+  }, [focusPath]);
   const searchInput = useRef(null);
   const opener = useRef(null);
   const reader = TAXONOMY_BY_ID.get(reading);
@@ -61,8 +91,6 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
   const paneId = `${id}-category-help`;
   const closeReader = () => {
     setReading(null);
-    if (opener.current?.isConnected) opener.current.focus();
-    else searchInput.current?.focus();
   };
   const read = (nodeId, button) => {
     if (nodeId === reading) {
@@ -73,14 +101,11 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
     setReading(nodeId);
   };
   useEffect(() => {
-    if (reading) {
-      heading.current?.focus({ preventScroll: true });
-      heading.current?.scrollIntoView?.({
-        block: window.matchMedia?.("(max-width: 1000px)").matches
-          ? "start"
-          : "nearest",
-        behavior: "instant",
-      });
+    if (!reading && opener.current) {
+      const target = opener.current.isConnected
+        ? opener.current
+        : searchInput.current;
+      target?.focus({ preventScroll: true });
     }
   }, [reading]);
   const info = (node) => (
@@ -117,40 +142,74 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
       else next.add(path);
       return next;
     });
-  function branch(nodeId, ancestors = [], relation = null) {
+  function branch(nodeId, ancestors = [], relation = null, level = 0) {
     const node = TAXONOMY_BY_ID.get(nodeId);
     if (!node || ancestors.includes(nodeId)) return null;
-    const path = [...ancestors, nodeId].join("/");
-    const children = [
-      ...new Map(
-        nodeChildren(nodeId)
-          .filter((e) => ![...ancestors, nodeId].includes(e.child))
-          .map((e) => [e.child, e]),
-      ).values(),
-    ];
+    const pathParts = [...ancestors, nodeId];
+    const path = pathParts.join("/");
+    const children = tree.children(nodeId, ancestors);
     const selectable = node.kind === "category";
+    if (!selectable && !children.length) return null;
     const open = opened.has(path);
-    const childrenId = `${id}-${path.replaceAll("/", "-")}`;
+    const childrenId = `${id}-${pathParts.map(encodeURIComponent).join("/")}`;
+    const deeper = level >= INLINE_TREE_LEVELS - 1;
+    const parent = TAXONOMY_BY_ID.get(ancestors.at(-1));
+    const metadata =
+      relation === "related"
+        ? "Related category"
+        : level
+          ? `Within ${parent?.label || "this branch"}`
+          : "";
     return (
-      <li key={path} className="interest-branch">
+      <li
+        key={path}
+        className={`interest-branch tree-level-${Math.min(level, 2)}`}
+        data-node-id={nodeId}
+        data-path={path}
+      >
         <div
-          className={`interest-row ${selected.includes(nodeId) ? "is-selected" : ""} ${reading === nodeId ? "is-reading" : ""}`}
+          className={`interest-row ${children.length ? "has-children" : "is-leaf"} ${level === 0 ? "is-main" : ""} ${selected.includes(nodeId) ? "is-selected" : ""} ${reading === nodeId ? "is-reading" : ""}`}
         >
           {children.length ? (
-            <button
-              type="button"
-              className="interest-expand"
-              aria-label={`${open ? "Collapse" : "Expand"} ${node.label}`}
-              aria-expanded={open}
-              aria-controls={childrenId}
-              onClick={() => expand(path)}
-            >
-              <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-            </button>
+            <>
+              {selectable && (
+                <label className="interest-branch-choice">
+                  <input
+                    className="interest-branch-check"
+                    type="checkbox"
+                    aria-label={`Select ${node.label}`}
+                    checked={selected.includes(nodeId)}
+                    disabled={
+                      !selected.includes(nodeId) && selected.length >= 64
+                    }
+                    onChange={() => toggle(nodeId)}
+                  />
+                </label>
+              )}
+              <button
+                type="button"
+                className="interest-branch-toggle"
+                aria-label={`${deeper ? "Browse deeper into" : open ? "Collapse" : "Expand"} ${node.label}`}
+                aria-expanded={deeper ? undefined : open}
+                aria-controls={deeper ? undefined : childrenId}
+                onClick={() =>
+                  deeper ? navigateBranch(pathParts) : expand(path)
+                }
+              >
+                <span>
+                  <strong>{node.label}</strong>
+                  <small>
+                    {metadata ? `${metadata} · ` : ""}
+                    {children.length} subcategories
+                    {deeper ? " · Browse deeper" : ""}
+                  </small>
+                </span>
+                <span className="interest-chevron" aria-hidden="true">
+                  {deeper ? "→" : open ? "⌄" : "›"}
+                </span>
+              </button>
+            </>
           ) : (
-            <span className="interest-spacer" aria-hidden="true" />
-          )}
-          {selectable ? (
             <label className="interest-selection">
               <input
                 type="checkbox"
@@ -164,32 +223,18 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
                 {relation === "related" && <small>Related category</small>}
               </span>
             </label>
-          ) : (
-            <button
-              type="button"
-              className="interest-family"
-              aria-expanded={open}
-              aria-controls={childrenId}
-              onClick={() => expand(path)}
-            >
-              {node.label} <small>({children.length})</small>
-            </button>
           )}
           {info(node)}
         </div>
-        {!!children.length && open && (
-          <ul
-            id={childrenId}
-            className={`interest-children ${ancestors.length >= 3 ? "interest-deep" : ""}`}
-          >
-            {children.map((e) =>
-              branch(e.child, [...ancestors, nodeId], e.type),
-            )}
+        {!!children.length && open && !deeper && (
+          <ul id={childrenId} className="interest-children">
+            {children.map((e) => branch(e.child, pathParts, e.type, level + 1))}
           </ul>
         )}
       </li>
     );
   }
+  const focusedNode = focusPath && TAXONOMY_BY_ID.get(focusPath.at(-1));
   const contents = (
     <>
       <label className="interest-search-label" htmlFor={`${id}-search`}>
@@ -233,10 +278,88 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
         )}
       </div>
       <p className="interest-legend">
-        Check to add. Click or tap ⓘ for details. Arrows show subcategories.
+        Check to add. Click a category header to browse. Tap ⓘ for details.
       </p>
-      <div className={`interest-browser ${reader ? "has-reader" : ""}`}>
+      <div className="interest-browser">
         <div className="interest-list">
+          <div ref={treeStart} tabIndex={-1} className="interest-tree-location">
+            {focusPath && !search && (
+              <>
+                <nav
+                  className="interest-breadcrumbs"
+                  aria-label="Category path"
+                >
+                  <button type="button" onClick={() => navigateBranch(null)}>
+                    All categories
+                  </button>
+                  {focusPath.slice(1).map((nodeId, index) =>
+                    index < focusPath.length - 3 ? null : (
+                      <span key={`${nodeId}-${index}`}>
+                        <span aria-hidden="true">›</span>
+                        {index === focusPath.length - 2 ? (
+                          <strong aria-current="location">
+                            {TAXONOMY_BY_ID.get(nodeId)?.label}
+                          </strong>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigateBranch(focusPath.slice(0, index + 2))
+                            }
+                          >
+                            {TAXONOMY_BY_ID.get(nodeId)?.label}
+                          </button>
+                        )}
+                      </span>
+                    ),
+                  )}
+                </nav>
+                {focusPath.length > 4 && (
+                  <details className="interest-full-path">
+                    <summary>
+                      Show full path · {focusPath.length - 1} levels
+                    </summary>
+                    <nav
+                      className="interest-breadcrumbs"
+                      aria-label="Full category path"
+                    >
+                      {focusPath.slice(1).map((nodeId, index) => (
+                        <button
+                          key={`${nodeId}-${index}`}
+                          type="button"
+                          onClick={() =>
+                            navigateBranch(focusPath.slice(0, index + 2))
+                          }
+                        >
+                          {TAXONOMY_BY_ID.get(nodeId)?.label}
+                        </button>
+                      ))}
+                    </nav>
+                  </details>
+                )}
+                <div className="interest-focus-heading">
+                  <h4>{focusedNode.label}</h4>
+                  {info(focusedNode)}
+                </div>
+                <p>Browsing this branch. Your other interests stay selected.</p>
+                {focusedNode.kind === "category" && (
+                  <label className="interest-selection interest-focus-select">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${focusedNode.label}`}
+                      checked={selected.includes(focusedNode.id)}
+                      disabled={
+                        !selected.includes(focusedNode.id) &&
+                        selected.length >= 64
+                      }
+                      onChange={() => toggle(focusedNode.id)}
+                    />
+                    Include {focusedNode.label} as an interest
+                  </label>
+                )}
+              </>
+            )}
+          </div>
           {search ? (
             <>
               <p className="interest-search-count" role="status">
@@ -267,6 +390,15 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
                       </span>
                     </label>
                     {info(n)}
+                    {tree.children(n.id).length > 0 && (
+                      <button
+                        type="button"
+                        className="interest-search-browse"
+                        onClick={() => navigateBranch(tree.paths.get(n.id))}
+                      >
+                        Browse subcategories of {n.label}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -279,38 +411,22 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
             </>
           ) : (
             <ul className="interest-tree" aria-label="Anime category branches">
-              {nodeChildren("anime-taxonomy").map((e) =>
-                branch(e.child, ["anime-taxonomy"], e.type),
-              )}
+              {tree
+                .children(
+                  focusPath?.at(-1) || tree.root,
+                  focusPath?.slice(0, -1),
+                )
+                .map((e) => branch(e.child, focusPath || [tree.root], e.type))}
             </ul>
           )}
         </div>
         {reader && (
-          <section
+          <CategoryPopover
             id={paneId}
-            className="interest-reader"
-            aria-labelledby={`${paneId}-title`}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.stopPropagation();
-                closeReader();
-              }
-            }}
+            title={reader.label}
+            anchor={opener.current}
+            onClose={closeReader}
           >
-            <div className="interest-reader-heading">
-              <h4 ref={heading} tabIndex={-1} id={`${paneId}-title`}>
-                {reader.label}
-              </h4>
-              <button
-                type="button"
-                className="interest-reader-close"
-                onClick={closeReader}
-                aria-label="Close category details"
-              >
-                ×
-              </button>
-            </div>
             <p className="interest-context">
               {reader.kind === "category" ? reader.facet : "Category group"}
             </p>
@@ -366,7 +482,7 @@ export function TaxonomyPreferences({ value, setValue, expanded = false }) {
                   ))}
               </div>
             )}
-          </section>
+          </CategoryPopover>
         )}
       </div>
       <label className="interest-restrict">

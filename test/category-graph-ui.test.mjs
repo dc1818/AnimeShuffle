@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
+import { CATEGORY_TREE, createCategoryTree } from "../src/lib/category-tree.js";
 
 test("category browsing drills down, saves optional interests, and preserves independent filters", async () => {
   const folder = await mkdtemp(path.resolve(".taxonomy-ui-"));
@@ -109,6 +110,85 @@ test("category browsing drills down, saves optional interests, and preserves ind
       document.querySelector('[aria-label="Select Kodomo"]').click(),
     );
     assert.equal(value.childrenTitles, "include");
+    // Walk every current root-to-leaf route through the actual rendered controls.
+    const leafPaths = [];
+    function enumerate(id, path = []) {
+      const edges = CATEGORY_TREE.children(id, path);
+      if (!edges.length) leafPaths.push([...path, id]);
+      for (const e of edges) enumerate(e.child, [...path, id]);
+    }
+    enumerate(CATEGORY_TREE.root);
+    for (const path of leafPaths) {
+      const all = [
+        ...document.querySelectorAll(".interest-breadcrumbs button"),
+      ].find((b) => b.textContent === "All categories");
+      if (all) await act(async () => all.click());
+      for (let i = 1; i < path.length; i++) {
+        const current = path.slice(0, i + 1).join("/");
+        const row = [...document.querySelectorAll("[data-path]")].find(
+          (e) => e.dataset.path === current,
+        );
+        // Empty structural roots are deliberately omitted, rather than fake expansion buttons.
+        if (
+          !row &&
+          CATEGORY_TREE.byId.get(path[i]).kind === "structural" &&
+          !CATEGORY_TREE.children(path[i]).length
+        )
+          continue;
+        assert.ok(row, current);
+        if (i < path.length - 1) {
+          const button = row.querySelector(
+            ":scope > .interest-row > .interest-branch-toggle",
+          );
+          assert.ok(button, current);
+          if (button.getAttribute("aria-expanded") !== "true")
+            await act(async () => button.click());
+        }
+      }
+    }
+    assert.ok(leafPaths.length >= 439);
+    assert.deepEqual(
+      value.preferredNodes,
+      ["kodomo"],
+      "Browsing every tree never changes selected interests",
+    );
+
+    // A much deeper future taxonomy uses the same UI without accumulating indentation.
+    const nodes = Array.from({ length: 31 }, (_, i) => ({
+      id: i ? `level-${i}` : "anime-taxonomy",
+      label: `Level ${i}`,
+      aliases: [],
+      kind: i ? "category" : "structural",
+      status: "active",
+    }));
+    const edges = nodes
+      .slice(1)
+      .map((n, i) => ({ parent: nodes[i].id, child: n.id, type: "subtype" }));
+    const deepTree = createCategoryTree(nodes, edges);
+    await act(async () =>
+      root.render(
+        React.createElement(TaxonomyPreferences, {
+          key: "deep",
+          value: { preferredNodes: [] },
+          setValue: () => assert.fail("browse should not select"),
+          expanded: true,
+          tree: deepTree,
+        }),
+      ),
+    );
+    for (let i = 1; i < 30; i++) {
+      const row = [...document.querySelectorAll("[data-node-id]")].find(
+        (e) => e.dataset.nodeId === `level-${i}`,
+      );
+      assert.ok(row, `future level ${i}`);
+      const button = row.querySelector(
+        ":scope > .interest-row > .interest-branch-toggle",
+      );
+      await act(async () => button.click());
+      assert.equal(document.querySelectorAll(".tree-level-3").length, 0);
+    }
+    assert.ok(document.querySelector('[aria-label="Select Level 30"]'));
+    assert.ok(document.querySelector(".interest-full-path"));
     await act(async () => root.unmount());
     dom.window.close();
   } finally {

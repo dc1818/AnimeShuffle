@@ -8663,3 +8663,302 @@ summary:focus-visible {
     max-height: 220px;
   }
 }
+
+/* Approved B: unified branch headers and stable, top-layer category popovers. */
+.interest-browser {
+  display: block;
+}
+.interest-list {
+  max-height: none;
+  overflow: visible;
+}
+.interest-tree > .interest-branch {
+  margin: 10px 0;
+}
+.interest-row {
+  position: relative;
+  gap: 8px;
+}
+.interest-row.has-children:hover {
+  background: transparent;
+}
+.interest-branch-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid #3a5b72;
+  border-radius: 5px;
+  background: #142e43;
+  color: #e8f3fb;
+}
+.interest-branch-toggle > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.interest-branch-toggle strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.interest-branch-toggle small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 3px;
+  color: #bed1df;
+}
+.interest-row.is-main > .interest-branch-toggle {
+  background: #1b405c;
+  border-color: #527d9b;
+}
+.interest-row.is-main > .interest-branch-toggle strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+.tree-level-2 > .interest-row > .interest-branch-toggle {
+  background: #102638;
+  border-color: #3b5366;
+}
+.interest-branch-toggle:hover {
+  background: #254a65 !important;
+  border-color: #85c5ec !important;
+}
+.interest-chevron {
+  flex: 0 0 18px;
+  text-align: center;
+  font-size: 23px;
+  line-height: 1;
+  color: #c7e8fb;
+}
+.interest-children,
+.interest-browser .interest-children {
+  border-left: 1px dotted #7293a9;
+  margin: 0 0 0 14px;
+  padding: 6px 0 0 18px;
+}
+.interest-children > .interest-branch {
+  margin: 5px 0;
+}
+.interest-children > .interest-branch > .interest-row::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  width: 18px;
+  border-top: 1px dotted #7293a9;
+  pointer-events: none;
+}
+.interest-children
+  > .interest-branch
+  > .interest-row:is(.is-selected, .is-reading)::before {
+  border-color: #82e5ff;
+}
+.interest-row.is-selected {
+  background: #173c53;
+  box-shadow: inset 3px 0 #76d9ff;
+}
+.interest-row.is-reading {
+  outline: 1px solid #65cff5;
+  outline-offset: -1px;
+  box-shadow: none;
+}
+.interest-row.is-leaf > .interest-selection {
+  padding-left: 8px;
+}
+.interest-branch-check {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  accent-color: #58bbef;
+  margin: 0 0 0 8px;
+}
+.interest-info {
+  touch-action: manipulation;
+}
+.interest-tree-location:focus {
+  outline: none;
+}
+.interest-tree-location:focus-visible {
+  outline: 2px solid #a9eaff;
+  outline-offset: 2px;
+}
+.interest-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin-bottom: 12px;
+}
+.interest-breadcrumbs > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.interest-breadcrumbs button {
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #9cdeff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-align: left;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.interest-breadcrumbs strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.interest-focus-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.interest-focus-heading h4 {
+  margin: 0;
+  font-size: 20px;
+}
+.interest-focus-select {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+}
+.interest-focus-select input {
+  width: 20px;
+  height: 20px;
+}
+.interest-search-results > .interest-row {
+  flex-wrap: wrap;
+}
+.interest-search-browse {
+  flex-basis: 100%;
+  min-height: 44px;
+  padding: 8px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: #9cdeff;
+  font-size: 13px;
+  text-decoration: underline;
+}
+.category-popover.interest-reader {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 16px 20px 20px;
+  border: 1px solid #5b8da9;
+  border-radius: 9px;
+  background: #112b3e;
+  color: #edf5fb;
+  overflow: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  box-shadow: 0 14px 40px #0008;
+  transform: none;
+  animation: none;
+  transition: none;
+}
+.category-popover::backdrop {
+  background: #020c1426;
+  backdrop-filter: none;
+}
+.category-popover .interest-reader-heading {
+  position: sticky;
+  top: -16px;
+  margin: -16px -20px 0;
+  padding: 12px 12px 8px 20px;
+  background: #112b3e;
+  z-index: 1;
+}
+.category-popover .interest-reader-heading h4 {
+  font-size: 20px;
+}
+.category-popover .interest-reader-heading h4:focus {
+  outline: none;
+}
+.category-popover .interest-reader-heading h4:focus-visible {
+  outline: 2px solid #b2edff;
+  outline-offset: 2px;
+}
+.category-popover .interest-reader-select {
+  margin-top: 8px;
+}
+.category-popover :is(button, a):focus-visible {
+  outline: 3px solid #c3f5ff;
+  outline-offset: 2px;
+}
+.category-popover .interest-reading-note {
+  font-size: 13px;
+  color: #c2d2df;
+}
+@media (max-width: 700px) {
+  .interest-row {
+    gap: 5px;
+  }
+  .interest-children,
+  .interest-browser .interest-children {
+    margin-left: 8px;
+    padding-left: 12px;
+  }
+  .interest-children > .interest-branch > .interest-row::before {
+    left: -12px;
+    width: 12px;
+  }
+  .interest-row.is-main > .interest-branch-toggle strong {
+    font-size: 15px;
+  }
+  .interest-branch-toggle {
+    padding: 9px 10px;
+    gap: 6px;
+  }
+  .interest-branch-check {
+    margin-left: 2px;
+  }
+  .category-popover::backdrop {
+    background: #020c1470;
+  }
+}
+.interest-full-path {
+  margin: 0 0 12px;
+}
+.interest-full-path > summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+  color: #b8d4e8;
+  font-size: 13px;
+}
+.interest-full-path .interest-breadcrumbs {
+  padding: 8px 12px;
+  border-left: 1px dotted #7293a9;
+}
+.interest-full-path .interest-breadcrumbs button:not(:last-child)::after {
+  content: " ›";
+  color: #a6c1d4;
+}
+.interest-branch-choice {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.interest-branch-choice .interest-branch-check {
+  margin: 0;
+}
