@@ -1,13 +1,25 @@
 import { TAXONOMY_NODES, TAXONOMY_EDGES } from "./anime-taxonomy.js";
 
-// UI-only graph index. Related links remain browse links, never subtype inference.
+// UI-only hierarchy. Related links belong in reading help, never in the subtype tree.
 export function createCategoryTree(nodes, edges, root = "anime-taxonomy") {
   const byId = new Map(
     nodes.filter((n) => n.status === "active").map((n) => [n.id, n]),
   );
   const children = new Map();
+  const parents = new Map();
+  const related = new Map();
+  const connect = (map, a, b) => {
+    if (!map.has(a)) map.set(a, new Set());
+    map.get(a).add(b);
+  };
   for (const edge of edges) {
     if (!byId.has(edge.parent) || !byId.has(edge.child)) continue;
+    if (edge.type === "related") {
+      connect(related, edge.parent, edge.child);
+      connect(related, edge.child, edge.parent);
+      continue;
+    }
+    if (edge.parent !== root) connect(parents, edge.child, edge.parent);
     if (!children.has(edge.parent)) children.set(edge.parent, new Map());
     const previous = children.get(edge.parent).get(edge.child);
     if (!previous || previous.type === "related")
@@ -51,6 +63,13 @@ export function createCategoryTree(nodes, edges, root = "anime-taxonomy") {
   return {
     root,
     byId,
+    parents: (id) => [...(parents.get(id) || [])].map((key) => byId.get(key)),
+    related: (id) =>
+      [...(related.get(id) || [])]
+        .filter(
+          (key) => key !== id && key !== root && !parents.get(id)?.has(key),
+        )
+        .map((key) => byId.get(key)),
     paths,
     selectable: [...byId.values()].filter((n) => n.kind === "category"),
     children: (id, ancestors = []) =>
@@ -60,5 +79,3 @@ export function createCategoryTree(nodes, edges, root = "anime-taxonomy") {
   };
 }
 export const CATEGORY_TREE = createCategoryTree(TAXONOMY_NODES, TAXONOMY_EDGES);
-// Show three nested levels at a time. Deeper branches open with their full path.
-export const INLINE_TREE_LEVELS = 3;

@@ -8664,20 +8664,28 @@ summary:focus-visible {
   }
 }
 
-/* Approved B: unified branch headers and stable, top-layer category popovers. */
+/* Approved A: one expandable hierarchy, with no depth-dependent navigation. */
 .interest-browser {
   display: block;
 }
 .interest-list {
+  max-width: 100%;
   max-height: none;
-  overflow: visible;
+  overflow-x: auto;
+  padding: 3px;
+  scrollbar-width: thin;
+}
+.interest-tree {
+  min-width: 100%;
 }
 .interest-tree > .interest-branch {
-  margin: 10px 0;
+  margin: 12px 0;
 }
 .interest-row {
   position: relative;
-  gap: 8px;
+  gap: 4px;
+  min-width: 190px;
+  min-height: 48px;
 }
 .interest-row.has-children:hover {
   background: transparent;
@@ -8685,72 +8693,70 @@ summary:focus-visible {
 .interest-branch-toggle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 8px;
   flex: 1;
   min-width: 0;
-  min-height: 52px;
+  min-height: 48px;
   text-align: left;
-  padding: 10px 12px;
-  border: 1px solid #3a5b72;
-  border-radius: 5px;
-  background: #142e43;
-  color: #e8f3fb;
-}
-.interest-branch-toggle > span:first-child {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #edf5fb;
+  font-size: 16px;
+  line-height: 24px;
+  touch-action: manipulation;
 }
 .interest-branch-toggle strong {
-  display: block;
-  font-size: 14px;
+  font-size: inherit;
   font-weight: 600;
-}
-.interest-branch-toggle small {
-  display: block;
-  font-size: 12px;
-  line-height: 1.5;
-  margin-top: 3px;
-  color: #bed1df;
-}
-.interest-row.is-main > .interest-branch-toggle {
-  background: #1b405c;
-  border-color: #527d9b;
-}
-.interest-row.is-main > .interest-branch-toggle strong {
-  font-size: 16px;
-  font-weight: 700;
-}
-.tree-level-2 > .interest-row > .interest-branch-toggle {
-  background: #102638;
-  border-color: #3b5366;
-}
-.interest-branch-toggle:hover {
-  background: #254a65 !important;
-  border-color: #85c5ec !important;
+  overflow-wrap: anywhere;
 }
 .interest-chevron {
   flex: 0 0 18px;
-  text-align: center;
-  font-size: 23px;
-  line-height: 1;
-  color: #c7e8fb;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.interest-row.is-main {
+  background: #1b405c;
+  border: 1px solid #527d9b;
+  border-radius: 5px;
+  padding-left: 8px;
+}
+.interest-row.is-main > .interest-branch-toggle {
+  min-height: 52px;
+}
+.interest-row.is-main > .interest-branch-toggle strong {
+  font-weight: 700;
+}
+.interest-branch-toggle:hover {
+  background: #254a65;
+}
+.interest-branch-toggle:focus-visible {
+  outline: 2px solid #a9eaff;
+  outline-offset: -2px;
 }
 .interest-children,
 .interest-browser .interest-children {
   border-left: 1px dotted #7293a9;
-  margin: 0 0 0 14px;
-  padding: 6px 0 0 18px;
+  margin: 0 0 0 8px;
+  padding: 4px 0 0 12px;
 }
 .interest-children > .interest-branch {
-  margin: 5px 0;
+  margin: 0;
 }
 .interest-children > .interest-branch > .interest-row::before {
   content: "";
   position: absolute;
-  left: -18px;
+  left: -12px;
   top: 50%;
-  width: 18px;
+  width: 12px;
   border-top: 1px dotted #7293a9;
   pointer-events: none;
 }
@@ -8766,92 +8772,45 @@ summary:focus-visible {
 .interest-row.is-reading {
   outline: 1px solid #65cff5;
   outline-offset: -1px;
-  box-shadow: none;
 }
-.interest-row.is-leaf > .interest-selection {
-  padding-left: 8px;
+.interest-branch-choice {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-height: 48px;
+  cursor: pointer;
 }
 .interest-branch-check {
-  flex: 0 0 20px;
   width: 20px;
   height: 20px;
+  margin: 0;
   accent-color: #58bbef;
-  margin: 0 0 0 8px;
+}
+.interest-tree .interest-selection,
+.panel-content .interest-tree .interest-selection {
+  min-height: 48px;
+  padding: 8px;
+  font-size: 16px;
+  line-height: 24px;
 }
 .interest-info {
   touch-action: manipulation;
 }
-.interest-tree-location:focus {
-  outline: none;
-}
-.interest-tree-location:focus-visible {
-  outline: 2px solid #a9eaff;
-  outline-offset: 2px;
-}
-.interest-breadcrumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 8px;
-  margin-bottom: 12px;
-}
-.interest-breadcrumbs > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.interest-breadcrumbs button {
-  min-height: 44px;
-  padding: 6px 4px;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  color: #9cdeff;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-align: left;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.interest-breadcrumbs strong {
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.interest-focus-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.interest-focus-heading h4 {
-  margin: 0;
-  font-size: 20px;
-}
-.interest-focus-select {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-height: 44px;
-  font-size: 14px;
-}
-.interest-focus-select input {
-  width: 20px;
-  height: 20px;
-}
-.interest-search-results > .interest-row {
-  flex-wrap: wrap;
-}
-.interest-search-browse {
-  flex-basis: 100%;
-  min-height: 44px;
-  padding: 8px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  color: #9cdeff;
-  font-size: 13px;
-  text-decoration: underline;
+@media (max-width: 700px) {
+  .interest-children,
+  .interest-browser .interest-children {
+    margin-left: 4px;
+    padding-left: 8px;
+  }
+  .interest-children > .interest-branch > .interest-row::before {
+    left: -8px;
+    width: 8px;
+  }
+  .interest-branch-choice {
+    flex-basis: 44px;
+    width: 44px;
+  }
 }
 .category-popover.interest-reader {
   position: fixed;
@@ -8906,59 +8865,59 @@ summary:focus-visible {
   font-size: 13px;
   color: #c2d2df;
 }
+
+/* Read-only glossary, with its own type scale rather than inherited dialog paragraphs. */
+.category-popover.interest-reader {
+  width: min(400px, calc(100vw - 24px));
+}
+.category-popover .interest-reader-heading {
+  align-items: center;
+}
+.category-popover .interest-reader-heading h4 {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 600;
+  margin: 0;
+}
+.dialog .category-popover.interest-reader p,
+.category-popover.interest-reader p,
+.category-popover.interest-reader li {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  margin: 12px 0;
+  text-align: left;
+}
+.dialog .category-popover.interest-reader .interest-context {
+  font-size: 14px;
+  line-height: 21px;
+  color: #bfd0de;
+  margin: 0 0 12px;
+}
+.dialog .category-popover.interest-reader .interest-definition {
+  color: #edf5fb;
+  margin: 12px 0;
+}
+.category-popover.interest-reader h5 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  margin: 16px 0 4px;
+}
+.category-popover .interest-context-links {
+  margin-top: 16px;
+  padding-top: 0;
+}
+.category-popover .interest-context-links button {
+  font-size: 16px;
+  line-height: 24px;
+  min-height: 44px;
+  padding: 8px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 @media (max-width: 700px) {
-  .interest-row {
-    gap: 5px;
-  }
-  .interest-children,
-  .interest-browser .interest-children {
-    margin-left: 8px;
-    padding-left: 12px;
-  }
-  .interest-children > .interest-branch > .interest-row::before {
-    left: -12px;
-    width: 12px;
-  }
-  .interest-row.is-main > .interest-branch-toggle strong {
-    font-size: 15px;
-  }
-  .interest-branch-toggle {
-    padding: 9px 10px;
-    gap: 6px;
-  }
-  .interest-branch-check {
-    margin-left: 2px;
-  }
   .category-popover::backdrop {
     background: #020c1470;
   }
-}
-.interest-full-path {
-  margin: 0 0 12px;
-}
-.interest-full-path > summary {
-  min-height: 44px;
-  padding: 10px 0;
-  cursor: pointer;
-  color: #b8d4e8;
-  font-size: 13px;
-}
-.interest-full-path .interest-breadcrumbs {
-  padding: 8px 12px;
-  border-left: 1px dotted #7293a9;
-}
-.interest-full-path .interest-breadcrumbs button:not(:last-child)::after {
-  content: " ›";
-  color: #a6c1d4;
-}
-.interest-branch-choice {
-  display: grid;
-  place-items: center;
-  flex: 0 0 44px;
-  width: 44px;
-  min-height: 44px;
-  cursor: pointer;
-}
-.interest-branch-choice .interest-branch-check {
-  margin: 0;
 }

@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { CATEGORY_TREE, createCategoryTree } from "../src/lib/category-tree.js";
 
-test("category browsing drills down, saves optional interests, and preserves independent filters", async () => {
+test("category browsing expands in place, saves optional interests, and preserves independent filters", async () => {
   const folder = await mkdtemp(path.resolve(".taxonomy-ui-"));
   try {
     await build({
@@ -63,10 +63,16 @@ test("category browsing drills down, saves optional interests, and preserves ind
       document.querySelector(".interest-reader").textContent,
       /operational constraints/,
     );
-    await click("+ Add Real Robot");
-    assert.deepEqual(value.preferredNodes, ["real-robot"]);
-    await click("✓ Added · remove Real Robot");
-    assert.deepEqual(value.preferredNodes, []);
+    assert.equal(document.querySelector(".interest-reader-select"), null);
+    assert.match(
+      document.querySelector(".interest-reader").textContent,
+      /Parent categories/,
+    );
+    assert.match(
+      document.querySelector(".interest-reader").textContent,
+      /Related categories/,
+    );
+    assert.deepEqual(value.preferredNodes, [], "Information is read-only");
     await click("Close category details");
     assert.equal(document.activeElement, about);
     assert.equal(document.querySelector(".interest-reader"), null);
@@ -119,10 +125,6 @@ test("category browsing drills down, saves optional interests, and preserves ind
     }
     enumerate(CATEGORY_TREE.root);
     for (const path of leafPaths) {
-      const all = [
-        ...document.querySelectorAll(".interest-breadcrumbs button"),
-      ].find((b) => b.textContent === "All categories");
-      if (all) await act(async () => all.click());
       for (let i = 1; i < path.length; i++) {
         const current = path.slice(0, i + 1).join("/");
         const row = [...document.querySelectorAll("[data-path]")].find(
@@ -146,14 +148,14 @@ test("category browsing drills down, saves optional interests, and preserves ind
         }
       }
     }
-    assert.ok(leafPaths.length >= 439);
+    assert.ok(leafPaths.length >= 280);
     assert.deepEqual(
       value.preferredNodes,
       ["kodomo"],
       "Browsing every tree never changes selected interests",
     );
 
-    // A much deeper future taxonomy uses the same UI without accumulating indentation.
+    // Every future level uses the same expansion behavior, never a navigation replacement.
     const nodes = Array.from({ length: 31 }, (_, i) => ({
       id: i ? `level-${i}` : "anime-taxonomy",
       label: `Level ${i}`,
@@ -185,10 +187,25 @@ test("category browsing drills down, saves optional interests, and preserves ind
         ":scope > .interest-row > .interest-branch-toggle",
       );
       await act(async () => button.click());
-      assert.equal(document.querySelectorAll(".tree-level-3").length, 0);
+      assert.equal(button.getAttribute("aria-expanded"), "true");
+      assert.ok(
+        document.querySelector(`[aria-label="Collapse Level 1"]`),
+        "Ancestors stay visible",
+      );
     }
     assert.ok(document.querySelector('[aria-label="Select Level 30"]'));
-    assert.ok(document.querySelector(".interest-full-path"));
+    assert.equal(document.querySelector(".interest-full-path"), null);
+    assert.doesNotMatch(
+      document.body.textContent,
+      /Browse deeper|All categories/,
+    );
+    assert.equal(
+      document.querySelector(
+        `[data-node-id="level-30"] .interest-branch-toggle`,
+      ),
+      null,
+      "Leaves have no expansion control",
+    );
     await act(async () => root.unmount());
     dom.window.close();
   } finally {

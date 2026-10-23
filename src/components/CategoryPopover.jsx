@@ -22,7 +22,7 @@ export function CategoryPopover({ id, title, anchor, onClose, children }) {
         vy + height - 12,
         bounds?.bottom - 12 || Infinity,
       );
-      const w = Math.min(360, right - left);
+      const w = Math.min(400, right - left);
       dialog.style.width = `${w}px`;
       dialog.style.maxHeight = `${bottom - top}px`;
       const rect = anchor?.getBoundingClientRect();
