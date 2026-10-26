@@ -9349,7 +9349,9 @@ dialog.details-card.details-modal,
 /* Keep the decision controls anchored across titles of different lengths. */
 .card-info-contents { display: contents; }
 [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card {
-  height: clamp(560px, calc(100svh - 190px), 650px);
+  height: clamp(560px, calc(100svh - 190px), 780px);
+  grid-template-rows: minmax(0, 1fr);
+  box-sizing: border-box;
   align-items: stretch;
 }
 [data-layout="familiar"] .cards-layout.discover-layout .discover-card .poster-stage {
@@ -9399,3 +9401,9 @@ dialog.details-card.details-modal,
 .discover-info .genre { flex-shrink: 0; }
 .discover-info .synopsis { min-height: 0; }
 .discover-info .taxonomy-card { display: none; }
+
+@media (min-width: 1600px) {
+  [data-layout="familiar"] .cards-layout.discover-layout {
+    max-width: 1280px;
+  }
+}
