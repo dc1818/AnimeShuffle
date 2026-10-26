@@ -16,6 +16,15 @@ In the companion Python program choose **9**, select this JSON, and select a new
 
 **Find your next anime and build a watchlist that fits your taste.**
 
+### Optional support
+
+The footer's **Support Anime Shuffle** button opens **Settings → Support**.
+Tips remain unavailable until the owner sets `SUPPORT_URL` in
+`src/lib/support.js` to their verified public Ko-fi, Buy Me a Coffee, or PayPal
+payment page and rebuilds/deploys. This is a public URL, not a secret. There are
+no embedded payment scripts, perks, goals, or donor-based recommendations.
+See [donation setup and MAL commercial permission](docs/MONETIZATION.md).
+
 [Try Anime Shuffle](https://animeshuffle.com) · [Sample demo](https://dc1818.github.io/AnimeShuffle/)
 
 **Android APK: coming soon.** Android phone visitors can continue on the website

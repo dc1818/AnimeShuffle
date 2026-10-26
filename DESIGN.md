@@ -1,5 +1,7 @@
 # Anime Shuffle interface
 
+Optional support uses a quiet heart-and-label footer button and a Support section in the existing Settings panel (including its phone selector). Keep the established navy/blue surfaces, native dialog dismissal, 44px controls and readable text. Support is voluntary, with no goals, paid perks or influence on rankings. A verified public payment URL enables an external checkout link; absent configuration shows an honest unavailable message. Never insert a guessed recipient, payment widget, tracking script or automatic donation prompt.
+
 Preserve the existing dark navy surfaces, blue actions, anime artwork and cover-derived Aurora backgrounds. Aurora, Liquid light and Comet drift are intentional brand exceptions to generic no-gradient guidance. Respect the animation/off preference, reduced motion and software-rendering fallback.
 
 Discover centers on one title and four reactions. Good/Bad means seen; Would/Won’t watch means prospective interest. Explanations and optional feedback identify the specific title. Recommendations contain only eligible unsaved, unseen, unrejected titles. Filter the displayed snapshot against current reactions, MAL list and favorites, including account-sync updates. A reaction removes the row immediately; a separate confirmation offers targeted Undo. Remaining picks retain order until Refresh picks; Undo restores an eligible title to its original place.

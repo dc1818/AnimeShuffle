@@ -564,6 +564,9 @@ function ConnectedApp({ store, state }) {
         </button>
         <a href="./privacy.html">Privacy policy</a>
         <a href="./terms.html">Terms</a>
+        <button className="footer-support" onClick={() => setDialog("support")}>
+          <Icon name="heart" /> Support Anime Shuffle
+        </button>
         <span id="mode-label">
           {state.preview
             ? "Preview · 7 sample anime"

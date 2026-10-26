@@ -5,11 +5,13 @@ import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { missingMalPlans } from "../lib/watchlist.js";
 import { PreferencePanel } from "./PreferencePanel.jsx";
 import { Icon } from "./Icon.jsx";
+import { SupportPanel } from "./SupportPanel.jsx";
 export const SETTINGS_SECTIONS = [
   { id: "appearance", label: "Appearance", icon: "screen" },
   { id: "preferences", label: "Viewing preferences", icon: "filters" },
   { id: "account", label: "Account & MyAnimeList", icon: "users" },
   { id: "help", label: "Help", icon: "info" },
+  { id: "support", label: "Support", icon: "heart" },
 ];
 function SettingsLink({ icon, title, detail, onClick, disabled }) {
   return (
@@ -47,13 +49,18 @@ export function SettingsPanel({
       }
       footer={
         <>
-          <span role="status">Changes save automatically.</span>
+          <span role="status">
+            {section === "support"
+              ? "Thank you for using Anime Shuffle."
+              : "Changes save automatically."}
+          </span>
           <button className="primary" onClick={onClose}>
             Done
           </button>
         </>
       }
     >
+      {section === "support" && <SupportPanel />}
       {section === "appearance" && (
         <>
           <BackgroundOptions
