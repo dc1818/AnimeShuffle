@@ -15,6 +15,7 @@ import { AnimeCard, AnimeDetails } from "../../src/components/AnimeCard.jsx";
 import { demo } from "../../src/lib/demo.js";
 const sizes = [
   [320, 640],
+  [370, 648],
   [390, 844],
   [768, 1024],
   [1366, 768],
