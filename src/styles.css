@@ -9366,9 +9366,7 @@ dialog.details-card.details-modal,
 .discover-info {
   flex: 1 1 0;
   min-height: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  padding-right: 6px;
+  overflow: clip;
   margin-bottom: 12px;
 }
 [data-layout="familiar"] .cards-layout.discover-layout .discover-card .card-content > :not(.discover-info) {
@@ -9389,3 +9387,15 @@ dialog.details-card.details-modal,
     height: max(680px, calc(100svh - 150px));
   }
 }
+
+/* The page may scroll; the Discover summary never becomes a scroll pane. */
+.discover-info #anime-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.discover-info .genres { flex-wrap: nowrap; overflow: hidden; }
+.discover-info .genre { flex-shrink: 0; }
+.discover-info .synopsis { min-height: 0; }
+.discover-info .taxonomy-card { display: none; }
