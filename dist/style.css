@@ -9328,9 +9328,9 @@ dialog.details-card.details-modal,
 }
 @media (hover: hover) and (pointer: fine) {
   .secondary-actions button:hover:not(:disabled) {
-    transform: translateY(-3px);
+    transform: translateY(-1px);
     border-color: #83b5c8;
-    box-shadow: 0 7px 20px #0004;
+    box-shadow: 0 3px 9px #0003;
   }
   .secondary-actions button:active:not(:disabled) {
     transform: translateY(0);
