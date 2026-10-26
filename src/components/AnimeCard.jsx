@@ -196,6 +196,7 @@ export function AnimeCard({
         )}
       </div>
       <div className="card-content">
+        <div className={compact ? "card-info-contents" : "discover-info"} key={anime.id}>
         {!compact && <p className="swipe-guide">Swipe the artwork</p>}
         <div className="anime-summary">
           {compact ? (
@@ -250,6 +251,7 @@ export function AnimeCard({
         <p className="synopsis">
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
+        </div>
         <div className={!compact || onWhy ? "discover-links" : undefined}>
           <button
             id={compact ? `details-toggle-${anime.id}` : "details-toggle"}

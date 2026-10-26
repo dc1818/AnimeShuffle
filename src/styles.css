@@ -9345,3 +9345,47 @@ dialog.details-card.details-modal,
   .secondary-actions button:hover:not(:disabled),
   .secondary-actions button:active:not(:disabled) { transform: none; }
 }
+
+/* Keep the decision controls anchored across titles of different lengths. */
+.card-info-contents { display: contents; }
+[data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card {
+  height: clamp(560px, calc(100svh - 190px), 650px);
+  align-items: stretch;
+}
+[data-layout="familiar"] .cards-layout.discover-layout .discover-card .poster-stage {
+  height: 100%;
+  min-height: 0;
+}
+[data-layout="familiar"] .cards-layout.discover-layout .discover-card .card-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.discover-info {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: 6px;
+  margin-bottom: 12px;
+}
+[data-layout="familiar"] .cards-layout.discover-layout .discover-card .card-content > :not(.discover-info) {
+  flex-shrink: 0;
+}
+@media (max-width: 900px) {
+  [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: clamp(150px, 24svh, 245px) minmax(0, 1fr);
+    gap: 0;
+    height: max(700px, calc(100svh - 160px));
+  }
+}
+@media (max-width: 560px) {
+  [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card {
+    grid-template-rows: clamp(140px, 18svh, 180px) minmax(0, 1fr);
+    height: max(680px, calc(100svh - 150px));
+  }
+}
