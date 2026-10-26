@@ -112,6 +112,11 @@ export function buildTaste(
         : undefined,
     });
   }
+  for (const signal of initial.comparisons) {
+    const existing = records.get(signal.anime.id);
+    if (!existing) records.set(signal.anime.id, {anime: enrich(signal.anime), enjoyment: 0, interest: 0.12, source: "comparison"});
+    else if (existing.interest >= 0 && existing.enjoyment >= 0) existing.interest = Math.min(0.6, existing.interest + 0.08);
+  }
   const genres = new Map(),
     formats = new Map();
   for (const r of records.values()) {

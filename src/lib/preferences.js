@@ -1,3 +1,4 @@
+import { normalizeComparisons } from "./discover-comparison.js";
 import { cleanNodeIds, matchesTaxonomy } from "./anime-taxonomy.js";
 import {
   canonicalGenre,
@@ -57,6 +58,7 @@ export const LENGTH_OPTIONS = [
   },
 ];
 export const defaultPreferences = () => ({
+  comparisons: [],
   favoriteGenres: [],
   requiredThemes: [],
   requiredCategories: [],
@@ -158,6 +160,7 @@ export function normalizePreferences(value = {}) {
   if (scoreMin !== null && scoreMax !== null && scoreMin > scoreMax)
     [scoreMin, scoreMax] = [scoreMax, scoreMin];
   return {
+    comparisons: normalizeComparisons(value?.comparisons),
     scoreMin,
     scoreMax,
     includeNonCanonMovies: value?.includeNonCanonMovies === true,

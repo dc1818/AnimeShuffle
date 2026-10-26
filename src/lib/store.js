@@ -1894,6 +1894,12 @@ export function createAnimeStore({
       if (!state.current || (eligible(before) && !eligible(state.preferences)))
         await next();
     },
+    async saveComparison(entries) {
+      const preferences = normalizePreferences({ ...state.preferences, comparisons: [...(state.preferences.comparisons || []), ...entries] });
+      if (state.session.account) await api("/api/account/preferences", { preferences });
+      update({ preferences });
+      if (!await persist()) throw new Error("Could not save preference");
+    },
     async saveViewingPreferences(input) {
       const preferences = normalizePreferences(input);
       const version = ++preferenceVersion;

@@ -9425,3 +9425,52 @@ dialog.details-card.details-modal,
 .discover-card .trailer-panel { grid-template-rows: 56px minmax(0, 1fr) 24px; }
 .discover-card .trailer-panel .inline-trailer-frame,
 .discover-card .trailer-panel iframe { min-height: 0; min-width: 0; }
+
+/* Fixed comparison slot: synopsis yields space; action rows never move. */
+.discover-card .discover-info { display:flex; flex-direction:column; margin-bottom:8px; }
+.discover-card .discover-info .anime-summary { flex:0 0 auto; }
+.discover-card .discover-info #anime-title { line-height:1.15; margin-bottom:6px; overflow-wrap:anywhere; }
+.discover-card .discover-info #anime-title > span:first-child { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.discover-card .discover-info .english-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; }
+.discover-card .discover-info .synopsis { min-height:0; margin:6px 0 0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; flex:1 1 auto; }
+.discover-comparison { flex:0 0 160px !important; height:160px; box-sizing:border-box; min-width:0; margin:0 0 10px; padding:10px 12px; border:1px solid #365365; border-radius:10px; background:#112938; display:flex; flex-direction:column; gap:6px; font-size:13px; }
+.discover-comparison header,.discover-comparison footer { display:flex; align-items:center; justify-content:space-between; gap:6px; min-width:0; }
+.discover-comparison header strong { color:#e7f5fc; font-size:14px; }
+.discover-comparison header > span { color:#9db7c7; font-size:11px; }
+.discover-comparison footer { margin-top:auto; }
+.discover-comparison footer button { border:0; background:transparent; color:#a5ddf1; padding:3px 0; min-height:30px; font-size:11px; }
+.discover-comparison footer span { font-size:11px; color:#9ce3bc; }
+.comparison-options { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; min-height:0; }
+.discover-comparison button { cursor:pointer; }
+.discover-comparison button:focus-visible { outline:2px solid #9ce8ff; outline-offset:2px; }
+.comparison-choice { display:flex; align-items:center; min-width:0; min-height:66px; padding:4px 6px; gap:8px; border:1px solid #426379; border-radius:7px; background:#19394c; color:#ecf7fc; text-align:left; }
+.comparison-choice:hover { background:#24516a; }
+.comparison-choice img { width:36px; height:50px; object-fit:cover; border-radius:3px; flex-shrink:0; }
+.comparison-choice > span { min-width:0; }
+.comparison-choice small { display:block; font-size:10px; color:#b6ccda; }
+.comparison-choice strong { font-size:12px; line-height:1.25; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.comparison-options.variant-1 { display:block; }
+.comparison-queue { margin:0 0 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#b9d3e2; font-size:12px; }
+.comparison-priority { display:flex; gap:6px; }
+.comparison-priority button { flex:1; min-height:40px; padding:4px; font-size:12px; color:#e7f5fc; border:1px solid #426379; border-radius:6px; background:#19394c; }
+@media(max-width:560px) {
+ .discover-comparison { padding:8px; }
+ .discover-comparison header strong { font-size:13px; }
+ .discover-card .discover-info .runtime-estimate { display:none; }
+ .discover-card .discover-info .release-status { margin:2px 0; font-size:11px; }
+ .discover-card .discover-info .metadata { font-size:12px; }
+ .discover-card .discover-info .genres { margin:3px 0; }
+ .discover-card .discover-info .synopsis { font-size:13px; line-height:1.4; }
+}
+@media(max-width:560px) {
+ .discover-comparison { flex-basis:124px !important; height:124px; gap:3px; }
+ .comparison-choice { min-height:52px; }
+ .comparison-choice img { width:28px; height:40px; }
+ .discover-comparison footer button { min-height:28px; }
+ .discover-comparison footer span { max-width:70px; line-height:1.1; }
+ .discover-card .discover-info .swipe-guide { display:none; }
+ .discover-card .discover-info .release-status { display:none; }
+ .discover-card .discover-info .genre-groups { margin:3px 0; }
+ .comparison-priority button { min-height:32px; }
+ .comparison-queue { margin-bottom:2px; }
+}

@@ -447,6 +447,8 @@ function ConnectedApp({ store, state }) {
                   >
                     <AnimeCard
                       key={state.current.id}
+                      comparisonAnime={combinedWatchlist(state.reactions, state.list).map(entry => entry.anime)}
+                      onComparison={store.saveComparison}
                       anime={state.current}
                       selectedGenres={state.preferences.favoriteGenres}
                       restrictGenres={state.preferences.restrictGenres}

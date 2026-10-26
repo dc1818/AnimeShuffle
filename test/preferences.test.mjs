@@ -94,6 +94,7 @@ test("preference input is normalized and cannot add arbitrary fields", () => {
       account: "another-user",
     }),
     {
+      comparisons: [],
       favoriteGenres: [],
       requiredThemes: [],
       requiredCategories: [],

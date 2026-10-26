@@ -1,3 +1,4 @@
+import { DiscoverComparison } from "./DiscoverComparison.jsx";
 import { normalizeFeedback } from "../lib/reaction-feedback.js";
 import { GenreBadges } from "./GenreBadges.jsx";
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
@@ -65,6 +66,8 @@ export function AnimeCard({
   restrictNodes = false,
   onPreferences,
   showGenreFocus = true,
+  comparisonAnime = [],
+  onComparison,
 }) {
   const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
   const { drag, handlers: swipeHandlers } = useDiscoverSwipe({
@@ -204,7 +207,7 @@ export function AnimeCard({
               <AnimeTitle anime={anime} />
             </h2>
           ) : (
-            <h1 id="anime-title" aria-live="polite">
+            <h1 id="anime-title" aria-live="polite" title={primaryTitle(anime)} style={{fontSize: `clamp(20px, 2.5vw, ${primaryTitle(anime).length > 85 ? 22 : primaryTitle(anime).length > 45 ? 28 : 36}px)`}}>
               <AnimeTitle anime={anime} />
             </h1>
           )}
@@ -252,6 +255,7 @@ export function AnimeCard({
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
         </div>
+        {!compact && <DiscoverComparison key={`comparison-${anime.id}`} anime={anime} saved={comparisonAnime} onSave={onComparison} onPreferences={onPreferences} />}
         <div className={!compact || onWhy ? "discover-links" : undefined}>
           <button
             id={compact ? `details-toggle-${anime.id}` : "details-toggle"}

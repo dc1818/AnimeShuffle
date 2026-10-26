@@ -211,6 +211,8 @@ function Fixture() {
           }
         >
           <AnimeCard
+            comparisonAnime={demo}
+            onComparison={async () => {}}
             anime={{
               ...demo[displayed],
               ...(long ? { title: anime.title, englishTitle: "" } : {}),
