@@ -9320,3 +9320,28 @@ dialog.details-card.details-modal,
 .trailer-toolbar button span { font-size: 22px; line-height: 1; }
 .trailer-toolbar button:hover { background: #b9ecfa; border-color: #b9ecfa; }
 .trailer-toolbar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Secondary reactions share the main buttons' restrained lift. */
+.secondary-actions button {
+  transition: transform 160ms ease, background-color 160ms ease,
+    border-color 160ms ease, box-shadow 160ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .secondary-actions button:hover:not(:disabled) {
+    transform: translateY(-3px);
+    border-color: #83b5c8;
+    box-shadow: 0 7px 20px #0004;
+  }
+  .secondary-actions button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+}
+.secondary-actions button:focus-visible {
+  outline: 2px solid #9cdef0;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .secondary-actions button:hover:not(:disabled),
+  .secondary-actions button:active:not(:disabled) { transform: none; }
+}
