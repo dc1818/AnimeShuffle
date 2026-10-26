@@ -18,11 +18,11 @@ In the companion Python program choose **9**, select this JSON, and select a new
 
 ### Optional support
 
-The footer's **Support Anime Shuffle** button opens **Settings → Support**.
-Tips remain unavailable until the owner sets `SUPPORT_URL` in
-`src/lib/support.js` to their verified public Ko-fi, Buy Me a Coffee, or PayPal
-payment page and rebuilds/deploys. This is a public URL, not a secret. There are
-no embedded payment scripts, perks, goals, or donor-based recommendations.
+The footer's **Support Anime Shuffle** link and Settings footer's **Support**
+link go directly to the owner's [Ko-fi page](https://ko-fi.com/dc1818), in the
+same tab. There is no intermediate panel or heart icon. The public destination
+is configured in `src/lib/support.js`; no payment credentials belong there.
+There are no embedded payment scripts, perks, goals, or donor-based recommendations.
 See [donation setup and MAL commercial permission](docs/MONETIZATION.md).
 
 [Try Anime Shuffle](https://animeshuffle.com) · [Sample demo](https://dc1818.github.io/AnimeShuffle/)

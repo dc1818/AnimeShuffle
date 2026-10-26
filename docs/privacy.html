@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy policy | Anime Shuffle</title>
+    <link rel="canonical" href="https://animeshuffle.com/privacy" />
     <link rel="icon" href="./assets/favicon.svg" />
     <style>
       body {
@@ -39,8 +40,18 @@
       <a href="./">Back to Anime Shuffle</a>
       <h1>Privacy policy</h1>
       <p>
-        Updated October 7, 2026. This describes the current Anime Shuffle app,
+        Updated October 26, 2026. This describes the current Anime Shuffle app,
         including the GitHub Pages demo and the server version.
+      </p>
+      <h2>Optional support</h2>
+      <p>
+        Optional support links, when available, open an external payment page.
+        No donation widget or payment tracker is loaded into Anime Shuffle.
+        Anime Shuffle does not collect card details or attach your watchlist,
+        reactions, or MAL identity to the payment link. The payment service
+        handles checkout under its own privacy policy and may share transaction
+        details, such as your name, email, amount, and message, with the
+        creator.
       </p>
       <h2>Accounts and saved choices</h2>
       <p>
@@ -77,13 +88,16 @@
         The server retrieves public MAL reviews through Tenrai using anime IDs.
         Requests contain public anime IDs, not your login, user identifier,
         personal scores, or reaction labels. Review text and author names are
-        processed transiently; only aggregate descriptive attributes are cached.
-        Review excerpts are not displayed. If model-assisted enrichment is
-        enabled, Cloudflare Workers AI receives a small sample of public,
-        spoiler-filtered review clauses without author names. Personal lists,
-        ratings, accounts, and reactions are not sent to the model. Optional
-        reasons you add to a reaction are saved with that reaction. Episode
-        enrichment stores aggregate filler and recap flags, not episode titles.
+        processed transiently; aggregate descriptive attributes and numerical
+        text embeddings are cached. Review excerpts are not displayed. If
+        model-assisted enrichment is enabled, Cloudflare Workers AI receives
+        bounded public synopsis and review passages without author names.
+        Private analysis may include spoilers; public recommendations use
+        controlled descriptions. Embeddings use spoiler-filtered passages.
+        Personal lists, ratings, accounts, and reactions are not sent to the
+        model. Optional reasons you add to a reaction are saved with that
+        reaction. Episode enrichment stores aggregate filler and recap flags,
+        not episode titles.
       </p>
       <p>
         On Cloudflare, saved site reactions also contribute to small aggregate
@@ -104,18 +118,19 @@
         the app server.
       </p>
       <p>
-        When an anime card is displayed, the app may fetch and cache its trailer
+        While preparing an anime card, the app may fetch and cache its trailer
         information from Tenrai to make Watch preview open faster. The Trailers
         and Images tabs retrieve additional public media information from
         Tenrai. Trailer thumbnails are fetched from YouTube through the app
-        server when you open the Trailers tab. Selecting a trailer loads
-        YouTube’s player API and its privacy-enhanced player. YouTube may
-        process playback and device information under its own privacy policy.
-        Cloudflare’s country code is used to filter trailer availability. It is
-        not sent to the media provider. Recent approximate location may also be
-        retained for owner analytics as described below. The player is not
-        loaded before you select a preview or trailer. Returning to the cover
-        pauses the player; changing anime or closing the page removes it.
+        server when you open the Trailers tab. Hovering over or focusing a
+        preview control may prepare YouTube’s player API. Selecting a trailer
+        loads its privacy-enhanced player. YouTube may process playback and
+        device information under its own privacy policy. Cloudflare’s country
+        code is used to filter trailer availability. It is not sent to the media
+        provider. Recent approximate location may also be retained for owner
+        analytics as described below. The player is not loaded before you select
+        a preview or trailer. Returning to the cover pauses the player; changing
+        anime or closing the page removes it.
       </p>
       <h2>Owner administration and operational analytics</h2>
       <p>
@@ -129,7 +144,8 @@
       <p>
         The hosted app records aggregate API request counts, errors, response
         timings and country counts, plus which signed-in accounts and anonymous
-        guest browsers were active. It retains the latest IP address and
+        guest browsers were active. It retains the latest reported browser
+        user-agent (including unverified automation hints), IP address and
         approximate country, region, city and timezone observed for a signed-in
         account or reporting guest browser for up to 30 days. Network details
         are encrypted at rest and shown only to authorized owners. Geolocation

@@ -136,10 +136,11 @@ test("sectioned settings and preferences preserve state, account controls and sa
     await act(async () => colorControl.click());
     assert.equal(current.settings.backgroundMatchAnime, false);
     assert.equal(document.querySelector(".apk-download"), null);
-    await section("Support");
-    assert.equal(document.querySelector("#support-title").textContent, "Support Anime Shuffle");
-    assert.match(document.querySelector(".support-unavailable").textContent, /aren’t available yet/);
-    assert.equal(document.querySelector(".support-checkout"), null);
+    const support = document.querySelector("a.footer-support");
+    assert.equal(support.href, "https://ko-fi.com/dc1818");
+    assert.equal(support.querySelector("svg"), null);
+    assert.equal(support.hasAttribute("target"), false);
+    assert.equal(document.querySelector("#support-title"), null);
     await change(".panel-mobile-select select", "appearance");
     assert.ok(document.querySelector('input[value="liquid"]').checked);
     await section("Account & MyAnimeList");
@@ -232,10 +233,6 @@ test("sectioned settings and preferences preserve state, account controls and sa
         .find((b) => b.textContent === "Done")
         .click(),
     );
-    assert.equal(document.querySelector("dialog"), null);
-    await act(async () => nav("support"));
-    assert.ok(document.querySelector("#support-title"));
-    await click('[aria-label="Close dialog"]');
     assert.equal(document.querySelector("dialog"), null);
     await act(async () => nav("preferences"));
     await section("Format & length");

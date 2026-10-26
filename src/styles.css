@@ -135,70 +135,20 @@ button.apk-download:disabled {
   border-radius: 12px;
   white-space: normal;
 }
-.android-app-sheet .android-app-.footer-support {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 44px;
-}
-.footer-support .icon {
-  width: 16px;
-  height: 16px;
-}
-.support-panel {
-  max-width: 520px;
-}
-.support-symbol {
-  display: inline-flex;
-  padding: 12px;
-  margin-bottom: 16px;
-  border-radius: 14px;
-  background: #20384d;
-  color: #a7d9fb;
-}
-.support-symbol .icon {
-  width: 28px;
-  height: 28px;
-}
-.support-card {
-  border: 1px solid #3b5369;
-  border-radius: 14px;
-  padding: 20px;
-  background: #182b3c;
-}
-.support-card h4 {
-  margin: 0 0 10px;
-  font-size: 17px;
-}
-.support-checkout {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 600;
-}
-.support-card small {
-  display: block;
-  margin-top: 12px;
-  color: #b6c6d7;
-  line-height: 1.6;
-}
-.dialog .support-unavailable {
-  margin-bottom: 0;
-  color: #d3e4f2;
-}
-.dialog .support-no-payment {
-  margin-top: 20px;
-}
-footer {
+.android-app-sheet .android-app-footer {
   font-size: 0.8rem;
   text-align: center;
   margin: 18px 0 0;
+}
+.footer-support {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.footer-support:focus-visible {
+  outline: 2px solid #7cddf4;
+  outline-offset: 4px;
+  border-radius: 3px;
 }
 @media (max-height: 500px) {
   .android-app-sheet {

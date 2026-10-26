@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { supportDestination } from "../src/lib/support.js";
 
-test("checkout stays unavailable until a secure provider page is configured", () => {
-  assert.equal(supportDestination(), null);
+test("checkout uses the owner page and rejects unsafe destinations", () => {
+  assert.deepEqual(supportDestination(), {
+    url: "https://ko-fi.com/dc1818",
+    provider: "Ko-fi",
+  });
   for (const value of [
     "",
     "not a URL",

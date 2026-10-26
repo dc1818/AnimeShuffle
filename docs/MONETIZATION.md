@@ -4,7 +4,7 @@ Researched October 26, 2026. This is an implementation and research note, not a 
 
 ## Donation setup
 
-The footer opens Settings → Support. The same destination is available from the desktop settings navigation and phone section selector. Until the owner supplies a verified payment page, the panel honestly says tips are unavailable and contains no checkout link.
+The footer and Settings footer now link directly, in the same tab, to the owner-provided https://ko-fi.com/dc1818. There is no intermediate support panel or heart icon. The page was reachable with the title “Support dc1818”; payment configuration and transactions have not been tested.
 
 Recommended provider: [Ko-fi](https://ko-fi.com/). Use voluntary one-time tips, without targets, memberships, exclusive content, paid badges, or improved recommendation access. This follows the narrow donation model described in MAL agreement §1(i); commercial authorization is a separate question.
 
@@ -17,7 +17,7 @@ Recommended provider: [Ko-fi](https://ko-fi.com/). Use voluntary one-time tips, 
 7. Put your actual public page URL in `SUPPORT_URL` in `src/lib/support.js`. Keep it empty until ownership is verified. Do not use a guessed username or someone else's page. Only public checkout URLs belong here, never API keys or payment credentials.
 8. Run `npm run build`, `npm run check`, and `node --test test/support.test.mjs test/settings-panels.test.mjs`; publish using the existing deployment workflow. If updating the separate GitHub Pages demo, also run `npm run build:pages` and include those generated assets.
 
-The checkout is an ordinary external link with `noopener noreferrer` and no-referrer policy. No third-party payment widget, payment API, webhook, card form, supporter identity synchronization, or tracking script is added. The processor may disclose donor transaction details to the creator; the privacy notice explains this. Do not call tips tax-deductible charitable donations.
+The checkout is an ordinary external link with `noreferrer` and no-referrer policy. No third-party payment widget, payment API, webhook, card form, supporter identity synchronization, or tracking script is added. The processor may disclose donor transaction details to the creator; the privacy notice explains this. Do not call tips tax-deductible charitable donations.
 
 Sources: [Ko-fi fees](https://help.ko-fi.com/hc/en-us/articles/360002506494-Does-Ko-fi-take-a-fee), [Contributor setting](https://help.ko-fi.com/hc/en-us/articles/25143210488477-Contributor-status), [Buy Me a Coffee fees](https://help.buymeacoffee.com/en/articles/10182730-what-is-buy-me-a-coffee-and-how-does-it-work).
 

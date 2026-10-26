@@ -1,6 +1,5 @@
-// Public checkout URL only. Set this after the owner creates and verifies their
-// donation page. Never put API keys or payment credentials in browser code.
-export const SUPPORT_URL = "";
+// Owner-provided public checkout URL. Never put payment credentials here.
+export const SUPPORT_URL = "https://ko-fi.com/dc1818";
 
 export function supportDestination(value = SUPPORT_URL) {
   try {

@@ -270,8 +270,7 @@ export function Dialogs({
       onClose={onClose}
     >
       <SettingsPanel
-        key={kind === "support" ? "support" : "settings"}
-        initialSection={kind === "support" ? "support" : settingsSection}
+        initialSection={settingsSection}
         state={state}
         store={store}
         onNavigate={onNavigate}

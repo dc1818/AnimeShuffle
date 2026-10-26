@@ -6,6 +6,7 @@ import { RecommendationExposure } from "./components/RecommendationExposure.jsx"
 import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { SupportLink } from "./components/SupportLink.jsx";
 import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
 import {
@@ -564,9 +565,8 @@ function ConnectedApp({ store, state }) {
         </button>
         <a href="./privacy.html">Privacy policy</a>
         <a href="./terms.html">Terms</a>
-        <button className="footer-support" onClick={() => setDialog("support")}>
-          <Icon name="heart" /> Support Anime Shuffle
-        </button>
+        <a href="./how-it-works.html">How it works</a>
+        <SupportLink />
         <span id="mode-label">
           {state.preview
             ? "Preview · 7 sample anime"

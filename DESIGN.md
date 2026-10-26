@@ -1,6 +1,6 @@
 # Anime Shuffle interface
 
-Optional support uses a quiet heart-and-label footer button and a Support section in the existing Settings panel (including its phone selector). Keep the established navy/blue surfaces, native dialog dismissal, 44px controls and readable text. Support is voluntary, with no goals, paid perks or influence on rankings. A verified public payment URL enables an external checkout link; absent configuration shows an honest unavailable message. Never insert a guessed recipient, payment widget, tracking script or automatic donation prompt.
+Optional support is a plain text link to the owner's Ko-fi page in the app footer and Settings footer. It navigates directly in the same tab, without a heart icon or intermediate dialog. Retain keyboard focus and 44px link height. The public How it works page uses the existing navy/cyan palette and readable responsive text. No payment widgets, tracking scripts or donation prompts.
 
 Preserve the existing dark navy surfaces, blue actions, anime artwork and cover-derived Aurora backgrounds. Aurora, Liquid light and Comet drift are intentional brand exceptions to generic no-gradient guidance. Respect the animation/off preference, reduced motion and software-rendering fallback.
 

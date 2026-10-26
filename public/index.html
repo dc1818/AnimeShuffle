@@ -3,11 +3,26 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Anime Shuffle — Find your next anime</title>
+    <title>Anime Shuffle — Anime recommendations & discovery</title>
     <meta
       name="description"
-      content="Discover anime, share your taste, and build your Plan to Watch list."
+      content="Find your next anime with recommendations that learn from what you like. Discover shows, build a watchlist, and optionally connect MyAnimeList."
     />
+    <link rel="canonical" href="https://animeshuffle.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anime Shuffle" />
+    <meta property="og:title" content="Anime Shuffle — Find your next anime" />
+    <meta
+      property="og:description"
+      content="Anime recommendations based on what you enjoy. Discover shows, react to picks, and build your watchlist without scoring every anime."
+    />
+    <meta property="og:url" content="https://animeshuffle.com/" />
+    <meta
+      property="og:image"
+      content="https://animeshuffle.com/assets/app-icon-512.png"
+    />
+    <meta property="og:image:alt" content="Anime Shuffle app icon" />
+    <meta name="twitter:card" content="summary" />
     <meta name="theme-color" content="#0d151b" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,7 +36,11 @@
     <div id="root">
       <div class="service-start" role="status">Loading Anime Shuffle…</div>
     </div>
-    <noscript>Enable JavaScript to use Anime Shuffle.</noscript>
+    <noscript
+      >Anime Shuffle helps you discover anime and build a watchlist from what
+      you enjoy. Enable JavaScript to use the app, or
+      <a href="./how-it-works.html">read how Anime Shuffle works</a>.</noscript
+    >
     <script type="module" src="./app.js"></script>
   </body>
 </html>
