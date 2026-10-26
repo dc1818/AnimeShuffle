@@ -77,6 +77,21 @@ export function AnimeCard({
     unreleased: isUnreleased(anime),
     onReact,
   });
+  const info = useRef(null);
+  useEffect(() => {
+    if (compact || !info.current || typeof ResizeObserver === "undefined") return;
+    const fit = () => {
+      const synopsis = info.current?.querySelector(".synopsis");
+      if (!synopsis) return;
+      const line = parseFloat(getComputedStyle(synopsis).lineHeight) || 20;
+      const available = Math.max(0, info.current.getBoundingClientRect().bottom - synopsis.getBoundingClientRect().top);
+      synopsis.style.maxHeight = `${Math.floor(available / line) * line}px`;
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(info.current);
+    fit();
+    return () => observer.disconnect();
+  }, [anime.id, compact]);
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [sampled, setSampled] = useState(null);
@@ -199,7 +214,7 @@ export function AnimeCard({
         )}
       </div>
       <div className="card-content">
-        <div className={compact ? "card-info-contents" : "discover-info"} key={anime.id}>
+        <div ref={info} className={compact ? "card-info-contents" : "discover-info"} key={anime.id}>
         {!compact && <p className="swipe-guide">Swipe the artwork</p>}
         <div className="anime-summary">
           {compact ? (

@@ -9474,3 +9474,11 @@ dialog.details-card.details-modal,
  .comparison-priority button { min-height:32px; }
  .comparison-queue { margin-bottom:2px; }
 }
+/* Keep primary metadata readable before allocating the synopsis remainder. */
+.discover-card .discover-info .runtime-estimate { display:none; }
+.discover-card .discover-info .release-status:not(.unreleased) { display:none; }
+.discover-card .discover-info .genre-groups { margin:2px 0; flex-shrink:0; }
+.discover-card .discover-info #anime-title { margin-bottom:4px; }
+@media(min-width:561px) and (max-height:800px) {
+ .discover-card .discover-info #anime-title { font-size:24px !important; }
+}
