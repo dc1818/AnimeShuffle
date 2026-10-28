@@ -45,12 +45,11 @@ export function DiscoverComparison({anime, saved = [], onSave, onPreferences}) {
   }
   if (!choice) return <section className="discover-comparison"><strong>Build your next-watch shortlist</strong><p>Save an anime with Would watch to unlock quick comparisons here.</p><button type="button" onClick={onPreferences}>Explore your viewing preferences</button></section>;
   const {kind,a,b} = choice;
-  const headings = ['Which would you start first?', 'Where would you place this one?', 'What would you pair this with?', 'Which lineup would you choose?'];
+  const headings = ['Which would you start first?', null, 'What would you pair this with?', 'Which lineup would you choose?'];
   return <section className="discover-comparison" aria-label="Optional watchlist comparison" aria-hidden={!ready} style={{visibility: ready ? "visible" : "hidden"}}>
     <header><strong>{headings[kind]}</strong><span>Optional</span></header>
     <div className={'comparison-options variant-'+kind}>
       {kind === 0 && <>{tile(anime,'This pick',[anime],'head')}{tile(a,'Your watchlist',[a],'head')}</>}
-      {kind === 1 && <><div className="comparison-queue comparison-queue-covers">{[a,b].map((item,index) => <div key={item.id} title={primaryTitle(item)}>{cover(item)}<span><small>{index === 0 ? "Before" : "After"}</small><strong>{primaryTitle(item)}</strong></span></div>)}</div><div className="comparison-priority">{[['Before both',[anime]],['Between them',[a,anime]],['After both',[a,b]]].map(([label,selected]) => <button key={label} disabled={busy} onClick={() => choose(selected,'priority')}>{label}</button>)}</div></>}
       {kind === 2 && <>{tile(a,'Pair with this pick',[a],'companion')}{tile(b,'Pair with this pick',[b],'companion')}</>}
       {kind === 3 && <>{tile(a,'This pick +',[a],'lineup')}{tile(b,'This pick +',[b],'lineup')}</>}
     </div>

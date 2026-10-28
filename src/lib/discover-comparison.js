@@ -10,6 +10,6 @@ export function comparisonChoices(anime, saved, variant) {
   const others = [...new Map(saved.filter(a => a.id !== anime.id).map(a => [a.id,a])).values()];
   if (!others.length) return null;
   const [a,b] = others;
-  const kind = b ? variant % 4 : 0;
+  const kind = b ? [0, 2, 3][variant % 3] : 0;
   return {kind, a, b};
 }

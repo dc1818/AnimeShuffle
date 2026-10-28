@@ -6,7 +6,7 @@ const anime = id => ({id,title:'Anime '+id,genres:['Action']});
 test('comparisons exclude self and need enough distinct saved titles for each variant',()=>{
  assert.equal(comparisonChoices(anime(1),[anime(1)],0),null);
  assert.equal(comparisonChoices(anime(1),[anime(2),anime(2)],3).kind,0);
- for(let i=0;i<4;i++) assert.equal(comparisonChoices(anime(1),[anime(2),anime(3)],i).kind,i);
+ for(let i=0;i<30;i++) assert.equal(comparisonChoices(anime(1),[anime(2),anime(3)],i).kind,[0,2,3][i%3]);
 });
 test('bounded interest is never a dislike, rating or accumulating duplicate vote',()=>{
  const comparisons=normalizeComparisons([{anime:anime(2)}, {anime:anime(2)}, {anime:{id:-1,title:'bad'}}]);

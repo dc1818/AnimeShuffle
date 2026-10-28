@@ -7,7 +7,7 @@ import {build} from 'esbuild';
 import {JSDOM} from 'jsdom';
 import React,{act} from 'react';
 import {createRoot} from 'react-dom/client';
-test('priority question renders covers only after both load; failed or missing covers hide it',async()=>{
+test('comparison question renders covers only after both load; failed or missing covers hide it',async()=>{
  const dir=await mkdtemp(path.resolve('.comparison-test-'));
  await build({entryPoints:['src/components/DiscoverComparison.jsx'],outfile:path.join(dir,'component.mjs'),bundle:true,platform:'node',format:'esm',jsx:'automatic',packages:'external'});
  const {DiscoverComparison}=await import(pathToFileURL(path.join(dir,'component.mjs')));
@@ -23,7 +23,8 @@ test('priority question renders covers only after both load; failed or missing c
   await act(async()=>root.render(React.createElement(DiscoverComparison,{key:1,anime:anime(1),saved:[anime(2),anime(3)]})));
   let section=document.querySelector('.discover-comparison');
   assert.equal(section.style.visibility,'visible');
-  assert.equal(section.querySelectorAll('.comparison-queue-covers img').length,2);
+  assert.equal(section.textContent.includes('Where would you place this one?'),false);
+  assert.equal(section.querySelectorAll('.comparison-choice img').length,2);
   failure=true;
   await act(async()=>root.render(React.createElement(DiscoverComparison,{key:2,anime:anime(1),saved:[anime(2),anime(3)]})));
   assert.equal(document.querySelector('.discover-comparison').style.visibility,'hidden');
