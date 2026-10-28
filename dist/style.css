@@ -9563,3 +9563,9 @@ button:hover { box-shadow:none; }
  .discover-card .discover-info .genre-group { gap:5px; }
  .discover-card .discover-info #anime-title { font-size:20px !important; }
 }
+@media(max-width:560px) {
+ .discover-card .discover-info .genre-group { flex-wrap:nowrap; align-items:center; gap:5px; }
+ .discover-card .discover-info .genre-group-label { flex-basis:50px; }
+ .discover-card .discover-info .genre-groups { gap:3px; }
+ .discover-card .discover-info .genre-group .genre { padding:2px 5px; }
+}
