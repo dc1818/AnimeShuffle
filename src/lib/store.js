@@ -92,6 +92,7 @@ export function createAnimeStore({
   let preferenceVersion = 0;
   let preferencesUnsynced = false;
   let viewingPreferencesBefore = null;
+  let pendingComparison = null;
   let state = {
     session: {},
     profile: null,
@@ -1056,6 +1057,15 @@ export function createAnimeStore({
     }, 80);
     prefetchTimer.unref?.();
   }
+  function commitComparison(entry) {
+    const draft = pendingComparison;
+    pendingComparison = null;
+    if (!draft || draft.animeId !== entry.anime.id || draft.generation !== sessionGeneration) return;
+    entry.comparisonsBefore = state.preferences.comparisons || [];
+    const preferences = normalizePreferences({ ...state.preferences, comparisons: [...entry.comparisonsBefore, ...draft.entries] });
+    entry.comparisonsAfter = preferences.comparisons;
+    update({ preferences });
+  }
   function recordHistory(entry) {
     history.push(entry);
     history = history.slice(-30);
@@ -1124,6 +1134,7 @@ export function createAnimeStore({
     recommendationEvents?.record(anime.id, action, {
       surface: target ? "recommendations" : "discover",
     });
+    if (!target) commitComparison(entry);
     entry.after = state.reactions[anime.id];
     await persist();
     try {
@@ -1221,7 +1232,9 @@ export function createAnimeStore({
   }
   /** Server receipts authorize Undo only for entries created by this session. */
   async function undo(id = null) {
-    if (state.busy || !history.length) return;
+    if (state.busy) return;
+    pendingComparison = null;
+    if (!history.length) return;
     // React click events are not IDs. Targeted Undo never pops another row’s vote.
     const targeted = Number.isInteger(id);
     const index = targeted
@@ -1255,6 +1268,9 @@ export function createAnimeStore({
         message = "Local reaction undone. " + error.message;
       }
     }
+    if (entry.comparisonsBefore && sameData(state.preferences.comparisons, entry.comparisonsAfter)) {
+      update({ preferences: normalizePreferences({ ...state.preferences, comparisons: entry.comparisonsBefore }) });
+    }
     recommendationEvents?.record(entry.anime.id, "undo");
     const reactions = { ...state.reactions };
     if (entry.skip) {
@@ -1284,14 +1300,16 @@ export function createAnimeStore({
   }
   async function skip() {
     if (state.busy || !state.current) return;
-    recordHistory({
+    const entry = {
       anime: state.current,
       reason: state.reason,
       discoveryLabel: state.discoveryLabel,
       detailReason: state.detailReason,
       whyReasons: state.whyReasons,
       skip: true,
-    });
+    };
+    commitComparison(entry);
+    recordHistory(entry);
     const id = state.current.id;
     recommendationEvents?.record(id, "skip", { surface: "discover" });
     skipUntil = {
@@ -1299,7 +1317,7 @@ export function createAnimeStore({
       [id]: now() + SKIP_COOLDOWN_MS,
     };
     // Save immediately, before fetching the next card or leaving the page.
-    void persist(false);
+    void persist();
     recent = [...recent, state.current].slice(-10);
     await next();
   }
@@ -1894,11 +1912,9 @@ export function createAnimeStore({
       if (!state.current || (eligible(before) && !eligible(state.preferences)))
         await next();
     },
-    async saveComparison(entries) {
-      const preferences = normalizePreferences({ ...state.preferences, comparisons: [...(state.preferences.comparisons || []), ...entries] });
-      if (state.session.account) await api("/api/account/preferences", { preferences });
-      update({ preferences });
-      if (!await persist()) throw new Error("Could not save preference");
+    saveComparison(entries, animeId = state.current?.id) {
+      if (state.busy || animeId !== state.current?.id) return;
+      pendingComparison = entries.length ? { animeId, entries, generation: sessionGeneration } : null;
     },
     async saveViewingPreferences(input) {
       const preferences = normalizePreferences(input);

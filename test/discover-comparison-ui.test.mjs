@@ -25,6 +25,15 @@ test('comparison question renders covers only after both load; failed or missing
   assert.equal(section.style.visibility,'visible');
   assert.equal(section.textContent.includes('Where would you place this one?'),false);
   assert.equal(section.querySelectorAll('.comparison-choice img').length,2);
+  const options=section.querySelectorAll('.comparison-choice');
+  await act(async()=>options[0].click());
+  assert.equal(options[0].getAttribute('aria-pressed'),'true');
+  assert.match(section.textContent,/Selected · pending/);
+  await act(async()=>options[1].click());
+  assert.equal(options[0].getAttribute('aria-pressed'),'false');
+  assert.equal(options[1].getAttribute('aria-pressed'),'true');
+  await act(async()=>options[1].click());
+  assert.equal(options[1].getAttribute('aria-pressed'),'false');
   failure=true;
   await act(async()=>root.render(React.createElement(DiscoverComparison,{key:2,anime:anime(1),saved:[anime(2),anime(3)]})));
   assert.equal(document.querySelector('.discover-comparison').style.visibility,'hidden');

@@ -1486,3 +1486,26 @@ test("new local registration migrates guest saves and preferences with a durable
     "watch",
   );
 });
+
+test('Discover comparison is pending until each reaction or Skip, and Undo removes it', async () => {
+  for (const action of ['good', 'bad', 'watch', 'nope', 'skip']) {
+    const storage = memory();
+    const store = createAnimeStore({storage, browserBackup:null, request:async()=>Response.json({configured:false,connected:false})});
+    await store.initialize();
+    await store.savePreferences({});
+    const id=store.getSnapshot().current.id;
+    const entries=[{anime:{...anime,id:999999},kind:'head'}];
+    store.saveComparison(entries,id);
+    assert.deepEqual(store.getSnapshot().preferences.comparisons,[]);
+    assert.deepEqual(JSON.parse(storage.getItem('anime-shuffle:guest')).preferences.comparisons,[]);
+    if(action==='skip') await store.skip(); else await store.react(action);
+    assert.equal(store.getSnapshot().preferences.comparisons[0].anime.id,999999,action);
+    assert.equal(JSON.parse(storage.getItem('anime-shuffle:guest')).preferences.comparisons.length,1);
+    // A new card's pending choice must never be committed by Undo.
+    store.saveComparison([{anime:{...anime,id:888888},kind:'head'}]);
+    await store.undo();
+    assert.deepEqual(store.getSnapshot().preferences.comparisons,[]);
+    await store.skip();
+    assert.deepEqual(store.getSnapshot().preferences.comparisons,[]);
+  }
+});
