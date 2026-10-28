@@ -9578,3 +9578,14 @@ button:hover { box-shadow:none; }
 @media(max-width:360px) {
  [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card { height:max(764px,calc(100svh - 66px)); }
 }
+.discover-comparison .comparison-queue-covers { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; height:100%; min-height:0; align-self:stretch; }
+.comparison-queue-covers > div { display:flex; align-items:center; gap:8px; min-width:0; min-height:0; }
+.comparison-queue-covers img { width:60px; height:100%; min-height:0; object-fit:contain; }
+.comparison-queue-covers span { min-width:0; }
+.comparison-queue-covers small { display:block; font-size:11px; color:#aebccb; }
+.comparison-queue-covers strong { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; font-size:12px; line-height:1.25; }
+@media(max-width:560px) {
+ .comparison-queue-covers img { width:40px; }
+ .comparison-queue-covers > div { gap:4px; }
+ .comparison-queue-covers strong { font-size:11px; }
+}
