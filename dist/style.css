@@ -9574,3 +9574,7 @@ button:hover { box-shadow:none; }
  [data-layout="familiar"] .discover-card .discover-info .genre-group .genres { margin:0 !important; }
  [data-layout="familiar"] .discover-card .discover-info .genre-group .genre { padding:2px 5px !important; line-height:14px !important; }
 }
+/* At very narrow widths the main reaction labels wrap, costing another row. */
+@media(max-width:360px) {
+ [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card { height:max(764px,calc(100svh - 66px)); }
+}
