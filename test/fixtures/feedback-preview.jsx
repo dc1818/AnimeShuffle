@@ -14,6 +14,9 @@ import { createRoot } from "react-dom/client";
 import { AnimeCard, AnimeDetails } from "../../src/components/AnimeCard.jsx";
 import { demo } from "../../src/lib/demo.js";
 const sizes = [
+  [280, 653], [294, 648], [333, 517], [412, 731],
+  [559, 667], [560, 667], [561, 667],
+  [899, 573], [900, 573], [901, 573], [1024, 600],
   [320, 640],
   [370, 648],
   [390, 844],

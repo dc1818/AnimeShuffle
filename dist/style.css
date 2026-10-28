@@ -9546,3 +9546,20 @@ dialog.details-card.details-modal,
 button:hover { box-shadow:none; }
 /* Keep the user's optional background modes, without the bright halo layer. */
 .ribbon-halo { display:none; }
+
+/* Narrow device emulation and breakpoint edges: keep labels readable. */
+.discover-comparison > footer { min-width:0; gap:4px; }
+.discover-comparison > footer button { flex-shrink:0; }
+.discover-comparison > footer span { flex:1 1 0; min-width:0; max-width:none; overflow-wrap:anywhere; font-size:10px; }
+@media(max-width:360px) {
+ .discover-comparison .comparison-choice { flex-direction:column; justify-content:flex-start; gap:3px; padding:3px; }
+ .discover-comparison .comparison-choice img { height:76px; width:100%; flex:0 0 76px; }
+ .discover-comparison .comparison-choice > span { width:100%; padding:0 2px; text-align:center; }
+ .discover-comparison .comparison-choice small { display:none; }
+ .discover-comparison .comparison-choice strong { font-size:12px; line-height:1.2; -webkit-line-clamp:3; }
+ .discover-comparison > header strong { font-size:12px; }
+ .discover-comparison .comparison-priority { gap:3px; }
+ .discover-comparison .comparison-priority button { font-size:11px; padding:3px; min-width:0; }
+ .discover-card .discover-info .genre-group { gap:5px; }
+ .discover-card .discover-info #anime-title { font-size:20px !important; }
+}
