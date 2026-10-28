@@ -9482,3 +9482,32 @@ dialog.details-card.details-modal,
 @media(min-width:561px) and (max-height:800px) {
  .discover-card .discover-info #anime-title { font-size:24px !important; }
 }
+
+/* Use the reserved question space for artwork, not an empty bottom gutter. */
+.discover-comparison:has(> header) {
+ display:grid;
+ grid-template-rows:20px minmax(0,1fr) 28px;
+ gap:4px;
+}
+.discover-comparison > header { margin:0; padding:0; min-height:0; }
+.discover-comparison > header strong { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.discover-comparison > .comparison-options { height:100%; min-height:0; align-items:stretch; }
+.discover-comparison .comparison-choice { height:100%; min-height:0; padding:3px 6px; gap:10px; overflow:hidden; }
+.discover-comparison .comparison-choice img { height:100%; max-height:80px; width:54px; object-fit:contain; background:#0c202d; }
+.discover-comparison .comparison-choice strong { font-size:14px; -webkit-line-clamp:3; }
+.discover-comparison .comparison-choice small { font-size:11px; margin-bottom:3px; }
+.discover-comparison > footer { margin:0; padding:0; min-height:0; align-self:stretch; }
+.discover-comparison > footer button { min-height:28px; margin:0; }
+.discover-comparison > footer span { line-height:1.15; text-align:center; }
+.discover-comparison .comparison-options.variant-1 { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) 40px; gap:3px; }
+.discover-comparison .comparison-queue { margin:0; align-self:center; }
+.discover-comparison .comparison-priority { min-height:0; }
+@media(max-width:560px) {
+ .discover-comparison:has(> header) { grid-template-rows:18px minmax(0,1fr) 28px; gap:2px; }
+ .discover-comparison .comparison-choice { padding:2px 4px; gap:6px; }
+ .discover-comparison .comparison-choice img { width:36px; max-height:54px; }
+ .discover-comparison .comparison-choice strong { font-size:12px; -webkit-line-clamp:2; }
+ .discover-comparison .comparison-choice small { font-size:10px; margin-bottom:1px; }
+ .discover-comparison .comparison-options.variant-1 { grid-template-rows:minmax(0,1fr) 32px; gap:2px; }
+ .discover-comparison > header > span { display:none; }
+}
