@@ -9511,3 +9511,38 @@ dialog.details-card.details-modal,
  .discover-comparison .comparison-options.variant-1 { grid-template-rows:minmax(0,1fr) 32px; gap:2px; }
  .discover-comparison > header > span { display:none; }
 }
+
+/* Artwork-first questions: preserve the reserved space across every question. */
+.discover-comparison { flex-basis:220px !important; height:220px; border:0; border-top:1px solid #365365; border-radius:0; background:transparent; padding:10px 0 0; }
+.discover-comparison .comparison-choice { padding:0; gap:12px; border:0; border-radius:4px; background:#142b39; }
+.discover-comparison .comparison-choice img { width:96px; height:100%; max-height:none; object-fit:contain; border-radius:2px; }
+.discover-comparison .comparison-choice > span { padding-right:8px; }
+.discover-comparison .comparison-choice strong { font-size:15px; -webkit-line-clamp:4; }
+.discover-comparison .comparison-choice:hover { background:#204052; }
+.discover-comparison .comparison-options.variant-1 { grid-template-rows:minmax(0,1fr) 44px; }
+.discover-comparison .comparison-queue { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; font-size:14px; line-height:1.5; }
+[data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card { height:clamp(620px,calc(100svh - 130px),840px); }
+@media(max-width:900px) {
+ [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card { height:max(760px,calc(100svh - 100px)); }
+}
+@media(max-width:560px) {
+ [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card { height:max(740px,calc(100svh - 90px)); }
+ .discover-comparison { flex-basis:184px !important; height:184px; padding:8px 0 0; }
+ .discover-comparison .comparison-choice { gap:6px; }
+ .discover-comparison .comparison-choice img { width:64px; height:100%; max-height:none; }
+ .discover-comparison .comparison-choice strong { font-size:12px; -webkit-line-clamp:4; }
+ .discover-comparison .comparison-choice small { font-size:10px; }
+ .discover-comparison .comparison-queue { font-size:12px; }
+ .discover-comparison .comparison-options.variant-1 { grid-template-rows:minmax(0,1fr) 40px; }
+}
+/* Solid surfaces and restrained edges replace decorative glass and nested panels. */
+.topbar { background:#0a151e; backdrop-filter:none; }
+.media-badge { background:#0b1826; backdrop-filter:none; }
+.nav-button { border-radius:6px; }
+.nav-button.active { background:#193542; box-shadow:none; }
+.anime-card,.saved-card,.leaderboard-row { border-radius:8px; }
+.leaderboard-row { background:#101e29; }
+.dialog,.settings-panel,.preference-panel { border-radius:10px; }
+button:hover { box-shadow:none; }
+/* Keep the user's optional background modes, without the bright halo layer. */
+.ribbon-halo { display:none; }
