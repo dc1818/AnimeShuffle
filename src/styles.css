@@ -9569,3 +9569,8 @@ button:hover { box-shadow:none; }
  .discover-card .discover-info .genre-groups { gap:3px; }
  .discover-card .discover-info .genre-group .genre { padding:2px 5px; }
 }
+@media(max-width:560px) {
+ [data-layout="familiar"] .discover-card .discover-info .genre-groups { margin:2px 0 !important; gap:2px !important; }
+ [data-layout="familiar"] .discover-card .discover-info .genre-group .genres { margin:0 !important; }
+ [data-layout="familiar"] .discover-card .discover-info .genre-group .genre { padding:2px 5px !important; line-height:14px !important; }
+}
