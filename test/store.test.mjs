@@ -1509,3 +1509,22 @@ test('Discover comparison is pending until each reaction or Skip, and Undo remov
     assert.deepEqual(store.getSnapshot().preferences.comparisons,[]);
   }
 });
+
+test('comparison account writes wait for the Discover action and Undo syncs the removal', async () => {
+  const writes=[];
+  const store=createAnimeStore({storage:memory(),browserBackup:null,request:async(url,options)=>{
+    if(url==='/api/session') return Response.json({configured:false,connected:false,account:{id:'local:comparison'},preferences:{},onboardingComplete:true});
+    if(url==='/api/account/preferences') writes.push(JSON.parse(options.body).preferences);
+    return Response.json({});
+  }});
+  await store.initialize();
+  await store.savePreferences({});
+  writes.length=0;
+  store.saveComparison([{anime:{...anime,id:999999},kind:'head'}]);
+  assert.equal(writes.length,0);
+  await store.skip();
+  assert.equal(writes.at(-1).comparisons.length,1);
+  await store.undo();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(writes.at(-1).comparisons,[]);
+});

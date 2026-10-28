@@ -1057,6 +1057,21 @@ export function createAnimeStore({
     }, 80);
     prefetchTimer.unref?.();
   }
+  function syncComparisonPreferences() {
+    const preferences = state.preferences;
+    const accountId = state.session.account?.id;
+    if (!accountId) return;
+    const generation = sessionGeneration;
+    const version = ++preferenceVersion;
+    preferencesUnsynced = true;
+    preferenceWrites = preferenceWrites.catch(() => {}).then(async () => {
+      if (generation !== sessionGeneration) return;
+      await api("/api/account/preferences", { preferences });
+      if (generation === sessionGeneration && version === preferenceVersion) preferencesUnsynced = false;
+    }).catch(error => {
+      if (generation === sessionGeneration) notify("Comparison saved on this device, but account sync failed. " + error.message);
+    });
+  }
   function commitComparison(entry) {
     const draft = pendingComparison;
     pendingComparison = null;
@@ -1065,6 +1080,7 @@ export function createAnimeStore({
     const preferences = normalizePreferences({ ...state.preferences, comparisons: [...entry.comparisonsBefore, ...draft.entries] });
     entry.comparisonsAfter = preferences.comparisons;
     update({ preferences });
+    syncComparisonPreferences();
   }
   function recordHistory(entry) {
     history.push(entry);
@@ -1270,6 +1286,7 @@ export function createAnimeStore({
     }
     if (entry.comparisonsBefore && sameData(state.preferences.comparisons, entry.comparisonsAfter)) {
       update({ preferences: normalizePreferences({ ...state.preferences, comparisons: entry.comparisonsBefore }) });
+      syncComparisonPreferences();
     }
     recommendationEvents?.record(entry.anime.id, "undo");
     const reactions = { ...state.reactions };
