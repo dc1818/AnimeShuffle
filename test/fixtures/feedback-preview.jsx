@@ -28,6 +28,7 @@ const sizes = [
   [844, 390],
 ];
 function Fixture() {
+  const [synopsisLength, setSynopsisLength] = useState("normal");
   const [setupDone, setSetupDone] = useState(false);
   const [action, setAction] = useState("good"),
     [long, setLong] = useState(false),
@@ -145,6 +146,9 @@ function Fixture() {
             />
             Long title
           </label>
+          <label>Synopsis length <select aria-label="Synopsis length" value={synopsisLength} onChange={e=>setSynopsisLength(e.target.value)}>
+            <option value="normal">Normal</option><option value="short">Short</option><option value="long">Long</option>
+          </select></label>
           <button onClick={() => setDetails(true)}>Open details</button>
           <label>
             Displayed anime{" "}
@@ -214,10 +218,9 @@ function Fixture() {
           }
         >
           <AnimeCard
-            comparisonAnime={demo}
-            onComparison={async () => {}}
             anime={{
               ...demo[displayed],
+              ...(synopsisLength === "short" ? {synopsis:"A chance encounter changes everything."} : synopsisLength === "long" ? {synopsis:Array(15).fill(demo[displayed].synopsis).join(" ")} : {}),
               ...(long ? { title: anime.title, englishTitle: "" } : {}),
               ...(location.search.includes("category-labels")
                 ? {
@@ -269,6 +272,7 @@ function Fixture() {
               responsive
               anime={{
                 ...demo[displayed],
+              ...(synopsisLength === "short" ? {synopsis:"A chance encounter changes everything."} : synopsisLength === "long" ? {synopsis:Array(15).fill(demo[displayed].synopsis).join(" ")} : {}),
                 ...(long ? { title: anime.title, englishTitle: "" } : {}),
               }}
               reactions={

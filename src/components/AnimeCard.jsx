@@ -1,4 +1,3 @@
-import { DiscoverComparison } from "./DiscoverComparison.jsx";
 import { normalizeFeedback } from "../lib/reaction-feedback.js";
 import { GenreBadges } from "./GenreBadges.jsx";
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
@@ -85,7 +84,9 @@ export function AnimeCard({
       if (!synopsis) return;
       const line = parseFloat(getComputedStyle(synopsis).lineHeight) || 20;
       const available = Math.max(0, info.current.getBoundingClientRect().bottom - synopsis.getBoundingClientRect().top);
-      synopsis.style.maxHeight = `${Math.floor(available / line) * line}px`;
+      const lines = Math.floor(available / line);
+      synopsis.style.maxHeight = `${lines * line}px`;
+      synopsis.style.webkitLineClamp = String(Math.max(1, lines));
     };
     const observer = new ResizeObserver(fit);
     observer.observe(info.current);
@@ -270,7 +271,6 @@ export function AnimeCard({
           {synopsisText(anime.synopsis) || "No synopsis available."}
         </p>
         </div>
-        {!compact && <DiscoverComparison key={`comparison-${anime.id}`} anime={anime} saved={comparisonAnime} onSave={onComparison} onPreferences={onPreferences} />}
         <div className={!compact || onWhy ? "discover-links" : undefined}>
           <button
             id={compact ? `details-toggle-${anime.id}` : "details-toggle"}

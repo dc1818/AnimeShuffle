@@ -15,6 +15,7 @@ export function AnimeMedia({ anime, kind, active }) {
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState(null);
+  const [unavailable, setUnavailable] = useState(null);
 
   useEffect(() => {
     if (!active || data) return;
@@ -55,11 +56,17 @@ export function AnimeMedia({ anime, kind, active }) {
             title={`${anime.title} · ${selected.title}`}
             active={active}
             onUnavailable={(id) => {
+              setUnavailable(id);
               blockTrailer(id);
               setSelected(null);
             }}
           />
         )}
+        {unavailable && <p role="status" className="media-note">
+          This trailer was removed, restricted, or cannot be embedded here.{' '}
+          <a href={`https://www.youtube.com/watch?v=${unavailable}`} target="_blank" rel="noopener noreferrer">Check on YouTube</a>
+          {' '}or choose another trailer.
+        </p>}
         {data.trailers.some((t) => !blocked.has(t.videoId)) ? (
           <div className="media-trailers" aria-label="Available trailers">
             {data.trailers
@@ -70,7 +77,7 @@ export function AnimeMedia({ anime, kind, active }) {
                   aria-pressed={selected?.videoId === t.videoId}
                   onPointerEnter={() => loadYouTubeAPI().catch(() => {})}
                   onFocus={() => loadYouTubeAPI().catch(() => {})}
-                  onClick={() => setSelected(t)}
+                  onClick={() => { setUnavailable(null); setSelected(t); }}
                 >
                   <span className="media-trailer-frame">
                     <MediaImage

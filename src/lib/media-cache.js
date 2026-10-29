@@ -36,7 +36,9 @@ export function loadMedia(id, kind = "trailer") {
           cache: "no-store",
         });
         if (!response.ok) {
-          const error = Error("Media couldn’t load. Please try again.");
+          const error = Error(response.status === 403
+            ? "The media request was blocked. Please try again or open this anime on MyAnimeList."
+            : "Media couldn’t load. Please try again.");
           error.retryable =
             response.status >= 500 || [408, 429].includes(response.status);
           throw error;
@@ -67,7 +69,9 @@ export function loadMedia(id, kind = "trailer") {
       throw Error(
         err.name === "AbortError"
           ? "Media took too long to load. Please try again."
-          : err.message,
+          : err instanceof TypeError
+            ? "The media service could not be reached. Check your connection or content blocker, then try again."
+            : err.message,
       );
     })
     .finally(() => {

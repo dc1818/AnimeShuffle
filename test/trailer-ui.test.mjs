@@ -74,8 +74,8 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     assert.equal(calls, 1);
     assert.equal(document.querySelector(".watch-preview").disabled, false);
     assert.match(
-      document.querySelector(".watch-preview").textContent,
-      /Watch preview/,
+      document.querySelector(".watch-preview").getAttribute("aria-label"),
+      /Preview Anime 1/,
     );
     await act(async () => new Promise((resolve) => setTimeout(resolve, 130)));
     assert.equal(calls, 1);

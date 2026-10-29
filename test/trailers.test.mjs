@@ -150,3 +150,14 @@ test("pictures prefer a large WebP over a standard JPEG", () => {
   const large = "https://cdn.myanimelist.net/images/anime/4/19644l.webp";
   assert.deepEqual(normalizePictures({data: [{jpg: {image_url: small}, webp: {large_image_url: large}}]}), {pictures: [{image: large, thumbnail: small}]});
 });
+
+
+test("an upstream 404 is retryable, not cached as absent media", async () => {
+ let calls=0;
+ const service=createTrailerService({fetcher:async()=>++calls===1
+  ? new Response("Not found",{status:404})
+  : Response.json({data:{promo:[{title:"PV",trailer:{youtube_id:"abcdefghijk",region_restriction:null}}]}})});
+ await assert.rejects(service.get(77));
+ assert.equal((await service.get(77)).trailers.length,1);
+ assert.equal(calls,2);
+});
