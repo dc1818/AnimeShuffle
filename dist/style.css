@@ -9607,8 +9607,8 @@ button:hover { box-shadow:none; }
   height:clamp(520px,calc(100svh - 210px),680px);
 }
 .discover-card .discover-info { justify-content:flex-start; }
-.discover-card .discover-info .synopsis {
-  flex:0 1 auto; margin:12px 0 0; -webkit-line-clamp:unset;
+[data-layout="familiar"] .cards-layout.discover-layout .discover-card .discover-info .synopsis {
+  flex:0 0 auto; margin:12px 0 0; -webkit-line-clamp:3;
 }
 @media(max-width:900px) {
  [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card { height:clamp(660px,calc(100svh - 120px),800px); }

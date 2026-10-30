@@ -10,7 +10,7 @@ import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useId, useRef, useState } from "react";
 import { Icon } from "./Icon.jsx";
 import { synopsisText } from "../lib/synopsis.js";
 import { useDiscoverSwipe } from "./useDiscoverSwipe.js";
@@ -77,22 +77,35 @@ export function AnimeCard({
     onReact,
   });
   const info = useRef(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (compact || !info.current || typeof ResizeObserver === "undefined") return;
+    const region = info.current;
     const fit = () => {
-      const synopsis = info.current?.querySelector(".synopsis");
+      const synopsis = region.querySelector(".synopsis");
       if (!synopsis) return;
-      const line = parseFloat(getComputedStyle(synopsis).lineHeight) || 20;
-      const available = Math.max(0, info.current.getBoundingClientRect().bottom - synopsis.getBoundingClientRect().top);
+      const style = getComputedStyle(synopsis);
+      const regionStyle = getComputedStyle(region);
+      const line = parseFloat(style.lineHeight) || 20;
+      const bottomSpace = (parseFloat(style.marginBottom) || 0)
+        + (parseFloat(regionStyle.paddingBottom) || 0)
+        + (parseFloat(regionStyle.borderBottomWidth) || 0);
+      const available = Math.max(0, region.getBoundingClientRect().bottom - synopsis.getBoundingClientRect().top - bottomSpace);
       const lines = Math.floor(available / line);
-      synopsis.style.maxHeight = `${lines * line}px`;
+      // Let line-clamp size complete line boxes. A pixel max-height plus flex
+      // shrinking can slice the last line, especially after a title wraps.
+      synopsis.style.maxHeight = lines ? "none" : "0px";
       synopsis.style.webkitLineClamp = String(Math.max(1, lines));
     };
     const observer = new ResizeObserver(fit);
-    observer.observe(info.current);
+    observer.observe(region);
+    // The region stays fixed while titles, badges or preference labels change.
+    // Observe those too so their new height updates the available line count.
+    for (const child of region.children) {
+      if (!child.classList.contains("synopsis")) observer.observe(child);
+    }
     fit();
     return () => observer.disconnect();
-  }, [anime.id, compact]);
+  });
   const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [sampled, setSampled] = useState(null);
