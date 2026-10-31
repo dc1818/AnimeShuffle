@@ -1,3 +1,4 @@
+import { loadPublicMedia } from "./public-media.js";
 import { catalogPreview, normalizeTrailerResponse } from "./media-data.js";
 // Shared public metadata only. A card and its details panel join one lookup.
 // Successful lookups survive tab changes; transient failures are always retryable.
@@ -121,6 +122,25 @@ export function loadMedia(id, kind = "trailer") {
           signal: controller.signal,
           cache: "no-store",
         });
+        if (response.status === 429) {
+          const context = await response.json().catch(() => ({}));
+          try {
+            data = await loadPublicMedia(
+              id,
+              kind,
+              context.mediaCountry,
+              controller.signal,
+            );
+            break;
+          } catch (error) {
+            error.retryable = false;
+            error.retryAfterMs = Math.max(
+              error.retryAfterMs || 0,
+              (Number(response.headers.get("Retry-After")) || 60) * 1000,
+            );
+            throw error;
+          }
+        }
         if (!response.ok) {
           const error = Error(
             response.status === 403

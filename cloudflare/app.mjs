@@ -16,6 +16,7 @@ import {
   createCatalogModel,
   createCatalogAnalyzer,
 } from "../lib/catalog-model.mjs";
+import { countryCode } from "../lib/media-region.mjs";
 import { createProviderFetch } from "../lib/provider-fetch.mjs";
 import { createTrailerService } from "../lib/trailers.mjs";
 import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
@@ -1202,6 +1203,13 @@ export function createCloudApp(
             error: error.status
               ? error.message
               : "Cloud storage or configuration is unavailable. Check the Cloudflare deployment settings.",
+            ...(error.code === "media_rate_limited"
+              ? {
+                  mediaCountry: countryCode(
+                    req.headers.get("X-AnimeShuffle-Country"),
+                  ),
+                }
+              : {}),
             code:
               error.code ||
               (error.status ? "server_error" : "backend_unavailable"),

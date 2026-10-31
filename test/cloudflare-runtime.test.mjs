@@ -332,10 +332,15 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       releaseMetadata();
       await pendingMetadata;
     }
-    const rateLimited = await call("/api/trailer/44");
+    const rateLimited = await mf.dispatchFetch(
+      "https://shuffle.example/api/trailer/44",
+      { cf: { country: "US" }, headers: { "X-AnimeShuffle-Country": "JP" } },
+    );
     assert.equal(rateLimited.status, 429);
     assert.equal(rateLimited.headers.get("Retry-After"), "45");
-    assert.equal((await rateLimited.json()).code, "media_rate_limited");
+    const rateBody = await rateLimited.json();
+    assert.equal(rateBody.code, "media_rate_limited");
+    assert.equal(rateBody.mediaCountry, "US");
     const beforeCooldown = requests.length;
     const coolingDown = await call("/api/trailer/45");
     assert.equal(coolingDown.status, 429);

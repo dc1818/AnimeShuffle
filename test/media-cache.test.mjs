@@ -147,7 +147,11 @@ test("rate-limited media honors provider cooldown without immediate retries", as
     assert.equal(value.fallback, true);
     assert.ok(value.retryAfterMs >= 44000);
     await prepareMedia(anime);
-    assert.equal(calls, 1);
+    assert.equal(
+      calls,
+      2,
+      "One backend read and one bounded public fallback; no repeated reads during cooldown",
+    );
   } finally {
     globalThis.fetch = original;
   }
