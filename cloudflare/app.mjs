@@ -16,6 +16,7 @@ import {
   createCatalogModel,
   createCatalogAnalyzer,
 } from "../lib/catalog-model.mjs";
+import { createProviderFetch } from "../lib/provider-fetch.mjs";
 import { createTrailerService } from "../lib/trailers.mjs";
 import { createCandidateCatalog } from "../lib/candidate-catalog.mjs";
 import { isPublicMetadataRequest } from "./public-routes.mjs";
@@ -68,6 +69,9 @@ export function createCloudApp(
   env,
   { fetcher = fetch, interval = 700, waitUntil = () => {} } = {},
 ) {
+  fetcher = createProviderFetch(fetcher, {
+    spacingMs: interval === 0 ? 0 : 650,
+  });
   const rowUsage = createRowUsage(storage, {
     backgroundReads: env.DB_BACKGROUND_READ_LIMIT ?? 3500000,
     backgroundWrites: env.DB_BACKGROUND_WRITE_LIMIT ?? 70000,
@@ -1204,6 +1208,8 @@ export function createCloudApp(
           },
           error.status || 503,
         );
+        if (Number.isFinite(error.retryAfter))
+          response.headers.set("Retry-After", String(error.retryAfter));
         if (setCookie) response.headers.set("Set-Cookie", setCookie);
         if (measured.header())
           response.headers.set("Server-Timing", measured.header());

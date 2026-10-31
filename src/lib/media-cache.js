@@ -42,6 +42,10 @@ export function prepareMedia(
               : [],
           })),
     fallback: true,
+    retryAfterMs: Math.max(
+      1000,
+      (quietUntil.get(key) || Date.now() + 30000) - Date.now(),
+    ),
   });
   if (!force && (quietUntil.get(key) || 0) > Date.now())
     return Promise.resolve(fallback());
@@ -53,10 +57,10 @@ export function prepareMedia(
       clearTimeout(timer);
       resolve(value);
     };
-    const recover = () => {
+    const recover = (error) => {
       if (quietUntil.size >= 200)
         quietUntil.delete(quietUntil.keys().next().value);
-      quietUntil.set(key, Date.now() + 30000);
+      quietUntil.set(key, Date.now() + (error?.retryAfterMs || 30000));
       finish(fallback());
     };
     const timer = setTimeout(recover, timeoutMs);
@@ -84,7 +88,7 @@ export function observeMedia(
     clearTimeout(retry);
     if (value.fallback && !retried) {
       retried = true;
-      retry = setTimeout(refresh, 30000);
+      retry = setTimeout(refresh, value.retryAfterMs || 30000);
     }
   };
   const refresh = () =>
@@ -123,8 +127,13 @@ export function loadMedia(id, kind = "trailer") {
               ? "The media request was blocked. Please try again or open this anime on MyAnimeList."
               : "Media couldn’t load. Please try again.",
           );
-          error.retryable =
-            response.status >= 500 || [408, 429].includes(response.status);
+          if (response.status === 429) {
+            error.retryAfterMs = Math.max(
+              1000,
+              (Number(response.headers.get("Retry-After")) || 60) * 1000,
+            );
+          }
+          error.retryable = response.status >= 500 || response.status === 408;
           throw error;
         }
         const raw = await response.json();
@@ -155,13 +164,15 @@ export function loadMedia(id, kind = "trailer") {
     return data;
   })()
     .catch((err) => {
-      throw Error(
+      const error = Error(
         err.name === "AbortError"
           ? "Media took too long to load. Please try again."
           : err instanceof TypeError
             ? "The media service could not be reached. Check your connection or content blocker, then try again."
             : err.message,
       );
+      if (err.retryAfterMs) error.retryAfterMs = err.retryAfterMs;
+      throw error;
     })
     .finally(() => {
       pending.delete(key);

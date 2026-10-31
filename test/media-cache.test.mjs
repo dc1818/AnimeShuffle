@@ -130,3 +130,25 @@ test("optional media quietly falls back with cooldown and retains late successfu
     globalThis.fetch = original;
   }
 });
+
+test("rate-limited media honors provider cooldown without immediate retries", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return new Response(null, {
+      status: 429,
+      headers: { "Retry-After": "45" },
+    });
+  };
+  try {
+    const anime = { id: 918299 };
+    const value = await prepareMedia(anime);
+    assert.equal(value.fallback, true);
+    assert.ok(value.retryAfterMs >= 44000);
+    await prepareMedia(anime);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

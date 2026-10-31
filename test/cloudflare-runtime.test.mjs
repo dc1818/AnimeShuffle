@@ -109,6 +109,11 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
         if (url.hostname === "api.tenrai.org") {
           assert.equal(request.headers.get("Authorization"), null);
           assert.equal(request.headers.get("X-MAL-CLIENT-ID"), null);
+          if (url.pathname === "/v1/anime/44/videos")
+            return new WorkerResponse("", {
+              status: 429,
+              headers: { "Retry-After": "45" },
+            });
           if (url.pathname === "/v1/anime/43/videos")
             return new WorkerResponse("", { status: 503 });
           if (url.pathname === "/v1/anime/43/full")
@@ -327,6 +332,18 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       releaseMetadata();
       await pendingMetadata;
     }
+    const rateLimited = await call("/api/trailer/44");
+    assert.equal(rateLimited.status, 429);
+    assert.equal(rateLimited.headers.get("Retry-After"), "45");
+    assert.equal((await rateLimited.json()).code, "media_rate_limited");
+    const beforeCooldown = requests.length;
+    const coolingDown = await call("/api/trailer/45");
+    assert.equal(coolingDown.status, 429);
+    assert.equal(
+      requests.length,
+      beforeCooldown,
+      "Provider cooldown is shared across titles",
+    );
     tokenRedirect = true;
     const before = requests.length;
     assert.equal(
