@@ -29,7 +29,11 @@ export function normalizeTrailerResponse(data) {
     throw Error("Trailer details couldn’t load. Please try again.");
   if (hasList && data.trailers.length && !trailers.length)
     throw Error("Trailer details couldn’t load. Please try again.");
-  return { videoId: trailers[0]?.videoId || null, trailers };
+  return {
+    videoId: trailers[0]?.videoId || null,
+    trailers,
+    ...(data.partial ? { partial: true } : {}),
+  };
 }
 export function catalogPreview(anime) {
   return anime.previewRegionChecked === true &&

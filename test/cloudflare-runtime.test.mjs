@@ -109,6 +109,19 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
         if (url.hostname === "api.tenrai.org") {
           assert.equal(request.headers.get("Authorization"), null);
           assert.equal(request.headers.get("X-MAL-CLIENT-ID"), null);
+          if (url.pathname === "/v1/anime/43/videos")
+            return new WorkerResponse("", { status: 503 });
+          if (url.pathname === "/v1/anime/43/full")
+            return WorkerResponse.json({
+              data: {
+                trailer: {
+                  youtube_id: "abcdefghijk",
+                  title: "Primary preview",
+                  region_restriction: { allowed: ["US"] },
+                  embeddable: true,
+                },
+              },
+            });
           if (url.pathname.endsWith("/videos"))
             return WorkerResponse.json({
               data: {
@@ -268,6 +281,21 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       (await fromJP.json()).trailers.map((t) => t.title),
       ["PV", "Japan only"],
     );
+    const recovered = await mf.dispatchFetch(
+      "https://shuffle.example/api/trailer/43",
+      { cf: { country: "US" } },
+    );
+    assert.equal(recovered.status, 200);
+    assert.deepEqual(await recovered.json(), {
+      videoId: "abcdefghijk",
+      trailers: [{ videoId: "abcdefghijk", title: "Primary preview" }],
+      partial: true,
+    });
+    const restricted = await mf.dispatchFetch(
+      "https://shuffle.example/api/trailer/43",
+      { cf: { country: "JP" } },
+    );
+    assert.equal((await restricted.json()).trailers.length, 0);
     const pictures = await call("/api/pictures/42");
     assert.equal(pictures.status, 200);
     assert.equal((await pictures.json()).pictures.length, 1);

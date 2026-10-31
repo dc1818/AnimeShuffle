@@ -67,7 +67,11 @@ test("missing promos return unavailable and failures remain retryable", async ()
   });
   await assert.rejects(flaky.get(2));
   await flaky.get(2);
-  assert.equal(attempts, 2);
+  assert.equal(
+    attempts,
+    3,
+    "Failed collection and primary fallback remain retryable",
+  );
 });
 
 test("media excludes blocked promos, duplicates and untrusted image hosts", () => {
@@ -148,16 +152,91 @@ test("pictures are cached independently and concurrent requests share a fetch", 
 test("pictures prefer a large WebP over a standard JPEG", () => {
   const small = "https://cdn.myanimelist.net/images/anime/4/19644.jpg";
   const large = "https://cdn.myanimelist.net/images/anime/4/19644l.webp";
-  assert.deepEqual(normalizePictures({data: [{jpg: {image_url: small}, webp: {large_image_url: large}}]}), {pictures: [{image: large, thumbnail: small}]});
+  assert.deepEqual(
+    normalizePictures({
+      data: [{ jpg: { image_url: small }, webp: { large_image_url: large } }],
+    }),
+    { pictures: [{ image: large, thumbnail: small }] },
+  );
 });
 
-
 test("an upstream 404 is retryable, not cached as absent media", async () => {
- let calls=0;
- const service=createTrailerService({fetcher:async()=>++calls===1
-  ? new Response("Not found",{status:404})
-  : Response.json({data:{promo:[{title:"PV",trailer:{youtube_id:"abcdefghijk",region_restriction:null}}]}})});
- await assert.rejects(service.get(77));
- assert.equal((await service.get(77)).trailers.length,1);
- assert.equal(calls,2);
+  let calls = 0;
+  const service = createTrailerService({
+    fetcher: async () =>
+      ++calls === 1
+        ? new Response("Not found", { status: 404 })
+        : Response.json({
+            data: {
+              promo: [
+                {
+                  title: "PV",
+                  trailer: {
+                    youtube_id: "abcdefghijk",
+                    region_restriction: null,
+                  },
+                },
+              ],
+            },
+          }),
+  });
+  await assert.rejects(service.get(77));
+  assert.equal((await service.get(77)).trailers.length, 1);
+  assert.equal(calls, 3);
+});
+
+test("failed video collections recover the actual primary trailer without dropping region restrictions", async () => {
+  const calls = [],
+    stored = [];
+  const service = createTrailerService({
+    publicStore: { get: () => null, set: (_, entry) => stored.push(entry) },
+    fetcher: async (url, options) => {
+      calls.push(url);
+      assert.equal(options.redirect, "manual");
+      if (url.endsWith("/videos")) return new Response("", { status: 503 });
+      assert.equal(url, "https://api.tenrai.org/v1/anime/123/full");
+      return Response.json({
+        data: {
+          trailer: {
+            youtube_id: "abcdefghijk",
+            title: "Actual PV",
+            region_restriction: { allowed: ["US"] },
+            embeddable: true,
+          },
+        },
+      });
+    },
+  });
+  const data = await service.get(123, "US");
+  assert.equal(data.videoId, "abcdefghijk");
+  assert.equal(data.trailers[0].title, "Actual PV");
+  assert.equal(data.partial, true);
+  assert.equal((await service.get(123, "JP")).trailers.length, 0);
+  assert.equal((await service.get(123)).trailers.length, 0);
+  assert.equal(
+    calls.length,
+    2,
+    "Primary fallback shares cache and pending work",
+  );
+  assert.ok(
+    stored[0].expires <= Date.now() + 60000,
+    "Partial lists must not hide the full collection for a day",
+  );
+});
+
+test("a primary trailer fallback never invents a video or accepts a forbidden embed", async () => {
+  for (const trailer of [
+    null,
+    { youtube_id: "javascript:foo" },
+    { youtube_id: "abcdefghijk", embeddable: false },
+    { youtube_id: "abcdefghijk", privacy_status: "private" },
+  ]) {
+    const service = createTrailerService({
+      fetcher: async (url) =>
+        url.endsWith("/videos")
+          ? new Response("", { status: 503 })
+          : Response.json({ data: { trailer } }),
+    });
+    await assert.rejects(service.get(124, "US"));
+  }
 });

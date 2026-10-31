@@ -122,8 +122,8 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     await act(async () => render(2));
     assert.equal(instance.destroyed, true);
     assert.equal(calls, 2);
-    assert.equal(document.querySelector(".watch-preview").hidden, true);
-    assert.equal(document.querySelector(".watch-preview").disabled, true);
+    assert.equal(document.querySelector(".watch-preview").hidden, false);
+    assert.equal(document.querySelector(".watch-preview").disabled, false);
     assert.equal(document.querySelector("iframe"), null);
     await act(async () => render(3));
     await act(async () => release());
@@ -160,7 +160,7 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
         finishMetadata = resolve;
       });
     await act(async () => render(20));
-    assert.equal(document.querySelector(".watch-preview").hidden, true);
+    assert.equal(document.querySelector(".watch-preview").hidden, false);
     assert.equal(document.querySelector("iframe"), null);
     await act(async () =>
       finishMetadata(Response.json({ videoId: "abcdefghijk" })),
@@ -168,8 +168,9 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     await act(async () => document.querySelector(".watch-preview").click());
     assert.match(document.querySelector("iframe").src, /abcdefghijk/);
     await act(async () => instances.at(-1).events.onError({ data: 5 }));
-    assert.equal(document.querySelector(".trailer-panel").hidden, true);
-    assert.equal(document.querySelector(".watch-preview").hidden, true);
+    assert.equal(document.querySelector(".trailer-panel"), null);
+    assert.equal(document.querySelector(".watch-preview").hidden, false);
+    assert.equal(document.querySelector(".watch-preview").disabled, false);
     assert.doesNotMatch(
       document.body.textContent,
       /couldn.t play|Retry player|couldn.t load/,

@@ -32,11 +32,11 @@ export function InlineTrailer({
   const [error, setError] = useState("");
   const [slow, setSlow] = useState(false);
   const recovered = useRef(false);
-  function recover() {
+  function recover(reason) {
     if (!unavailable.current) return false;
     if (recovered.current) return true;
     recovered.current = true;
-    unavailable.current(videoId);
+    unavailable.current(videoId, reason);
     return true;
   }
   useEffect(() => {
@@ -97,7 +97,7 @@ export function InlineTrailer({
             },
             onError: (event) => {
               if (!disposed) {
-                if (recover()) return;
+                if (recover(event.data)) return;
                 setError(playbackError(event.data));
                 setStatus("error");
               }
@@ -109,7 +109,7 @@ export function InlineTrailer({
       })
       .catch((err) => {
         if (!disposed) {
-          if (recover()) return;
+          if (recover("network")) return;
           setError(err.message);
           setStatus("error");
         }
@@ -133,7 +133,7 @@ export function InlineTrailer({
     setSlow(false);
     if (!active || !waiting) return;
     const timer = setTimeout(() => {
-      if (!recover()) setSlow(true);
+      if (!recover("timeout")) setSlow(true);
     }, 15000);
     return () => clearTimeout(timer);
   }, [videoId, active, waiting, attempt]);

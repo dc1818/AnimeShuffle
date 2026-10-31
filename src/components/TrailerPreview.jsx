@@ -3,7 +3,7 @@ import {
   useBlockedTrailers,
 } from "../lib/playback-availability.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { cachedMedia, prepareMedia } from "../lib/media-cache.js";
+import { cachedMedia, prepareMedia, observeMedia } from "../lib/media-cache.js";
 import { loadYouTubeAPI } from "../lib/youtube.js";
 import { preparedPreview } from "../lib/card-media.js";
 import { catalogPreview } from "../lib/media-data.js";
@@ -15,7 +15,7 @@ export function TrailerPreview({ anime, eager = true }) {
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState(
     () =>
-      preparedPreview(anime) || cachedMedia(anime.id) || catalogPreview(anime),
+      cachedMedia(anime.id) || catalogPreview(anime) || preparedPreview(anime),
   );
   const [started, setStarted] = useState(false);
   const mounted = useRef(false),
@@ -23,10 +23,10 @@ export function TrailerPreview({ anime, eager = true }) {
     closeButton = useRef(null),
     wasOpened = useRef(false);
   const load = useCallback(
-    () =>
+    (options) =>
       (catalogPreview(anime) && !blocked.has(anime.previewVideoId)
         ? Promise.resolve(cachedMedia(anime.id) || catalogPreview(anime))
-        : prepareMedia(anime)
+        : prepareMedia(anime, "trailer", options)
       ).then((data) => {
         if (mounted.current) {
           setResult(data);
@@ -36,16 +36,18 @@ export function TrailerPreview({ anime, eager = true }) {
     [anime.id, anime.previewVideoId, anime.previewRegionChecked, blocked],
   );
   const warm = useCallback(() => {
-    // Keep the prepared cover-only choice stable until explicit playback.
-    if (!result) void load();
+    if (!result || result.fallback) void load();
   }, [load, result]);
   useEffect(() => {
     mounted.current = true;
-    if (eager && !result) warm();
+    const stop = observeMedia(anime, "trailer", setResult, {
+      start: eager && (!result || !!result.fallback),
+    });
     return () => {
       mounted.current = false;
+      stop();
     };
-  }, [warm, eager]);
+  }, [anime.id, eager]);
   useEffect(() => {
     if (open) closeButton.current?.focus();
     else if (wasOpened.current) trigger.current?.focus();
@@ -56,12 +58,18 @@ export function TrailerPreview({ anime, eager = true }) {
     setStarted(true);
     // Start API boot and metadata lookup together on this explicit playback click.
     loadYouTubeAPI().catch(() => {});
-    const data = await load();
+    const data = await load({ force: true });
     if (mounted.current && !data.trailers.some((t) => !blocked.has(t.videoId)))
       setOpen(false);
   }
   const video = result?.trailers.find((t) => !blocked.has(t.videoId))?.videoId;
-  function unavailable(id) {
+  function unavailable(id, reason) {
+    if (![100, 101, 150].includes(reason)) {
+      // A stalled player or transient playback error does not remove a trailer.
+      setOpen(false);
+      setStarted(false);
+      return;
+    }
     blockTrailer(id);
     setResult(null);
     prepareMedia(anime).then((data) => {
@@ -82,14 +90,18 @@ export function TrailerPreview({ anime, eager = true }) {
         onClick={play}
         onPointerEnter={warm}
         onFocus={warm}
-        disabled={!video && eager}
-        aria-busy={(eager || started) && !result}
+        disabled={!!result && !result.fallback && !video}
+        aria-busy={(eager || started) && (!result || !!result.fallback)}
         aria-expanded={open}
-        hidden={open || (!!result && !video) || (eager && !video)}
+        hidden={open}
       >
-        <span className="artwork-play" aria-hidden="true">
-          ▶
-        </span>
+        {!result || result.fallback || video ? (
+          <span className="artwork-play" aria-hidden="true">
+            ▶
+          </span>
+        ) : (
+          <span className="artwork-unavailable">No preview</span>
+        )}
       </button>
       {started && (
         <div

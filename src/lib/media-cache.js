@@ -3,7 +3,8 @@ import { catalogPreview, normalizeTrailerResponse } from "./media-data.js";
 // Successful lookups survive tab changes; transient failures are always retryable.
 const cache = new Map(),
   pending = new Map(),
-  quietUntil = new Map();
+  quietUntil = new Map(),
+  listeners = new Map();
 export function cachedMedia(id, kind = "trailer") {
   const key = `${kind}:${id}`,
     entry = cache.get(key);
@@ -22,11 +23,11 @@ export function preparePreview(anime, options) {
 }
 /** Optional media must not turn a provider outage into a blocked discovery flow.
  * Keep fallback results separate from confirmed absence. A late successful read
- * still warms the real cache; mounted cards retain a stable presentation. */
+ * updates mounted consumers too, so a temporary fallback never hides real media. */
 export function prepareMedia(
   anime,
   kind = "trailer",
-  { timeoutMs = 1800 } = {},
+  { timeoutMs = 12000, force = false } = {},
 ) {
   const key = `${kind}:${anime.id}`,
     cached = cachedMedia(anime.id, kind);
@@ -42,7 +43,7 @@ export function prepareMedia(
           })),
     fallback: true,
   });
-  if ((quietUntil.get(key) || 0) > Date.now())
+  if (!force && (quietUntil.get(key) || 0) > Date.now())
     return Promise.resolve(fallback());
   return new Promise((resolve) => {
     let settled = false;
@@ -64,6 +65,41 @@ export function prepareMedia(
       finish(value);
     }, recover);
   });
+}
+// Follow shared late results and make one quiet recovery attempt while mounted.
+// A timeout is provisional, never a confirmed empty media collection.
+export function observeMedia(
+  anime,
+  kind,
+  listener,
+  { start = true, timeoutMs } = {},
+) {
+  const key = `${kind}:${anime.id}`;
+  let current = true,
+    retry,
+    retried = false;
+  const receive = (value) => {
+    if (!current) return;
+    listener(value);
+    clearTimeout(retry);
+    if (value.fallback && !retried) {
+      retried = true;
+      retry = setTimeout(refresh, 30000);
+    }
+  };
+  const refresh = () =>
+    prepareMedia(anime, kind, { timeoutMs }).then((value) => {
+      if (current) receive(cachedMedia(anime.id, kind) || value);
+    });
+  if (!listeners.has(key)) listeners.set(key, new Set());
+  listeners.get(key).add(receive);
+  if (start) void refresh();
+  return () => {
+    current = false;
+    clearTimeout(retry);
+    listeners.get(key)?.delete(receive);
+    if (!listeners.get(key)?.size) listeners.delete(key);
+  };
 }
 export function loadMedia(id, kind = "trailer") {
   const key = `${kind}:${id}`,
@@ -108,9 +144,14 @@ export function loadMedia(id, kind = "trailer") {
       data,
       expires:
         Date.now() +
-        (data.trailers?.length || data.pictures?.length ? 86400000 : 3600000),
+        (data.partial
+          ? 60000
+          : data.trailers?.length || data.pictures?.length
+            ? 86400000
+            : 3600000),
     });
     if (cache.size > 100) cache.delete(cache.keys().next().value);
+    for (const listener of listeners.get(key) || []) listener(data);
     return data;
   })()
     .catch((err) => {

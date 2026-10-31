@@ -3,8 +3,8 @@ import {
   useBlockedTrailers,
 } from "../lib/playback-availability.js";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { cachedMedia, prepareMedia } from "../lib/media-cache.js";
-import { trailerThumbnail } from "../lib/media-data.js";
+import { cachedMedia, observeMedia } from "../lib/media-cache.js";
+import { catalogPreview, trailerThumbnail } from "../lib/media-data.js";
 import { imageSources } from "../lib/media-artwork.js";
 import { ArtworkFallback } from "./ArtworkFallback.jsx";
 import { InlineTrailer } from "./InlineTrailer.jsx";
@@ -13,7 +13,11 @@ import { loadYouTubeAPI } from "../lib/youtube.js";
 /** Prepare both media tabs when details opens; playback still needs a click. */
 export function AnimeMedia({ anime, kind, active }) {
   const blocked = useBlockedTrailers();
-  const [data, setData] = useState(() => cachedMedia(anime.id, kind));
+  const [data, setData] = useState(
+    () =>
+      cachedMedia(anime.id, kind) ||
+      (kind === "trailer" ? catalogPreview(anime) : null),
+  );
   const [selected, setSelected] = useState(null);
   const [unavailable, setUnavailable] = useState(null);
   const [visited, setVisited] = useState(active);
@@ -21,16 +25,7 @@ export function AnimeMedia({ anime, kind, active }) {
     if (active) setVisited(true);
   }, [active]);
 
-  useEffect(() => {
-    if (data) return;
-    let current = true;
-    prepareMedia(anime, kind).then((value) => {
-      if (current) setData(value);
-    });
-    return () => {
-      current = false;
-    };
-  }, [anime.id, kind, data]);
+  useEffect(() => observeMedia(anime, kind, setData), [anime.id, kind]);
   // Prepare metadata now; defer image downloads until a tab is visited.
   // Retain visited players and galleries when switching tabs.
   if (!active && !visited) return null;
@@ -54,7 +49,11 @@ export function AnimeMedia({ anime, kind, active }) {
             videoId={selected.videoId}
             title={`${anime.title} · ${selected.title}`}
             active={active}
-            onUnavailable={(id) => {
+            onUnavailable={(id, reason) => {
+              if (![100, 101, 150].includes(reason)) {
+                setSelected(null);
+                return;
+              }
               setUnavailable(id);
               blockTrailer(id);
               setSelected(
@@ -95,8 +94,12 @@ export function AnimeMedia({ anime, kind, active }) {
               ))}
           </div>
         ) : (
-          <div className="media-cover-fallback">
-            <MediaImage url={anime.image} alt={`${anime.title} artwork`} />
+          <div className="media-empty">
+            {data.fallback ? (
+              <p>Trailers</p>
+            ) : (
+              <p>No trailers are listed for playback here.</p>
+            )}
             <a
               href={
                 unavailable
