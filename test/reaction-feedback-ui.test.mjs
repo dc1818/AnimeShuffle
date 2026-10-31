@@ -300,7 +300,7 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
       removeEventListener() {},
     });
     const oldFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
+    globalThis.fetch = async (url) => url.includes("trailer") ? Response.json({videoId:null, trailers:[]}) :
       Response.json({ pictures: [{ image: "https://example.com/art.jpg" }] });
     try {
       await act(async () =>
@@ -314,6 +314,7 @@ test("feedback supports multiple categories, one-click likes, custom reasons and
         ),
       );
       await click("Images");
+      await act(async () => document.querySelector('.media-gallery img').dispatchEvent(new window.Event('load')));
       await click("View image 1 of 1");
       assert.ok(document.querySelector(".image-carousel-stage"));
       assert.deepEqual(

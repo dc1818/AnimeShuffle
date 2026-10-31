@@ -1,3 +1,4 @@
+import { resolvedMedia } from "./media-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
@@ -14,6 +15,7 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const restoreMedia = resolvedMedia(dom.window);
   document.documentElement.dataset.hosting = "pages";
   window.HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute("open", "");
@@ -353,6 +355,7 @@ test("Watchlist stays interactive during ranking; filters and revisits reuse sco
     await act(async () => root.unmount());
     delete globalThis.Worker;
     delete globalThis.IntersectionObserver;
+    restoreMedia();
     dom.window.close();
     await rm(folder, { recursive: true, force: true });
   }

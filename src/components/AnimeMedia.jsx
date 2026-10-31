@@ -2,13 +2,13 @@ import {
   blockTrailer,
   useBlockedTrailers,
 } from "../lib/playback-availability.js";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { cachedMedia, loadMedia } from "../lib/media-cache.js";
 import { trailerThumbnail } from "../lib/media-data.js";
 import { InlineTrailer } from "./InlineTrailer.jsx";
 import { loadYouTubeAPI } from "../lib/youtube.js";
 
-/** Tabs fetch metadata only when visited. Selecting a trailer starts YouTube. */
+/** Prepare both media tabs when details opens; playback still needs a click. */
 export function AnimeMedia({ anime, kind, active }) {
   const blocked = useBlockedTrailers();
   const [data, setData] = useState(() => cachedMedia(anime.id, kind));
@@ -16,9 +16,11 @@ export function AnimeMedia({ anime, kind, active }) {
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState(null);
   const [unavailable, setUnavailable] = useState(null);
+  const [visited, setVisited] = useState(active);
+  useEffect(() => { if (active) setVisited(true); }, [active]);
 
   useEffect(() => {
-    if (!active || data) return;
+    if (data) return;
     let current = true;
     setError("");
     loadMedia(anime.id, kind)
@@ -31,7 +33,10 @@ export function AnimeMedia({ anime, kind, active }) {
     return () => {
       current = false;
     };
-  }, [anime.id, kind, active, data, attempt]);
+  }, [anime.id, kind, data, attempt]);
+  // Prepare metadata now; defer image downloads until a tab is visited.
+  // Retain visited players and galleries when switching tabs.
+  if (!active && !visited) return null;
   if (!data)
     return (
       <div className="media-empty" role="status">
@@ -72,7 +77,7 @@ export function AnimeMedia({ anime, kind, active }) {
             {data.trailers
               .filter((t) => !blocked.has(t.videoId))
               .map((t) => (
-                <button
+                <MediaTile
                   key={t.videoId}
                   aria-pressed={selected?.videoId === t.videoId}
                   onPointerEnter={() => loadYouTubeAPI().catch(() => {})}
@@ -89,7 +94,7 @@ export function AnimeMedia({ anime, kind, active }) {
                     </span>
                   </span>
                   <span className="media-trailer-title">{t.title}</span>
-                </button>
+                </MediaTile>
               ))}
           </div>
         ) : (
@@ -195,7 +200,7 @@ function ImageGallery({ anime, pictures, active }) {
       {view === "gallery" ? (
         <div className="media-gallery">
           {pictures.map((p, i) => (
-            <button
+            <MediaTile
               key={p.image}
               aria-label={`View image ${i + 1} of ${count}`}
               onClick={() => {
@@ -209,7 +214,7 @@ function ImageGallery({ anime, pictures, active }) {
                   alt={`${anime.title} artwork ${i + 1}`}
                 />
               </span>
-            </button>
+            </MediaTile>
           ))}
         </div>
       ) : (
@@ -291,9 +296,53 @@ function ImageGallery({ anime, pictures, active }) {
   );
 }
 
+const TileReadiness = createContext(null);
+function MediaTile({ children, ...props }) {
+  const [loaded, setLoaded] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  return <div className="media-tile" aria-busy={loaded === false}>
+    <TileReadiness.Provider key={attempt} value={setLoaded}>
+      <button {...props} disabled={loaded !== true} style={{ visibility: loaded === true ? undefined : "hidden" }}>{children}</button>
+      {loaded !== true && <span className="media-tile-status" role="status">
+        {loaded === "failed" ? <>Thumbnail unavailable <button onClick={() => { setLoaded(false); setAttempt(n => n + 1); }}>Retry image</button></> : "Loading image…"}
+      </span>}
+    </TileReadiness.Provider>
+  </div>;
+}
 function MediaImage({ url, alt }) {
+  const tileReady = useContext(TileReadiness);
+  const image = useRef(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let current = true;
+    const element = image.current;
+    if (!element) return;
+    let done = false;
+    const finish = (ok) => {
+      if (!current || done) return;
+      done = true;
+      clearTimeout(timer);
+      setLoaded(ok);
+      setFailed(!ok);
+      tileReady?.(ok ? true : "failed");
+    };
+    const load = () => {
+      const decoded = element.decode ? element.decode() : Promise.resolve();
+      decoded.then(() => finish(true), () => finish(false));
+    };
+    const error = () => finish(false);
+    const timer = setTimeout(error, 12000);
+    element.addEventListener("load", load);
+    element.addEventListener("error", error);
+    if (element.complete && element.naturalWidth) load();
+    return () => {
+      current = false;
+      clearTimeout(timer);
+      element.removeEventListener("load", load);
+      element.removeEventListener("error", error);
+    };
+  }, [url, tileReady]);
   return (
     <span className="media-image" aria-busy={!failed && !loaded}>
       {!failed && !loaded && (
@@ -305,14 +354,13 @@ function MediaImage({ url, alt }) {
         <span className="media-image-error">Image unavailable</span>
       ) : (
         <img
+          ref={image}
           src={`/api/image?url=${encodeURIComponent(url)}`}
           alt={alt}
           draggable={false}
-          loading="lazy"
+          loading="eager"
           decoding="async"
           className={loaded ? "is-loaded" : ""}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
         />
       )}
     </span>

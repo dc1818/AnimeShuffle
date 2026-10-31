@@ -7,7 +7,7 @@ import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 
-test("details lazily load galleries, preserve paused trailers across tabs and reset on new anime", async () => {
+test("details prepare both galleries, wait for thumbnails, preserve paused trailers and reset on new anime", async () => {
   const folder = await mkdtemp(path.resolve(".react-test-")),
     outfile = path.join(folder, "Media.mjs");
   await build({
@@ -81,10 +81,16 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
     );
   try {
     await act(async () => render(1));
-    assert.equal(calls.length, 0);
+    assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     await act(async () => tab("Trailers").click());
-    assert.deepEqual(calls, ["/api/trailer/1"]);
+    assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     assert.equal(document.querySelector("iframe"), null);
+    const tiles = [...document.querySelectorAll(".media-tile > button")];
+    assert.ok(tiles.every(tile => tile.disabled && tile.style.visibility === "hidden"));
+    await act(async () => {
+      for (const tile of tiles) tile.querySelector("img").dispatchEvent(new window.Event("load"));
+    });
+    assert.ok(tiles.every(tile => !tile.disabled && tile.style.visibility === ""));
     await act(async () =>
       document.querySelector(".media-trailers button").click(),
     );
@@ -92,6 +98,9 @@ test("details lazily load galleries, preserve paused trailers across tabs and re
       player = players[0];
     await act(async () => player.events.onReady({ target: player }));
     await act(async () => tab("Images").click());
+    await act(async () => {
+      for (const image of document.querySelectorAll('.media-gallery img')) image.dispatchEvent(new window.Event('load'));
+    });
     assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     assert.equal(player.pauses, 1);
     assert.equal(document.querySelectorAll(".media-gallery button").length, 3);

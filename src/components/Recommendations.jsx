@@ -4,7 +4,8 @@ import {
 } from "../lib/recommendation-access.js";
 import { RecommendationExposure } from "./RecommendationExposure.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
-import { preparePreview } from "../lib/media-cache.js";
+import { prepareCardMedia } from "../lib/card-media.js";
+import { MediaReady } from "./MediaReady.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
@@ -369,9 +370,9 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                       aria-expanded={expanded}
                       aria-controls={panelId}
                       onPointerEnter={() =>
-                        preparePreview(pick.anime).catch(() => {})
+                        prepareCardMedia(pick.anime).catch(() => {})
                       }
-                      onFocus={() => preparePreview(pick.anime).catch(() => {})}
+                      onFocus={() => prepareCardMedia(pick.anime).catch(() => {})}
                       onClick={() => {
                         setOpened(expanded ? null : pick.anime.id);
                         setAbout(null);
@@ -418,6 +419,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                   >
                     {expanded && (
                       <>
+                        <MediaReady anime={pick.anime}>
                         <AnimeCard
                           anime={pick.anime}
                           selectedGenres={
@@ -481,6 +483,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                             store.react(action, pick.anime);
                           }}
                         />
+                        </MediaReady>
                         {about === pick.anime.id && (
                           <AnimeDetails
                             modal

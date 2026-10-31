@@ -1,3 +1,4 @@
+import { resolvedMedia } from "./media-fixture.mjs";
 import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -15,11 +16,13 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
   const dom = new JSDOM("<html></html>", { url: "http://localhost/" });
   globalThis.document = dom.window.document;
   globalThis.window = dom.window;
+  const restoreMedia = resolvedMedia(dom.window);
   try {
     await build({
-      entryPoints: ["src/App.jsx", "src/components/Recommendations.jsx"],
+      entryPoints: ["src/App.jsx", "src/components/Recommendations.jsx", "src/lib/card-media.js"],
       outdir: dir,
       bundle: true,
+      splitting: true,
       platform: "node",
       format: "esm",
       jsx: "automatic",
@@ -39,6 +42,8 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
     seedRecommendationHistory(store);
     await store.loadRecommendations();
     const original = store.getSnapshot();
+    const { prepareCardMedia } = await import(pathToFileURL(path.join(dir, "lib/card-media.mjs")));
+    await Promise.all([original.current, ...original.recommendationPicks.map(pick => pick.anime)].map(prepareCardMedia));
     const current = original.current;
     const picks = original.recommendationPicks;
     for (const [Component, extra, label] of [
@@ -89,6 +94,7 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
     assert.doesNotMatch(idle, /role="progressbar"/);
     assert.doesNotMatch(idle, /class="reaction good" disabled/);
   } finally {
+    restoreMedia();
     delete globalThis.document;
     delete globalThis.window;
     dom.window.close();

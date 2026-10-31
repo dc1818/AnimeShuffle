@@ -3259,6 +3259,10 @@ main.wide-main {
   background: #10212d;
   overflow: hidden;
 }
+.media-tile { position: relative; min-width: 0; }
+.media-tile > button { width: 100%; }
+.media-tile-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; font-size: 12px; text-align: center; }
+.card-media-loading { width: 100%; min-height: 240px; }
 .media-image img {
   display: block;
   width: 100%;

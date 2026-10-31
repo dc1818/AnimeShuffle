@@ -1,3 +1,4 @@
+import { resolvedMedia } from "./media-fixture.mjs";
 import { seedRecommendationHistory } from "./recommendation-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -44,6 +45,7 @@ for (const [staticMode, android] of [
     ])
       globalThis[name] = dom.window[name];
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const restoreMedia = resolvedMedia(dom.window);
     if (android)
       Object.defineProperty(dom.window.navigator, "userAgent", {
         value:
@@ -424,6 +426,7 @@ for (const [staticMode, android] of [
       );
     } finally {
       await act(async () => root.unmount());
+      restoreMedia();
       dom.window.close();
       await rm(folder, { recursive: true, force: true });
     }
@@ -455,6 +458,12 @@ test("returning focus preserves a Discover card even when MAL adds it during bac
   ])
     globalThis[name] = dom.window[name];
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const restoreMedia = resolvedMedia(dom.window);
+  const resolvedFetch = globalThis.fetch;
+  const pendingMedia = [];
+  globalThis.fetch = (url, options) => String(url).startsWith('/api/trailer/')
+    ? new Promise(resolve => pendingMedia.push(resolve))
+    : resolvedFetch(url, options);
   let clock = 100000,
     entries = [],
     reads = 0;
@@ -501,6 +510,17 @@ test("returning focus preserves a Discover card even when MAL adds it during bac
       root.render(React.createElement(App, { store }));
       await store.initialize();
     });
+    assert.equal(document.getElementById('anime-title'), null);
+    await act(async () => {
+      document.dispatchEvent(new window.KeyboardEvent('keydown', {key:'1', bubbles:true}));
+      document.dispatchEvent(new window.KeyboardEvent('keydown', {key:'i', bubbles:true}));
+    });
+    assert.equal(Object.keys(store.getSnapshot().reactions).length, 0, 'shortcuts cannot rate a hidden card');
+    assert.equal(document.querySelector('.details-card'), null);
+    await act(async () => {
+      globalThis.fetch = resolvedFetch;
+      for (const resolve of pendingMedia) resolve(Response.json({videoId:null, trailers:[]}));
+    });
     const displayed = store.getSnapshot().current;
     const card = document.getElementById("anime-title");
     assert.ok(card);
@@ -531,7 +551,8 @@ test("returning focus preserves a Discover card even when MAL adds it during bac
     assert.notEqual(store.getSnapshot().current?.id, displayed.id);
   } finally {
     await act(async () => root.unmount());
-    dom.window.close();
+    restoreMedia();
+      dom.window.close();
     await rm(folder, { recursive: true, force: true });
   }
 });

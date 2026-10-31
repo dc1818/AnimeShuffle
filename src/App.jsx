@@ -1,3 +1,4 @@
+import { MediaReady } from "./components/MediaReady.jsx";
 import { usePageNavigation } from "./lib/page-navigation.js";
 import { AmbientBackground } from "./components/AmbientBackground.jsx";
 import { AndroidAppPrompt } from "./components/AndroidAppPrompt.jsx";
@@ -166,12 +167,13 @@ function ConnectedApp({ store, state }) {
       const action = { 1: "good", 2: "bad", 3: "watch", 4: "nope" }[event.key];
       if (action) {
         event.preventDefault();
+        if (!document.querySelector(".discover-card")) return;
         store.react(action);
       } else if (event.code === "Space") {
         event.preventDefault();
         store.skip();
       } else if (event.key.toLowerCase() === "u") store.undo();
-      else if (event.key.toLowerCase() === "i") setDetails((value) => !value);
+      else if (event.key.toLowerCase() === "i" && document.querySelector(".discover-card")) setDetails((value) => !value);
     }
     document.addEventListener("keydown", keydown);
     return () => document.removeEventListener("keydown", keydown);
@@ -438,6 +440,7 @@ function ConnectedApp({ store, state }) {
                 <div
                   className={`cards-layout discover-layout ${details ? "expanded" : ""}`}
                 >
+                  <MediaReady key={`${state.current.id}:${state.current.image || ""}`} anime={state.current} onSkip={store.skip}>
                   <RecommendationExposure
                     className="discovery-exposure"
                     animeId={state.current.id}
@@ -479,6 +482,7 @@ function ConnectedApp({ store, state }) {
                       dynamic={state.settings.dynamic}
                     />
                   </RecommendationExposure>
+                  </MediaReady>
                   {details && (
                     <AnimeDetails
                       initialTab={details === "why" ? "why" : "synopsis"}

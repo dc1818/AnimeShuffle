@@ -1,5 +1,5 @@
 import { normalizeFeedback } from "./reaction-feedback.js";
-import { preparePreview } from "./media-cache.js";
+import { prepareCardMedia } from "./card-media.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { createRecommendationEvents } from "./recommendation-events.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
@@ -484,7 +484,7 @@ export function createAnimeStore({
   }
   function warmPreview(anime) {
     if (!state.preview && typeof window !== "undefined" && anime)
-      void preparePreview(anime).catch(() => {});
+      void prepareCardMedia(anime).catch(() => {});
   }
   let tasteCheckedAt = 0;
   async function refreshTasteMetadata(force = false) {
