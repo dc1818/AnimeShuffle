@@ -86,11 +86,18 @@ test("details prepare both galleries, wait for thumbnails, preserve paused trail
     assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     assert.equal(document.querySelector("iframe"), null);
     const tiles = [...document.querySelectorAll(".media-tile > button")];
-    assert.ok(tiles.every(tile => tile.disabled && tile.style.visibility === "hidden"));
+    assert.ok(
+      tiles.every(
+        (tile) => tile.disabled && tile.style.visibility === "hidden",
+      ),
+    );
     await act(async () => {
-      for (const tile of tiles) tile.querySelector("img").dispatchEvent(new window.Event("load"));
+      for (const tile of tiles)
+        tile.querySelector("img").dispatchEvent(new window.Event("load"));
     });
-    assert.ok(tiles.every(tile => !tile.disabled && tile.style.visibility === ""));
+    assert.ok(
+      tiles.every((tile) => !tile.disabled && tile.style.visibility === ""),
+    );
     await act(async () =>
       document.querySelector(".media-trailers button").click(),
     );
@@ -99,7 +106,8 @@ test("details prepare both galleries, wait for thumbnails, preserve paused trail
     await act(async () => player.events.onReady({ target: player }));
     await act(async () => tab("Images").click());
     await act(async () => {
-      for (const image of document.querySelectorAll('.media-gallery img')) image.dispatchEvent(new window.Event('load'));
+      for (const image of document.querySelectorAll(".media-gallery img"))
+        image.dispatchEvent(new window.Event("load"));
     });
     assert.deepEqual(calls, ["/api/trailer/1", "/api/pictures/1"]);
     assert.equal(player.pauses, 1);
@@ -232,7 +240,11 @@ test("details prepare both galleries, wait for thumbnails, preserve paused trail
       1,
       "Rejected trailer is removed from the list",
     );
-    assert.equal(document.querySelector("iframe"), null);
+    assert.match(
+      document.querySelector("iframe").src,
+      /abcdefghijk/,
+      "Remaining trailer starts automatically",
+    );
 
     await act(async () => render(2));
     assert.equal(players[1].destroyed, true);

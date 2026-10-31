@@ -1,5 +1,6 @@
 import { normalizeFeedback } from "./reaction-feedback.js";
 import { prepareCardMedia } from "./card-media.js";
+import { prepareArtwork } from "./media-artwork.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { createRecommendationEvents } from "./recommendation-events.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
@@ -484,7 +485,7 @@ export function createAnimeStore({
   }
   function warmPreview(anime) {
     if (!state.preview && typeof window !== "undefined" && anime)
-      void prepareCardMedia(anime).catch(() => {});
+      void prepareCardMedia(anime, { priority: "low" }).catch(() => {});
   }
   let tasteCheckedAt = 0;
   async function refreshTasteMetadata(force = false) {
@@ -1661,6 +1662,8 @@ export function createAnimeStore({
             const full = result.value;
             mergePool(full);
             verified.push(full);
+            if (typeof window !== "undefined" && window.Image)
+              void prepareArtwork(full.image, { priority: "low" });
             if (
               isEligible(
                 full,
@@ -1689,11 +1692,24 @@ export function createAnimeStore({
         await yieldToBrowser();
       }
       if (generation !== sessionGeneration) return;
+      const preparedPicks = rankRecommendations(verified, {
+        ...recommendationRankingState(),
+        metadata: pool,
+      });
+      // Covers are already warming during detail verification. Complete this
+      // bounded batch before publishing so thumbnails don't arrive piecemeal.
+      if (typeof window !== "undefined" && window.Image) {
+        update({ recommendationProgress: null });
+        await Promise.all([
+          ...preparedPicks.map(({ anime }) =>
+            prepareArtwork(anime.image, { priority: "low" }),
+          ),
+          ...(preparedPicks[0] ? [prepareCardMedia(preparedPicks[0].anime)] : []),
+        ]);
+      }
+      if (generation !== sessionGeneration) return;
       update({
-        recommendationPicks: rankRecommendations(verified, {
-          ...recommendationRankingState(),
-          metadata: pool,
-        }),
+        recommendationPicks: preparedPicks,
         recommendationPreferences: state.preferences,
         recommendationPool: verified,
         recommendationsReady: true,

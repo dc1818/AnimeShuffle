@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { prepareCardMedia, cardMediaReady } from "../src/lib/card-media.js";
-test("a card waits for decoded cover and preview; errors remain retryable and valid no-trailer results can display", async () => {
+test("a card waits for decoded cover and preview; failures recover to decoded alternate artwork or native fallback", async () => {
   const old = {
     window: globalThis.window,
     document: globalThis.document,
@@ -38,17 +38,39 @@ test("a card waits for decoded cover and preview; errors remain retryable and va
     release(Response.json({ videoId: null, trailers: [] }));
     await job;
     assert.equal(cardMediaReady(anime), true);
-    const failed = { ...anime, id: 987655 };
-    globalThis.fetch = async () =>
-      Response.json({ videoId: null, trailers: [] });
+    const failed = {
+      ...anime,
+      id: 987655,
+      image: anime.image.replace("2.jpg", "3.jpg"),
+    };
+    globalThis.fetch = async () => new Response("", { status: 403 });
     const failure = prepareCardMedia(failed);
     images[1].onerror();
-    await assert.rejects(failure, /cover/);
+    assert.equal(
+      images[2].src,
+      failed.image,
+      "Proxy failure tries direct artwork",
+    );
     assert.equal(cardMediaReady(failed), false);
-    const retry = prepareCardMedia(failed);
-    await images[2].onload();
-    await retry;
+    images[2].onload();
+    const recovered = await failure;
+    assert.equal(recovered.artwork.source, failed.image);
+    assert.equal(recovered.preview.fallback, true);
     assert.equal(cardMediaReady(failed), true);
+    const missing = {
+      ...anime,
+      id: 987656,
+      image: anime.image.replace("2.jpg", "4.jpg"),
+    };
+    const fallback = prepareCardMedia(missing);
+    images[3].onerror();
+    images[4].onerror();
+    assert.equal((await fallback).artwork.source, null);
+    assert.equal(
+      cardMediaReady(missing),
+      true,
+      "Native SVG is ready without a download",
+    );
   } finally {
     Object.assign(globalThis, old);
   }

@@ -4,7 +4,11 @@ import {
   normalizeTrailerResponse,
   trailerThumbnail,
 } from "../src/lib/media-data.js";
-import { loadMedia } from "../src/lib/media-cache.js";
+import {
+  loadMedia,
+  prepareMedia,
+  cachedMedia,
+} from "../src/lib/media-cache.js";
 import { validProxyImage } from "../lib/media-images.mjs";
 import { validImage } from "../lib/mal.mjs";
 
@@ -77,4 +81,52 @@ test("thumbnail proxy permits only fixed YouTube thumbnail paths; cover validati
     "https://i.ytimg.com/anything-else.jpg",
   ])
     assert.equal(validProxyImage(url), false);
+});
+
+test("optional media quietly falls back with cooldown and retains late successful results", async () => {
+  const original = globalThis.fetch;
+  let calls = 0,
+    release;
+  try {
+    globalThis.fetch = async () => {
+      calls++;
+      return new Response("", { status: 403 });
+    };
+    const anime = {
+      id: 918204,
+      image: "cover.jpg",
+      previewVideoId: "abcdefghijk",
+      previewRegionChecked: true,
+    };
+    const fallback = await prepareMedia(anime);
+    assert.equal(fallback.fallback, true);
+    assert.equal(fallback.videoId, "abcdefghijk");
+    assert.equal(
+      cachedMedia(anime.id),
+      null,
+      "Failure is not cached as confirmed absence",
+    );
+    await prepareMedia(anime);
+    assert.equal(
+      calls,
+      1,
+      "Repeated hover/remount does not hammer a failed provider",
+    );
+    const pictures = await prepareMedia(anime, "pictures");
+    assert.equal(pictures.pictures[0].image, anime.image);
+    globalThis.fetch = () =>
+      new Promise((resolve) => {
+        release = resolve;
+      });
+    const slow = { id: 918205 };
+    const bounded = await prepareMedia(slow, "trailer", { timeoutMs: 5 });
+    assert.equal(bounded.fallback, true);
+    assert.equal(cachedMedia(slow.id), null);
+    release(Response.json({ videoId: "12345678901" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(cachedMedia(slow.id).videoId, "12345678901");
+    assert.equal((await prepareMedia(slow)).videoId, "12345678901");
+  } finally {
+    globalThis.fetch = original;
+  }
 });

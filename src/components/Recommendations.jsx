@@ -6,6 +6,7 @@ import { RecommendationExposure } from "./RecommendationExposure.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { prepareCardMedia } from "../lib/card-media.js";
 import { MediaReady } from "./MediaReady.jsx";
+import { ArtworkFallback } from "./ArtworkFallback.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingIndicator, pendingWorkLabel } from "./LoadingIndicator.jsx";
 import { Icon } from "./Icon.jsx";
@@ -384,16 +385,7 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                       >
                         {rank}
                       </span>
-                      {pick.anime.image && (
-                        <img
-                          className="leaderboard-cover"
-                          src={coverUrl(pick.anime)}
-                          alt=""
-                          width="32"
-                          height="44"
-                          loading={index > 4 ? "lazy" : "eager"}
-                        />
-                      )}
+                      <RecommendationCover key={`${pick.anime.id}:${pick.anime.image}`} anime={pick.anime} lazy={index > 4} />
                       <span className="leaderboard-title">
                         <AnimeTitle anime={pick.anime} />
                       </span>
@@ -520,4 +512,13 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
       )}
     </section>
   );
+}
+
+// Keep a prepared fallback stable while the list remains on screen.
+function RecommendationCover({ anime, lazy }) {
+  const [source, setSource] = useState(() => coverUrl(anime));
+  return source ? (
+    <img className="leaderboard-cover" src={source} alt="" width="32" height="44"
+      loading={lazy ? "lazy" : "eager"} onError={() => setSource(undefined)} />
+  ) : <span className="leaderboard-cover"><ArtworkFallback /></span>;
 }

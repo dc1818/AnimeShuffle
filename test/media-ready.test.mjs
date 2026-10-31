@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 
-test("no card/exposure before cover decode and preview; switching, failures, retry and no-media are safe", async () => {
+test("no card/exposure before cover decode and preview; switching and silent fallback recovery are safe", async () => {
   const dir = await mkdtemp(path.resolve(".react-test-"));
   const outfile = path.join(dir, "gate.mjs");
   await build({
@@ -96,24 +96,37 @@ test("no card/exposure before cover decode and preview; switching, failures, ret
       "stale request cannot reveal current card",
     );
     await act(async () => images[2].onerror());
-    assert.match(document.body.textContent, /cover could not load/);
-    const button = (text) =>
-      [...document.querySelectorAll("button")].find(
-        (b) => b.textContent === text,
-      );
-    await act(async () => button("Skip this anime").click());
-    assert.equal(skips, 1);
-    await act(async () => button("Retry media").click());
     assert.equal(document.querySelector("article"), null);
+    assert.doesNotMatch(
+      document.body.textContent,
+      /could not load|couldn.t load|Retry|Skip/,
+    );
     await act(async () => {
       images[3].onload();
       metadata(910003);
     });
+    assert.equal(
+      document.querySelector("article"),
+      null,
+      "Alternate image still must decode",
+    );
     await act(async () => images[3].decoded());
+    assert.equal(document.querySelector("article").textContent, "Card 910003");
+    await act(async () => render(910004));
+    await act(async () => {
+      images[4].onerror();
+      images[5].onerror();
+      metadata(910004);
+    });
     assert.equal(
       document.querySelector("article").textContent,
-      "Card 910003",
-      "confirmed no-trailer is ready",
+      "Card 910004",
+      "Native fallback cannot strand the card",
+    );
+    assert.equal(skips, 0, "Recovery preserves the recommended anime");
+    assert.doesNotMatch(
+      document.body.textContent,
+      /could not load|couldn.t load|Retry/,
     );
   } finally {
     await act(async () => root.unmount());

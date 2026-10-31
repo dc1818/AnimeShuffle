@@ -119,22 +119,12 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
       "Late playing events are paused behind cover",
     );
     await act(async () => document.querySelector(".watch-preview").click());
-    await act(async () => instance.events.onError({ data: 5 }));
-    assert.match(document.body.textContent, /couldn’t play/);
-    await act(async () =>
-      [...document.querySelectorAll("button")]
-        .find((b) => b.textContent === "Retry player")
-        .click(),
-    );
-    assert.equal(instance.destroyed, true);
-    assert.equal(instances.length, 2);
     await act(async () => render(2));
-    assert.equal(instances[1].destroyed, true);
-    await act(async () => new Promise((resolve) => setTimeout(resolve, 130)));
-    await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(calls, 2, "One click joins the pending metadata lookup");
-    assert.equal(document.querySelector(".trailer-panel").hidden, false);
-    assert.match(document.body.textContent, /Finding preview/);
+    assert.equal(instance.destroyed, true);
+    assert.equal(calls, 2);
+    assert.equal(document.querySelector(".watch-preview").hidden, true);
+    assert.equal(document.querySelector(".watch-preview").disabled, true);
+    assert.equal(document.querySelector("iframe"), null);
     await act(async () => render(3));
     await act(async () => release());
     assert.equal(
@@ -170,16 +160,19 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
         finishMetadata = resolve;
       });
     await act(async () => render(20));
-    assert.equal(document.querySelector(".watch-preview").disabled, false);
-    await act(async () => document.querySelector(".watch-preview").click());
-    assert.equal(document.querySelector(".trailer-panel").hidden, false);
+    assert.equal(document.querySelector(".watch-preview").hidden, true);
+    assert.equal(document.querySelector("iframe"), null);
     await act(async () =>
       finishMetadata(Response.json({ videoId: "abcdefghijk" })),
     );
-    assert.match(
-      document.querySelector("iframe").src,
-      /abcdefghijk/,
-      "One click starts the player after delayed metadata arrives",
+    await act(async () => document.querySelector(".watch-preview").click());
+    assert.match(document.querySelector("iframe").src, /abcdefghijk/);
+    await act(async () => instances.at(-1).events.onError({ data: 5 }));
+    assert.equal(document.querySelector(".trailer-panel").hidden, true);
+    assert.equal(document.querySelector(".watch-preview").hidden, true);
+    assert.doesNotMatch(
+      document.body.textContent,
+      /couldn.t play|Retry player|couldn.t load/,
     );
   } finally {
     await act(async () => root.unmount());

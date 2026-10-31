@@ -3,14 +3,16 @@ import { GenreBadges } from "./GenreBadges.jsx";
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
 import { paletteFromPixels } from "../lib/cover-palette.js";
 import { englishTitle, primaryTitle } from "../lib/titles.js";
-import { loadMedia } from "../lib/media-cache.js";
+import { prepareMedia } from "../lib/media-cache.js";
+import { cachedArtwork, imageSources } from "../lib/media-artwork.js";
+import { ArtworkFallback } from "./ArtworkFallback.jsx";
 import { AnimeMedia } from "./AnimeMedia.jsx";
 import { TrailerPreview } from "./TrailerPreview.jsx";
 import { GenreFocus } from "./GenrePreferences.jsx";
 import { AnimeTitle } from "./AnimeTitle.jsx";
 import { isUnreleased, releaseLabel } from "../lib/release.js";
 import { runtimeLabel } from "../lib/preferences.js";
-import { Fragment, useEffect, useLayoutEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useId, useRef, useState, useMemo } from "react";
 import { Icon } from "./Icon.jsx";
 import { synopsisText } from "../lib/synopsis.js";
 import { useDiscoverSwipe } from "./useDiscoverSwipe.js";
@@ -18,10 +20,8 @@ import { swipeLabels } from "../lib/discover-swipe.js";
 
 // Pages cannot proxy images; its sample covers load directly from MAL.
 export const coverUrl = (anime) => {
-  if (!anime.image) return undefined;
-  return document.documentElement.dataset.hosting === "pages"
-    ? anime.image
-    : "/api/image?url=" + encodeURIComponent(anime.image);
+  const prepared = cachedArtwork(anime.image);
+  return prepared ? prepared.source || undefined : imageSources(anime.image)[0];
 };
 const actions = [
   ["good", "Good", "thumbUp", "Seen it and liked it"],
@@ -69,6 +69,7 @@ export function AnimeCard({
   onComparison,
 }) {
   const previewsEnabled = document.documentElement.dataset.hosting !== "pages";
+  const artwork = useMemo(() => coverUrl(anime), [anime.id, anime.image]);
   const { drag, handlers: swipeHandlers } = useDiscoverSwipe({
     identity: anime.id,
     enabled: !compact,
@@ -125,8 +126,8 @@ export function AnimeCard({
     // The cover layer also follows the active card when canvas sampling is blocked.
     document.body.style.setProperty(
       "--anime-cover",
-      dynamic && anime.image && !failed
-        ? `url(${JSON.stringify(coverUrl(anime))})`
+      dynamic && artwork && !failed
+        ? `url(${JSON.stringify(artwork)})`
         : "none",
     );
   }, [sampled, dynamic, anime.palette, coverKey, failed]);
@@ -180,12 +181,12 @@ export function AnimeCard({
         <div
           className="poster-glow"
           style={{
-            backgroundImage: anime.image
-              ? `url("${coverUrl(anime)}")`
+            backgroundImage: artwork
+              ? `url("${artwork}")`
               : undefined,
           }}
         />
-        {anime.image && (
+        {artwork && !failed && (
           <img
             key={coverKey}
             ref={image}
@@ -193,16 +194,15 @@ export function AnimeCard({
             width="300"
             height="450"
             fetchPriority={compact ? "auto" : "high"}
-            src={coverUrl(anime)}
+            src={artwork}
             alt={`${anime.title} cover`}
             onLoad={imageLoaded}
             onError={() => setFailed(true)}
           />
         )}
-        {(failed || !anime.image) && (
+        {(failed || !artwork) && (
           <div className="poster-fallback">
-            <Icon name="image" />
-            <span>Cover unavailable</span>
+            <ArtworkFallback />
           </div>
         )}
         <span className="media-badge">
@@ -611,7 +611,7 @@ export function AnimeDetails({
                         : label === "Images"
                           ? "pictures"
                           : null;
-                    if (kind) void loadMedia(anime.id, kind).catch(() => {});
+                    if (kind) void prepareMedia(anime, kind).catch(() => {});
                   }}
                   onClick={() => setActiveTab(index)}
                   onKeyDown={(event) => changeTab(event, index)}

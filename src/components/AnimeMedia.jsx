@@ -3,8 +3,10 @@ import {
   useBlockedTrailers,
 } from "../lib/playback-availability.js";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { cachedMedia, loadMedia } from "../lib/media-cache.js";
+import { cachedMedia, prepareMedia } from "../lib/media-cache.js";
 import { trailerThumbnail } from "../lib/media-data.js";
+import { imageSources } from "../lib/media-artwork.js";
+import { ArtworkFallback } from "./ArtworkFallback.jsx";
 import { InlineTrailer } from "./InlineTrailer.jsx";
 import { loadYouTubeAPI } from "../lib/youtube.js";
 
@@ -12,39 +14,31 @@ import { loadYouTubeAPI } from "../lib/youtube.js";
 export function AnimeMedia({ anime, kind, active }) {
   const blocked = useBlockedTrailers();
   const [data, setData] = useState(() => cachedMedia(anime.id, kind));
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState(null);
   const [unavailable, setUnavailable] = useState(null);
   const [visited, setVisited] = useState(active);
-  useEffect(() => { if (active) setVisited(true); }, [active]);
+  useEffect(() => {
+    if (active) setVisited(true);
+  }, [active]);
 
   useEffect(() => {
     if (data) return;
     let current = true;
-    setError("");
-    loadMedia(anime.id, kind)
-      .then((value) => {
-        if (current) setData(value);
-      })
-      .catch((err) => {
-        if (current) setError(err.message);
-      });
+    prepareMedia(anime, kind).then((value) => {
+      if (current) setData(value);
+    });
     return () => {
       current = false;
     };
-  }, [anime.id, kind, data, attempt]);
+  }, [anime.id, kind, data]);
   // Prepare metadata now; defer image downloads until a tab is visited.
   // Retain visited players and galleries when switching tabs.
   if (!active && !visited) return null;
   if (!data)
     return (
       <div className="media-empty" role="status">
-        {!error && <span className="media-spinner" aria-hidden="true" />}
-        {error || `Loading ${kind === "trailer" ? "trailers" : "images"}…`}
-        {error && (
-          <button onClick={() => setAttempt((n) => n + 1)}>Try again</button>
-        )}
+        <span className="media-spinner" aria-hidden="true" />
+        Preparing {kind === "trailer" ? "previews" : "artwork"}…
       </div>
     );
   if (kind === "trailer")
@@ -63,15 +57,14 @@ export function AnimeMedia({ anime, kind, active }) {
             onUnavailable={(id) => {
               setUnavailable(id);
               blockTrailer(id);
-              setSelected(null);
+              setSelected(
+                data.trailers.find(
+                  (t) => t.videoId !== id && !blocked.has(t.videoId),
+                ) || null,
+              );
             }}
           />
         )}
-        {unavailable && <p role="status" className="media-note">
-          This trailer was removed, restricted, or cannot be embedded here.{' '}
-          <a href={`https://www.youtube.com/watch?v=${unavailable}`} target="_blank" rel="noopener noreferrer">Check on YouTube</a>
-          {' '}or choose another trailer.
-        </p>}
         {data.trailers.some((t) => !blocked.has(t.videoId)) ? (
           <div className="media-trailers" aria-label="Available trailers">
             {data.trailers
@@ -82,11 +75,15 @@ export function AnimeMedia({ anime, kind, active }) {
                   aria-pressed={selected?.videoId === t.videoId}
                   onPointerEnter={() => loadYouTubeAPI().catch(() => {})}
                   onFocus={() => loadYouTubeAPI().catch(() => {})}
-                  onClick={() => { setUnavailable(null); setSelected(t); }}
+                  onClick={() => {
+                    setUnavailable(null);
+                    setSelected(t);
+                  }}
                 >
                   <span className="media-trailer-frame">
                     <MediaImage
                       url={trailerThumbnail(t.videoId)}
+                      fallback={anime.image}
                       alt={`${t.title} preview`}
                     />
                     <span className="media-play" aria-hidden="true">
@@ -98,7 +95,20 @@ export function AnimeMedia({ anime, kind, active }) {
               ))}
           </div>
         ) : (
-          <p>No playable trailers are available for this anime here.</p>
+          <div className="media-cover-fallback">
+            <MediaImage url={anime.image} alt={`${anime.title} artwork`} />
+            <a
+              href={
+                unavailable
+                  ? `https://www.youtube.com/watch?v=${unavailable}`
+                  : `https://myanimelist.net/anime/${anime.id}/video`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Explore videos ↗
+            </a>
+          </div>
         )}
       </div>
     );
@@ -170,7 +180,11 @@ function ImageGallery({ anime, pictures, active }) {
     return () => window.removeEventListener("keydown", onArrow);
   }, [active, view, count]);
   if (!count)
-    return <p>No additional images are available for this anime yet.</p>;
+    return (
+      <div className="media-cover-fallback">
+        <MediaImage url={anime.image} alt={`${anime.title} artwork`} />
+      </div>
+    );
   return (
     <div
       className="anime-media image-carousel"
@@ -211,6 +225,7 @@ function ImageGallery({ anime, pictures, active }) {
               <span className="media-picture-frame">
                 <MediaImage
                   url={p.thumbnail || p.image}
+                  fallback={anime.image}
                   alt={`${anime.title} artwork ${i + 1}`}
                 />
               </span>
@@ -255,6 +270,7 @@ function ImageGallery({ anime, pictures, active }) {
             <MediaImage
               key={pictures[index].image}
               url={pictures[index].image}
+              fallback={anime.image}
               alt={`${anime.title} image ${index + 1} of ${count}`}
             />
           </div>
@@ -299,69 +315,88 @@ function ImageGallery({ anime, pictures, active }) {
 const TileReadiness = createContext(null);
 function MediaTile({ children, ...props }) {
   const [loaded, setLoaded] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  return <div className="media-tile" aria-busy={loaded === false}>
-    <TileReadiness.Provider key={attempt} value={setLoaded}>
-      <button {...props} disabled={loaded !== true} style={{ visibility: loaded === true ? undefined : "hidden" }}>{children}</button>
-      {loaded !== true && <span className="media-tile-status" role="status">
-        {loaded === "failed" ? <>Thumbnail unavailable <button onClick={() => { setLoaded(false); setAttempt(n => n + 1); }}>Retry image</button></> : "Loading image…"}
-      </span>}
-    </TileReadiness.Provider>
-  </div>;
+  return (
+    <div className="media-tile" aria-busy={!loaded}>
+      <TileReadiness.Provider value={setLoaded}>
+        <button
+          {...props}
+          disabled={!loaded}
+          style={{ visibility: loaded ? undefined : "hidden" }}
+        >
+          {children}
+        </button>
+        {!loaded && (
+          <span className="media-tile-status" role="status">
+            <span className="media-spinner" aria-hidden="true" />
+          </span>
+        )}
+      </TileReadiness.Provider>
+    </div>
+  );
 }
-function MediaImage({ url, alt }) {
+function MediaImage({ url, fallback, alt }) {
   const tileReady = useContext(TileReadiness);
   const image = useRef(null);
-  const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [index, setIndex] = useState(0),
+    [loaded, setLoaded] = useState(false);
+  const sources = [
+    ...new Set([...imageSources(url), ...imageSources(fallback)]),
+  ];
+  const source = sources[index];
+  const deadline = useRef(Date.now() + 2500);
   useEffect(() => {
     let current = true;
+    if (!source) {
+      setLoaded(true);
+      tileReady?.(true);
+      return;
+    }
     const element = image.current;
-    if (!element) return;
-    let done = false;
-    const finish = (ok) => {
-      if (!current || done) return;
-      done = true;
-      clearTimeout(timer);
-      setLoaded(ok);
-      setFailed(!ok);
-      tileReady?.(ok ? true : "failed");
+    const fail = () => {
+      if (!current) return;
+      current = false;
+      setIndex(Date.now() >= deadline.current ? sources.length : index + 1);
     };
-    const load = () => {
-      const decoded = element.decode ? element.decode() : Promise.resolve();
-      decoded.then(() => finish(true), () => finish(false));
-    };
-    const error = () => finish(false);
-    const timer = setTimeout(error, 12000);
+    const load = () =>
+      Promise.resolve()
+        .then(() => element.decode?.())
+        .then(() => {
+          if (!current) return;
+          clearTimeout(timer);
+          setLoaded(true);
+          tileReady?.(true);
+        }, fail);
+    const timer = setTimeout(fail, Math.max(0, deadline.current - Date.now()));
     element.addEventListener("load", load);
-    element.addEventListener("error", error);
+    element.addEventListener("error", fail);
     if (element.complete && element.naturalWidth) load();
     return () => {
       current = false;
       clearTimeout(timer);
       element.removeEventListener("load", load);
-      element.removeEventListener("error", error);
+      element.removeEventListener("error", fail);
     };
-  }, [url, tileReady]);
+  }, [source, index, tileReady]);
   return (
-    <span className="media-image" aria-busy={!failed && !loaded}>
-      {!failed && !loaded && (
+    <span className="media-image" aria-busy={!loaded}>
+      {!loaded && (
         <span className="media-image-loading">
           <span className="media-spinner" aria-hidden="true" />
         </span>
       )}
-      {failed ? (
-        <span className="media-image-error">Image unavailable</span>
-      ) : (
+      {source ? (
         <img
+          key={source}
           ref={image}
-          src={`/api/image?url=${encodeURIComponent(url)}`}
+          src={source}
           alt={alt}
           draggable={false}
           loading="eager"
           decoding="async"
           className={loaded ? "is-loaded" : ""}
         />
+      ) : (
+        <ArtworkFallback />
       )}
     </span>
   );

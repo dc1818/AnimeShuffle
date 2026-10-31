@@ -31,6 +31,14 @@ export function InlineTrailer({
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [slow, setSlow] = useState(false);
+  const recovered = useRef(false);
+  function recover() {
+    if (!unavailable.current) return false;
+    if (recovered.current) return true;
+    recovered.current = true;
+    unavailable.current(videoId);
+    return true;
+  }
   useEffect(() => {
     let disposed = false,
       instance;
@@ -38,6 +46,7 @@ export function InlineTrailer({
     setError("");
     setSlow(false);
     ready.current = false;
+    recovered.current = false;
     const container = host.current;
     // Navigate the iframe immediately on the playback click, in parallel with
     // the shared control API. Slow script loading must not postpone the video.
@@ -88,13 +97,7 @@ export function InlineTrailer({
             },
             onError: (event) => {
               if (!disposed) {
-                if (
-                  [100, 101, 150].includes(event.data) &&
-                  unavailable.current
-                ) {
-                  unavailable.current(videoId);
-                  return;
-                }
+                if (recover()) return;
                 setError(playbackError(event.data));
                 setStatus("error");
               }
@@ -106,6 +109,7 @@ export function InlineTrailer({
       })
       .catch((err) => {
         if (!disposed) {
+          if (recover()) return;
           setError(err.message);
           setStatus("error");
         }
@@ -128,9 +132,11 @@ export function InlineTrailer({
   useEffect(() => {
     setSlow(false);
     if (!active || !waiting) return;
-    const timer = setTimeout(() => setSlow(true), 15000);
+    const timer = setTimeout(() => {
+      if (!recover()) setSlow(true);
+    }, 15000);
     return () => clearTimeout(timer);
-  }, [active, waiting, attempt]);
+  }, [videoId, active, waiting, attempt]);
   const message =
     error ||
     (slow
