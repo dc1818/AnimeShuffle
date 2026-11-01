@@ -1,19 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   cardMediaKey,
   cardMediaReady,
   prepareCardMedia,
 } from "../lib/card-media.js";
 /** Reveal only after artwork (or its native fallback) and preview selection are ready. */
-export function MediaReady({ anime, children }) {
+export function MediaReady({ anime, children, onReady }) {
   return (
-    <MediaReadyContent key={cardMediaKey(anime)} anime={anime}>
+    <MediaReadyContent key={cardMediaKey(anime)} anime={anime} onReady={onReady}>
       {children}
     </MediaReadyContent>
   );
 }
-function MediaReadyContent({ anime, children }) {
+function MediaReadyContent({ anime, children, onReady }) {
   const [ready, setReady] = useState(() => cardMediaReady(anime));
+  const reported = useRef(false);
+
+  useEffect(() => {
+    if (!ready || reported.current) return;
+    // This effect runs after React commits the revealed card, not just after
+    // the recommendation store selects a title behind the media gate.
+    reported.current = true;
+    onReady?.(anime.id);
+  }, [ready, anime.id, onReady]);
 
   useEffect(() => {
     let current = true;

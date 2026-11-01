@@ -38,6 +38,8 @@ import {
   createMalClient,
   fields,
   catalogFields,
+  listPageSize,
+  listNextOffset,
   normalize,
   validImage,
 } from "../lib/mal.mjs";
@@ -992,7 +994,7 @@ export function createCloudApp(
           const q = new URLSearchParams({
             fields:
               "alternative_titles,list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration,synopsis,studios",
-            limit: "100",
+            limit: String(listPageSize),
             offset: String(offset),
             // Import the complete personal list; discovery filters must not hide saved entries.
             nsfw: "true",
@@ -1006,7 +1008,7 @@ export function createCloudApp(
               rememberSeen(anime, x.list_status);
               return { ...anime, listStatus: x.list_status };
             }),
-            nextOffset: d.paging?.next ? offset + 100 : null,
+            nextOffset: listNextOffset(d, offset),
           });
         } else if (path === "/api/search" && req.method === "GET") {
           const q = (u.searchParams.get("q") || "").trim();

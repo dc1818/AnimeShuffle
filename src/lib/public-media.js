@@ -1,13 +1,10 @@
-import { createProviderFetch } from "../../lib/provider-fetch.mjs";
+import { publicProviderFetch } from "./public-provider.js";
 import { countryCode, regionAllows } from "../../lib/media-region.mjs";
 import { validImage } from "../../lib/mal.mjs";
 import { normalizeTrailerResponse, validVideoId } from "./media-data.js";
 
 // Tenrai explicitly supports public browser clients. Use that public endpoint
 // only when the shared backend quota is exhausted; never send account headers.
-const publicFetch = createProviderFetch((input, options) =>
-  fetch(input, options),
-);
 export async function loadPublicMedia(id, kind, country, signal) {
   if (
     !Number.isSafeInteger(id) ||
@@ -16,7 +13,7 @@ export async function loadPublicMedia(id, kind, country, signal) {
     !["trailer", "pictures"].includes(kind)
   )
     throw Error("Invalid media request.");
-  const response = await publicFetch(
+  const response = await publicProviderFetch(
     `https://api.tenrai.org/v1/anime/${id}/${kind === "trailer" ? "videos" : "pictures"}`,
     {
       signal,

@@ -21,6 +21,7 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
     target: "es2022",
   });
   let tokenRedirect = false,
+    listSize = 0,
     releaseList,
     listStarted = false,
     releaseMetadata,
@@ -47,11 +48,15 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
         const url = new URL(request.url);
         requests.push(url.hostname + url.pathname);
         if (url.pathname === "/v2/users/@me/animelist") {
+          assert.equal(url.searchParams.get("limit"), "500");
           listStarted = true;
           await new Promise((resolve) => {
             releaseList = resolve;
           });
-          return WorkerResponse.json({ data: [] });
+          return WorkerResponse.json({ data: Array.from({ length: listSize }, (_, i) => ({
+            node: { id: 10000 + i, title: `Saved ${i}`, nsfw: "white" },
+            list_status: { status: "plan_to_watch" },
+          })) });
         }
         if (url.pathname === "/v2/anime/999") {
           metadataStarted = true;
@@ -349,6 +354,20 @@ test("Cloudflare runtime completes MAL login and rejects token redirects without
       beforeCooldown,
       "Provider cooldown is shared across titles",
     );
+    // Import a full page after the enrichment assertions above: imported
+    // titles intentionally enter the existing background enrichment queue.
+    listSize = 500;
+    listStarted = false;
+    const largeList = call("/api/list?offset=500");
+    for (let i = 0; !listStarted && i < 100; i++)
+      await new Promise((r) => setTimeout(r, 20));
+    assert.ok(listStarted);
+    releaseList();
+    const listResponse = await largeList;
+    assert.equal(listResponse.status, 200);
+    const list = await listResponse.json();
+    assert.equal(list.data.length, 500);
+    assert.equal(list.nextOffset, null);
     tokenRedirect = true;
     const before = requests.length;
     assert.equal(

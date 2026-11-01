@@ -22,16 +22,27 @@ export function prepareCardMedia(anime, options = {}) {
     prepareArtwork(anime.image, options);
     return pending.get(key);
   }
-  const cover = prepareArtwork(anime.image, options);
+  const started = performance.now();
+  let artworkMs, previewMs;
+  const cover = prepareArtwork(anime.image, options).then((artwork) => {
+    artworkMs = Math.round(performance.now() - started);
+    return artwork;
+  });
   const preview =
     globalThis.document?.documentElement.dataset.hosting === "pages"
       ? Promise.resolve({ videoId: null, trailers: [] })
       : preparePreview(anime, { timeoutMs: options.previewTimeoutMs });
-  const job = Promise.all([cover, preview])
+  const timedPreview = preview.then((value) => {
+    previewMs = Math.round(performance.now() - started);
+    return value;
+  });
+  const job = Promise.all([cover, timedPreview])
     .then(([artwork, preview]) => {
       const entry = {
         artwork,
         preview,
+        artworkMs,
+        previewMs,
         expires:
           Date.now() + (preview.fallback || !artwork.source ? 30000 : 1800000),
       };

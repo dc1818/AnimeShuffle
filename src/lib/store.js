@@ -1,6 +1,7 @@
 import { normalizeFeedback } from "./reaction-feedback.js";
 import { prepareCardMedia } from "./card-media.js";
 import { prepareArtwork } from "./media-artwork.js";
+import { loadCatalogPage, publicCatalogPage } from "./catalog-loader.js";
 import { nuancedTraits } from "./nuanced-taste.js";
 import { createRecommendationEvents } from "./recommendation-events.js";
 import { normalizeReactionReason } from "./reaction-reasons.js";
@@ -75,6 +76,8 @@ export function createAnimeStore({
   staticMode = false,
   now = Date.now,
   diagnostics = createDiagnostics({ storage }),
+  prepareMedia = prepareCardMedia,
+  publicCatalog = typeof window === "undefined" ? null : publicCatalogPage,
 } = {}) {
   // Serialize account writes without borrowing the feed's global busy state.
   let prefetchTimer = null;
@@ -82,11 +85,12 @@ export function createAnimeStore({
   let preparedDiscovery = [];
   let sessionGeneration = 0;
   let refillPending = null;
-  let startupCatalog = null;
   let catalogNsfw = false;
   let candidateProvider = "tenrai";
   let candidateFilterKey = "";
-  let startupFilterKey = "";
+  let mediaPrefetch = null;
+  let startupStarted = null;
+  let firstCardDisplayed = false;
   let watchlistSyncPending = null;
   const detailRequests = new Map();
   let preferenceWrites = Promise.resolve();
@@ -390,6 +394,7 @@ export function createAnimeStore({
     };
   }
   async function readList() {
+    const finishTiming = diagnostics.start("history_sync");
     const writeVersion = malWriteVersion;
     const session = state.session;
     lastMalCheck = now();
@@ -424,6 +429,7 @@ export function createAnimeStore({
         });
       }
     } finally {
+      finishTiming();
       // Freshness is measured from completion, including failed attempts. A
       // paginated refresh lasting beyond the interval must not restart itself.
       lastMalCheck = now();
@@ -483,9 +489,9 @@ export function createAnimeStore({
     mergePool(anime);
     return anime;
   }
-  function warmPreview(anime) {
+  function warmPreview(anime, priority = "high") {
     if (!state.preview && typeof window !== "undefined" && anime)
-      void prepareCardMedia(anime, { priority: "low" }).catch(() => {});
+      void prepareMedia(anime, { priority }).catch(() => {});
   }
   let tasteCheckedAt = 0;
   async function refreshTasteMetadata(force = false) {
@@ -688,22 +694,18 @@ export function createAnimeStore({
         continue;
       }
       const offset = offsets[source];
-      // Consume the public startup request once; a failed speculative read retries normally.
-      const warm =
-        candidateProvider === "tenrai" &&
-        startupFilterKey === filters &&
-        source === "shuffle" &&
-        offset === 0
-          ? startupCatalog
-          : null;
-      if (warm) startupCatalog = null;
       let page;
       try {
-        page =
-          (warm && (await warm)) ||
-          (await api(
-            `/api/catalog?source=${source}&offset=${offset}${source === "shuffle" ? "&seed=" + shuffleSeed : ""}${candidateProvider === "tenrai" ? "&provider=tenrai&preferences=" + encodeURIComponent(filters) : includeNsfw ? "&nsfw=true" : ""}`,
-          ));
+        const url = `/api/catalog?source=${source}&offset=${offset}${source === "shuffle" ? "&seed=" + shuffleSeed : ""}${candidateProvider === "tenrai" ? "&provider=tenrai&preferences=" + encodeURIComponent(filters) : includeNsfw ? "&nsfw=true" : ""}`;
+        const finishCatalog = diagnostics.start("catalog_wait");
+        try {
+          page = await loadCatalogPage(url, api, {
+            publicPage: candidateProvider === "tenrai" ? publicCatalog : null,
+            onSource: (transport) => diagnostics.record?.({
+              operation: "catalog_transport", transport,
+            }),
+          });
+        } finally { finishCatalog(); }
       } catch (error) {
         if (generation !== sessionGeneration) return false;
         if (candidateProvider !== "tenrai") throw error;
@@ -716,7 +718,6 @@ export function createAnimeStore({
           season: 0,
         };
         sourceIndex = 0;
-        startupCatalog = null;
         diagnostics.record?.({
           operation: "catalog_fallback",
           provider: "mal",
@@ -995,6 +996,28 @@ export function createAnimeStore({
     }
   }
   function schedulePrefetch() {
+    if (state.preview || !state.current) return;
+    const anime = state.current, generation = sessionGeneration;
+    if (mediaPrefetch?.anime === anime) return;
+    const waiting = { anime };
+    mediaPrefetch = waiting;
+    const started = performance.now();
+    void prepareMedia(anime).then((entry) => {
+      if (generation !== sessionGeneration || mediaPrefetch !== waiting || state.current !== anime) return;
+      diagnostics.record?.({
+        operation: "discovery_media",
+        elapsedMs: Math.round(performance.now() - started),
+        artworkMs: entry?.artworkMs,
+        previewMs: entry?.previewMs,
+        artworkFallback: !entry?.artwork?.source,
+        previewFallback: entry?.preview?.fallback === true,
+      });
+      // The current card's gate settles before any speculative metadata/media
+      // requests or another ranking pass can compete for network or CPU time.
+      queuePrefetch();
+    }).catch(() => {});
+  }
+  function queuePrefetch() {
     if (state.preview || prefetchTimer || prefetchRunning) return;
     const generation = sessionGeneration;
     prefetchTimer = setTimeout(async () => {
@@ -1023,7 +1046,7 @@ export function createAnimeStore({
             state.recommendationsLoading
           )
             break;
-          warmPreview(anime);
+          warmPreview(anime, "low");
           await animeDetails(anime.id);
           if (
             generation === sessionGeneration &&
@@ -1351,6 +1374,9 @@ export function createAnimeStore({
     clearTimeout(prefetchTimer);
     prefetchTimer = null;
     preparedDiscovery = [];
+    mediaPrefetch = null;
+    if (state.ready || startupStarted === null) startupStarted = performance.now();
+    firstCardDisplayed = false;
     refillPending = null;
     watchlistSyncPending = null;
     preferenceVersion++;
@@ -1405,11 +1431,6 @@ export function createAnimeStore({
         details.set(entry.anime.id, entry);
         mergePool(entry.anime);
       }
-    // Public catalog work can overlap account/list synchronization without exposing a pick early.
-    const catalogWarmup =
-      !state.preview && !pool.length && session.onboardingComplete
-        ? refill().catch(() => false)
-        : null;
     profileKey =
       session.account?.provider === "local"
         ? session.account.id
@@ -1450,6 +1471,13 @@ export function createAnimeStore({
         preferences: normalizePreferences(session.preferences),
         onboardingComplete: session.onboardingComplete === true,
       });
+    // Account preferences (or restored guest preferences) are known now.
+    // Starting earlier fetches the default filter set and discards its result.
+    // Still overlap catalog work with complete account/MAL history restoration.
+    const catalogWarmup =
+      !state.preview && !pool.length && state.onboardingComplete
+        ? refill().catch(() => false)
+        : null;
     if (session.cloudSync && session.account) {
       cloudSync = createCloudSync({
         api,
@@ -1481,7 +1509,9 @@ export function createAnimeStore({
           discoveryStage: "Syncing your saved choices…",
           discoveryWork: "",
         });
-        await cloudSync.initialize();
+        const finishSync = diagnostics.start("account_sync");
+        try { await cloudSync.initialize(); }
+        finally { finishSync(); }
       } catch (error) {
         update({ syncError: "Account sync is unavailable. " + error.message });
       }
@@ -1528,17 +1558,7 @@ export function createAnimeStore({
   /** Idempotent initialization also handles React StrictMode's repeated effects. */
   function initialize() {
     if (initialization) return initialization;
-    // This is public metadata only. Overlap a cold catalog read with session
-    // lookup; never use it until account exclusions and preferences are loaded.
-    if (!staticMode && !readCatalogCache(storage).length) {
-      startupFilterKey = JSON.stringify(catalogPreferences());
-      startupCatalog = api(
-        "/api/catalog?source=shuffle&offset=0&seed=" +
-          shuffleSeed +
-          "&provider=tenrai&preferences=" +
-          encodeURIComponent(startupFilterKey),
-      ).catch(() => null);
-    }
+    startupStarted = performance.now();
     initialization = (async () => {
       try {
         await adoptSession(
@@ -1743,6 +1763,17 @@ export function createAnimeStore({
     );
   }
   return {
+    cardDisplayed(id) {
+      if (firstCardDisplayed || id !== state.current?.id || startupStarted === null) return;
+      firstCardDisplayed = true;
+      diagnostics.record?.({
+        operation: "first_card_visible",
+        elapsedMs: Math.round(performance.now() - startupStarted),
+        pageElapsedMs: Math.round(performance.now()),
+        reactions: Object.keys(state.reactions).length,
+        listEntries: state.list.length,
+      });
+    },
     async syncAccount({ background = false } = {}) {
       if (accountRefresh) return accountRefresh;
       if (!cloudSync || state.busy) return;

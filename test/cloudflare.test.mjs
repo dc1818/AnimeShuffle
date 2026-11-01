@@ -446,7 +446,8 @@ test("catalog includes audience ratings and continues beyond the old 5000 offset
   }
 });
 
-test("personal MAL list imports all 207 plans across pages without the catalog content filter", async () => {
+for (const [pageSize, total] of [[100, 207], [500, 1207]])
+test(`personal MAL list imports all ${total} plans with ${pageSize}-entry upstream pages`, async () => {
   const db = storage();
   try {
     const app = createCloudApp(db, env, {
@@ -462,6 +463,7 @@ test("personal MAL list imports all 207 plans across pages without the catalog c
         if (url.pathname === "/v2/users/@me")
           return Response.json({ id: 42, name: "Viewer" });
         assert.equal(url.pathname, "/v2/users/@me/animelist");
+        assert.equal(url.searchParams.get("limit"), "500");
         assert.equal(
           url.searchParams.get("nsfw"),
           "true",
@@ -469,12 +471,12 @@ test("personal MAL list imports all 207 plans across pages without the catalog c
         );
         const offset = Number(url.searchParams.get("offset"));
         const data = Array.from(
-          { length: Math.min(100, 207 - offset) },
+          { length: Math.min(pageSize, total - offset) },
           (_, i) => ({
             node: {
               id: offset + i + 1,
               title: `Saved ${offset + i + 1}`,
-              nsfw: offset + i < 189 ? "white" : "gray",
+              nsfw: offset + i < total - 18 ? "white" : "gray",
             },
             list_status: { status: "plan_to_watch" },
           }),
@@ -482,9 +484,9 @@ test("personal MAL list imports all 207 plans across pages without the catalog c
         return Response.json({
           data,
           paging:
-            offset < 200
+            offset + pageSize < total
               ? {
-                  next: `https://api.myanimelist.net/v2/users/@me/animelist?offset=${offset + 100}`,
+                  next: `https://api.myanimelist.net/v2/users/@me/animelist?offset=${offset + pageSize}`,
                 }
               : {},
         });
@@ -504,11 +506,11 @@ test("personal MAL list imports all 207 plans across pages without the catalog c
       entries.push(...result.body.data);
       offset = result.body.nextOffset;
     } while (offset !== null);
-    assert.equal(entries.length, 207);
-    assert.equal(new Set(entries.map((a) => a.id)).size, 207);
+    assert.equal(entries.length, total);
+    assert.equal(new Set(entries.map((a) => a.id)).size, total);
     assert.equal(entries.filter((a) => a.nsfw === "gray").length, 18);
     const { combinedWatchlist } = await import("../src/lib/watchlist.js");
-    assert.equal(combinedWatchlist({}, entries).length, 207);
+    assert.equal(combinedWatchlist({}, entries).length, total);
   } finally {
     db.db.close();
   }

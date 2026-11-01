@@ -8,7 +8,7 @@ import { tasteReadiness } from "../src/lib/recommend.js";
 test("debug timings are opt-in, bounded and omit credentials, bodies and search text", async () => {
   const rows = [];
   const d = createDiagnostics({
-    logger: { log: (_, row) => rows.push(row), table() {} },
+    logger: { log: (_, row) => rows.push(JSON.parse(row)), table() {} },
   });
   const fetcher = async (_, options) => {
     assert.equal(

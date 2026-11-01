@@ -14,7 +14,7 @@ export function createDiagnostics({
     const row = { ...entry };
     records.push(row);
     if (records.length > 200) records.shift();
-    logger.log("[Anime Shuffle timing]", row);
+    logger.log("[Anime Shuffle timing]", JSON.stringify(row));
   }
   return {
     record,

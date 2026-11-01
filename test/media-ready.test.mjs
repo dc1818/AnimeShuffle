@@ -48,6 +48,7 @@ test("no card/exposure before cover decode and preview; switching and silent fal
     new Promise((resolve) => requests.set(url, resolve));
   const root = createRoot(document.getElementById("root"));
   let skips = 0;
+  const displayed = [];
   const render = (id) =>
     root.render(
       React.createElement(
@@ -58,6 +59,7 @@ test("no card/exposure before cover decode and preview; switching and silent fal
             image: `https://cdn.myanimelist.net/images/anime/1/${id}.jpg`,
           },
           onSkip: () => skips++,
+          onReady: id => displayed.push(id),
         },
         React.createElement("article", null, `Card ${id}`),
       ),
@@ -69,6 +71,7 @@ test("no card/exposure before cover decode and preview; switching and silent fal
   try {
     await act(async () => render(910001));
     assert.equal(document.querySelector("article"), null);
+    assert.deepEqual(displayed, [], "selection is not a visible-card timing event");
     await act(async () => images[0].onload());
     await act(async () => metadata(910001));
     assert.equal(
@@ -124,6 +127,7 @@ test("no card/exposure before cover decode and preview; switching and silent fal
       "Native fallback cannot strand the card",
     );
     assert.equal(skips, 0, "Recovery preserves the recommended anime");
+    assert.deepEqual(displayed, [910001, 910003, 910004], "only committed, ready cards report visibility");
     assert.doesNotMatch(
       document.body.textContent,
       /could not load|couldn.t load|Retry/,

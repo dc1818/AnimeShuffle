@@ -440,7 +440,7 @@ function ConnectedApp({ store, state }) {
                 <div
                   className={`cards-layout discover-layout ${details ? "expanded" : ""}`}
                 >
-                  <MediaReady key={`${state.current.id}:${state.current.image || ""}`} anime={state.current} onSkip={store.skip}>
+                  <MediaReady key={`${state.current.id}:${state.current.image || ""}`} anime={state.current} onReady={store.cardDisplayed}>
                   <RecommendationExposure
                     className="discovery-exposure"
                     animeId={state.current.id}

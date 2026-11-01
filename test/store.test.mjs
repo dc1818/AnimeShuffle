@@ -431,8 +431,8 @@ test("recommendations reuse discovery details and avoid unnecessary catalog page
   assert.ok(first.details <= 26);
   assert.equal(
     first.catalog,
-    2,
-    "startup warmup plus the newly selected genre query",
+    1,
+    "only the selected genre query, without a discarded default-filter warmup",
   );
   seedRecommendationHistory(store);
   await store.loadRecommendations({ force: true });

@@ -37,6 +37,8 @@ import {
   normalize,
   fields,
   catalogFields,
+  listPageSize,
+  listNextOffset,
 } from "./lib/mal.mjs";
 const root = path.dirname(fileURLToPath(import.meta.url));
 if (existsSync(path.join(root, ".env")))
@@ -412,7 +414,7 @@ const server = http.createServer(async (req, res) => {
       const q = new URLSearchParams({
         fields:
           "alternative_titles,list_status,genres,num_episodes,media_type,start_season,nsfw,status,average_episode_duration,synopsis,studios",
-        limit: "100",
+        limit: String(listPageSize),
         offset: String(offset),
         // Import the complete personal list; discovery filters must not hide saved entries.
         nsfw: "true",
@@ -425,7 +427,7 @@ const server = http.createServer(async (req, res) => {
           ...normalize(x.node),
           listStatus: x.list_status,
         })),
-        nextOffset: data.paging?.next ? offset + 100 : null,
+        nextOffset: listNextOffset(data, offset),
       });
     }
     // Same-origin autocomplete. Never expose credentials or accept arbitrary MAL paths.

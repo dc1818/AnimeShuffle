@@ -17,6 +17,40 @@ const memory = () => {
   const values = new Map();
   return { getItem: (k) => values.get(k), setItem: (k, v) => values.set(k, v) };
 };
+test("foreground media finishes before look-ahead work and visible-card timing records once", async () => {
+  const calls = [], records = [];
+  let release;
+  const media = new Promise(resolve => { release = resolve; });
+  const store = createAnimeStore({
+    storage: memory(), browserBackup: null, prepareMedia: () => media,
+    diagnostics: {
+      start: () => () => {}, record: row => records.push(row),
+      request: async (fetcher, url, options) => { const response = await fetcher(url, options); return {response, result: await response.json()}; },
+    },
+    request: async url => {
+      calls.push(url);
+      if (url === "/api/session") return Response.json({configured:true,account:{id:"local:fixture",provider:"local"},onboardingComplete:true});
+      if (url.startsWith("/api/catalog")) return Response.json({data:[anime,{...anime,id:2}],nextOffset:null});
+      if (url.startsWith("/api/anime/")) return Response.json({...anime,id:Number(url.split("/").pop())});
+      return Response.json({profiles:{}});
+    },
+  });
+  await store.initialize();
+  assert.ok(store.getSnapshot().current);
+  const before = calls.length;
+  await new Promise(resolve => setTimeout(resolve, 120));
+  assert.equal(calls.length, before, "preloading cannot compete with current media");
+  assert.ok(!records.some(r => r.operation === "first_card_visible"));
+  release({artwork:{source:"ready"},preview:{},artworkMs:12,previewMs:100});
+  await new Promise(resolve => setTimeout(resolve, 150));
+  assert.ok(calls.length > before, "look-ahead resumes after media readiness");
+  const id = store.getSnapshot().current.id;
+  store.cardDisplayed(id + 10000);
+  store.cardDisplayed(id);
+  store.cardDisplayed(id);
+  assert.equal(records.filter(r => r.operation === "first_card_visible").length, 1);
+  assert.equal(records.find(r => r.operation === "discovery_media").previewMs, 100);
+});
 test("returning Discover uses the persisted metadata cache without catalog/detail requests or a loading flash", async () => {
   const storage = memory();
   const first = createAnimeStore({
@@ -98,7 +132,7 @@ test("candidate checking reports a running count without resetting batch percent
   assert.equal(store.getSnapshot().current.id, 1);
 });
 
-test("cold startup overlaps catalog, session and account/list reads without showing an excluded title", async () => {
+test("cold startup waits for account filters then overlaps catalog and history without exposing excluded titles", async () => {
   const calls = [];
   let releaseSession, releaseList;
   const sessionGate = new Promise((resolve) => {
@@ -121,10 +155,14 @@ test("cold startup overlaps catalog, session and account/list reads without show
           cloudSync: true,
           account: { id: "mal:42", provider: "mal", name: "Viewer" },
           onboardingComplete: true,
+          preferences: { scoreMin: 7 },
         });
       }
-      if (url.startsWith("/api/catalog"))
-        return Response.json({ data: [anime, candidate], nextOffset: null });
+      if (url.startsWith("/api/catalog")) {
+        const preferences = JSON.parse(new URL(url, "https://fixture.test").searchParams.get("preferences"));
+        assert.equal(preferences.scoreMin, 7, "never fetch default filters for this account");
+        return Response.json({ data: [{ ...anime, score: 8 }, { ...candidate, score: 8 }], nextOffset: null });
+      }
       if (url.startsWith("/api/list")) {
         await listGate;
         return Response.json({
@@ -137,15 +175,15 @@ test("cold startup overlaps catalog, session and account/list reads without show
           revision: 1,
           reactions: {},
           settings: {},
-          preferences: {},
+          preferences: { scoreMin: 7 },
           onboardingComplete: true,
         });
-      if (url === "/api/anime/2") return Response.json(candidate);
+      if (url === "/api/anime/2") return Response.json({ ...candidate, score: 8 });
       return Response.json({ profiles: {} });
     },
   });
   const loading = store.initialize();
-  assert.ok(calls.some((url) => url.startsWith("/api/catalog")));
+  assert.ok(!calls.some((url) => url.startsWith("/api/catalog")));
   assert.equal(store.getSnapshot().current, null);
   releaseSession();
   for (let i = 0; !calls.includes("/api/account/state") && i < 100; i++)
@@ -154,6 +192,7 @@ test("cold startup overlaps catalog, session and account/list reads without show
     calls.includes("/api/account/state"),
     "account sync starts while MAL list is pending",
   );
+  assert.ok(calls.some((url) => url.startsWith("/api/catalog")), "catalog starts before MAL history finishes");
   assert.equal(store.getSnapshot().current, null, "must wait for exclusions");
   releaseList();
   await loading;

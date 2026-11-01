@@ -209,6 +209,9 @@ export function trainContentModel(
       ),
     ),
   }));
+  // A training vector never changes. Reusing its norm preserves identical
+  // arithmetic while avoiding hundreds of recalculations per candidate.
+  for (const r of vectors) r.norm = Math.hypot(...r.vector.values());
   const neighborhoodCache = new WeakMap();
   function neighborhood(a) {
     if (neighborhoodCache.has(a)) return neighborhoodCache.get(a);
@@ -221,7 +224,7 @@ export function trainContentModel(
         const shared = [...v.keys()].filter((k) => r.vector.has(k));
         const sim =
           shared.reduce((sum, k) => sum + v.get(k) * r.vector.get(k), 0) /
-          (norm * Math.hypot(...r.vector.values()) || 1);
+          (norm * r.norm || 1);
         return { ...r, shared, sim };
       })
       .filter((r) => r.shared.length >= 2 && r.sim >= 0.35);
