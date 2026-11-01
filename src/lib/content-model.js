@@ -15,6 +15,7 @@ import { attributedFeatures } from "./reaction-reasons.js";
 import { nuancedFeatures } from "./nuanced-taste.js";
 import { reviewFeatures } from "./taste-traits.js";
 import { narrativeFeatures } from "./story-aspects.js";
+import { createNeighborLookup } from "./sparse-neighbors.js";
 /** Sparse content model trained only from explicit choices and MAL history.
  * Two regularized logistic heads estimate enjoyment and watch interest separately.
  * Synopsis features are lexical TF-IDF, not neural embeddings or viewing-time signals.
@@ -212,22 +213,17 @@ export function trainContentModel(
   // A training vector never changes. Reusing its norm preserves identical
   // arithmetic while avoiding hundreds of recalculations per candidate.
   for (const r of vectors) r.norm = Math.hypot(...r.vector.values());
+  // Index training features once. Candidate-order accumulation preserves the
+  // exact dot-product arithmetic without probing every training vector for
+  // every candidate feature (mostly misses on large, varied histories).
+  const findNeighbors = createNeighborLookup(vectors);
   const neighborhoodCache = new WeakMap();
   function neighborhood(a) {
     if (neighborhoodCache.has(a)) return neighborhoodCache.get(a);
     const v = neighborVector(a),
       norm = Math.hypot(...v.values());
     if (!norm || v.size < 2) return { score: 0, matches: [] };
-    const matches = vectors
-      .filter((r) => r.anime.id !== a.id && r.vector.size >= 2)
-      .map((r) => {
-        const shared = [...v.keys()].filter((k) => r.vector.has(k));
-        const sim =
-          shared.reduce((sum, k) => sum + v.get(k) * r.vector.get(k), 0) /
-          (norm * r.norm || 1);
-        return { ...r, shared, sim };
-      })
-      .filter((r) => r.shared.length >= 2 && r.sim >= 0.35);
+    const matches = findNeighbors(v, norm, a.id);
     const strongest = (sign) =>
       matches
         .filter((r) => sign * (0.65 * r.enjoyment + 0.35 * r.interest) > 0)

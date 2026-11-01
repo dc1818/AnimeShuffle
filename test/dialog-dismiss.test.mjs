@@ -56,7 +56,7 @@ test("viewing preferences dismisses on backdrop clicks but not inside clicks", a
     assert.equal(
       document.getElementById(dialog.getAttribute("aria-labelledby"))
         .textContent,
-      "What are you in the mood for?",
+      "Settings",
     );
     assert.equal(
       document.activeElement,

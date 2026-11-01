@@ -31,7 +31,12 @@ export function prepareCardMedia(anime, options = {}) {
   const preview =
     globalThis.document?.documentElement.dataset.hosting === "pages"
       ? Promise.resolve({ videoId: null, trailers: [] })
-      : preparePreview(anime, { timeoutMs: options.previewTimeoutMs });
+      : preparePreview(anime, {
+          // Match the artwork budget. A stalled optional trailer must not hold
+          // a decoded card for the full metadata timeout; mounted consumers
+          // still observe late results and restore the real preview quietly.
+          timeoutMs: options.previewTimeoutMs ?? 2500,
+        });
   const timedPreview = preview.then((value) => {
     previewMs = Math.round(performance.now() - started);
     return value;

@@ -196,16 +196,34 @@ function similarity(a, b) {
 export function recommendationSeeds(reactions, list, preferences) {
   const remaining = [
     ...buildTaste(reactions, list, preferences, [], false).records.values(),
-  ].filter((r) => r.weight > 0.05 && r.anime.listStatus?.status !== "dropped");
+  ]
+    .filter((r) => r.weight > 0.05 && r.anime.listStatus?.status !== "dropped")
+    .map((record) => ({ record, overlap: 0 }));
   const selected = [];
   while (remaining.length && selected.length < 50) {
-    const priority = (r) =>
-      r.weight -
-      0.35 * Math.max(0, ...selected.map((a) => similarity(a, r.anime)));
-    remaining.sort(
-      (a, b) => priority(b) - priority(a) || a.anime.id - b.anime.id,
-    );
-    selected.push(remaining.shift().anime);
+    // Only the newest seed can increase the maximum overlap. Preserve the
+    // same greedy score and ID tie-break without sorting and recalculating
+    // every previously selected pair on each comparator invocation.
+    let best = 0,
+      bestPriority = -Infinity;
+    const latest = selected.at(-1);
+    remaining.forEach((entry, index) => {
+      if (latest)
+        entry.overlap = Math.max(
+          entry.overlap,
+          similarity(latest, entry.record.anime),
+        );
+      const priority = entry.record.weight - 0.35 * entry.overlap;
+      if (
+        priority > bestPriority ||
+        (priority === bestPriority &&
+          entry.record.anime.id < remaining[best].record.anime.id)
+      ) {
+        best = index;
+        bestPriority = priority;
+      }
+    });
+    selected.push(remaining.splice(best, 1)[0].record.anime);
   }
   return selected;
 }
@@ -461,6 +479,7 @@ export function rankRecommendations(
     limit = 25,
     metadata = [],
     skipped = new Set(),
+    includeExplanations = true,
   } = {},
 ) {
   const taste = buildTaste(reactions, list, preferences, [
@@ -485,10 +504,22 @@ export function rankRecommendations(
     audiencePreferences.requiredCategories.includes("Kids") ||
     audiencePreferences.preferredNodes.includes("kodomo");
   // Greedy diversity reranking: first place is the strongest match, later places balance variety.
+  const diversityOverlap = new WeakMap();
   while (selected.length < limit && available.length) {
     let best = 0,
       bestScore = -Infinity;
+    const latest = selected.at(-1)?.anime;
     for (let i = 0; i < available.length; i++) {
+      // The largest overlap only changes when a new title joins the selected
+      // set. Retain that maximum instead of comparing every previous pair on
+      // every pass, especially for the 75-title detail-check shortlist.
+      const overlap = latest
+        ? Math.max(
+            diversityOverlap.get(available[i]) || 0,
+            similarity(latest, available[i].anime),
+          )
+        : 0;
+      diversityOverlap.set(available[i], overlap);
       if (
         isExplicitTitle(available[i].anime) &&
         selected.some((p) => isExplicitTitle(p.anime))
@@ -503,12 +534,7 @@ export function rankRecommendations(
       )
         continue;
       const adjusted =
-        available[i].score -
-        0.06 *
-          Math.max(
-            0,
-            ...selected.map((p) => similarity(p.anime, available[i].anime)),
-          );
+        available[i].score - 0.06 * overlap;
       if (
         adjusted > bestScore ||
         (adjusted === bestScore &&
@@ -522,20 +548,25 @@ export function rankRecommendations(
     const varietyAdjusted =
       available[best].score < Math.max(...available.map((p) => p.score));
     const [pick] = available.splice(best, 1);
+    const tier = selected.length + 1;
     selected.push({
       ...pick,
-      reason: explanation(pick.anime, taste),
-      whyReasons: detailedExplanationReasons(pick.anime, taste, {
-        mode: "recommendations",
-        tier: selected.length + 1,
-        varietyAdjusted,
-      }),
-      detailReason: detailedExplanation(pick.anime, taste, {
-        mode: "recommendations",
-        tier: selected.length + 1,
-        varietyAdjusted,
-      }),
-      tier: selected.length + 1,
+      ...(includeExplanations
+        ? {
+            reason: explanation(pick.anime, taste),
+            whyReasons: detailedExplanationReasons(pick.anime, taste, {
+              mode: "recommendations",
+              tier,
+              varietyAdjusted,
+            }),
+            detailReason: detailedExplanation(pick.anime, taste, {
+              mode: "recommendations",
+              tier,
+              varietyAdjusted,
+            }),
+          }
+        : {}),
+      tier,
     });
   }
   return selected;

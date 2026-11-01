@@ -340,8 +340,9 @@ test("watchlist labels MAL update time and requires a cancellable removal confir
       "Shuffle + MAL",
     );
     assert.equal(
-      button("Import watchlist").parentElement,
-      button("Export watchlist").parentElement,
+      button("Import watchlist").closest(".watchlist-tools") ===
+        button("Export watchlist").closest(".watchlist-tools"),
+      true,
     );
     assert.ok(button("Import watchlist").classList.contains("outline"));
     assert.equal(document.querySelector(".watchlist-import"), null);

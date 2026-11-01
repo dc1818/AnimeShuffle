@@ -1,6 +1,43 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { prepareCardMedia, cardMediaReady } from "../src/lib/card-media.js";
+import { cachedMedia } from "../src/lib/media-cache.js";
+test("a stalled preview uses the 2.5 second card fallback budget and retains late media", async (t) => {
+  const old = globalThis.fetch;
+  let release,
+    settled = false;
+  globalThis.fetch = () =>
+    new Promise((resolve) => {
+      release = resolve;
+    });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const anime = { id: 987650 };
+    const job = prepareCardMedia(anime).then((result) => {
+      settled = true;
+      return result;
+    });
+    t.mock.timers.tick(2499);
+    await Promise.resolve();
+    assert.equal(settled, false);
+    t.mock.timers.tick(1);
+    const result = await job;
+    assert.equal(result.preview.fallback, true);
+    assert.equal(cardMediaReady(anime), true);
+    release(
+      Response.json({
+        videoId: "abcdefghijk",
+        trailers: [{ videoId: "abcdefghijk", title: "Late preview" }],
+      }),
+    );
+    for (let i = 0; i < 30 && !cachedMedia(anime.id); i++)
+      await Promise.resolve();
+    assert.equal(cachedMedia(anime.id)?.videoId, "abcdefghijk");
+  } finally {
+    globalThis.fetch = old;
+    t.mock.timers.reset();
+  }
+});
 test("a card waits for decoded cover and preview; failures recover to decoded alternate artwork or native fallback", async () => {
   const old = {
     window: globalThis.window,

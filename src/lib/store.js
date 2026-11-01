@@ -1652,6 +1652,9 @@ export function createAnimeStore({
       const ranked = rankRecommendations([...candidates.values()], {
         ...recommendationRankingState(),
         limit: 75,
+        // These are detail-check candidates, not rendered picks. Explain only
+        // the final verified shortlist below, using its final ranking context.
+        includeExplanations: false,
       });
       finishRank();
       const verified = [];
