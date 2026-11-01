@@ -997,6 +997,12 @@ export function createAnimeStore({
   }
   function schedulePrefetch() {
     if (state.preview || !state.current) return;
+    // Headless store consumers have no image decoder or rendered media gate.
+    // Injected preparation remains available to exercise readiness in tests.
+    if (typeof window === "undefined" && prepareMedia === prepareCardMedia) {
+      queuePrefetch();
+      return;
+    }
     const anime = state.current, generation = sessionGeneration;
     if (mediaPrefetch?.anime === anime) return;
     const waiting = { anime };
