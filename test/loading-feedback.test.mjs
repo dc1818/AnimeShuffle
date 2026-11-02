@@ -42,6 +42,30 @@ test("loaded feeds explain shared waits and retain their existing picks", async 
     seedRecommendationHistory(store);
     await store.loadRecommendations();
     const original = store.getSnapshot();
+    // Session/history can finish before the first catalog request. An absent
+    // card is not evidence that the search has finished without matches.
+    for (const busy of [true, false]) {
+      const state = { ...original, current: null, busy, discoveryLoading: false,
+        discoveryStatus: "", error: "" };
+      const html = renderToStaticMarkup(React.createElement(App, {
+        store: { ...store, getSnapshot: () => state },
+      }));
+      assert.match(html, /role="progressbar"/);
+      assert.doesNotMatch(html, /No matches|No fresh matches|Find more anime|Revisit skipped anime|Change viewing preferences/);
+    }
+    for (const [discoveryStatus, error, heading] of [
+      ["exhausted", "", "No matches with these preferences"],
+      ["paused", "", "There’s more to search"],
+      ["", "Request failed", "Let’s try that again"],
+    ]) {
+      const state = { ...original, current: null, busy: false,
+        discoveryLoading: false, discoveryStatus, error };
+      const html = renderToStaticMarkup(React.createElement(App, {
+        store: { ...store, getSnapshot: () => state },
+      }));
+      assert.ok(html.includes(heading));
+      assert.doesNotMatch(html, /role="progressbar"/);
+    }
     const { prepareCardMedia } = await import(pathToFileURL(path.join(dir, "lib/card-media.mjs")));
     await Promise.all([original.current, ...original.recommendationPicks.map(pick => pick.anime)].map(prepareCardMedia));
     const current = original.current;

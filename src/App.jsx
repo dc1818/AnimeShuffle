@@ -419,6 +419,8 @@ function ConnectedApp({ store, state }) {
             </div>
             {!state.ready ||
             state.discoveryLoading ||
+            (!state.current &&
+              (state.busy || (!state.discoveryStatus && !state.error))) ||
             (decidedCurrent && !state.busy) ? (
               <LoadingIndicator
                 progress={state.discoveryProgress}
