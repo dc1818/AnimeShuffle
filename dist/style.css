@@ -9552,6 +9552,19 @@ dialog.details-card.details-modal,
 .anime-card,.saved-card,.leaderboard-row { border-radius:8px; }
 .leaderboard-row { background:#101e29; }
 .dialog,.settings-panel,.preference-panel { border-radius:10px; }
+
+/* Settings destinations share one centered frame and one sidebar track. */
+@media (min-width: 701px) {
+  .dialog.settings-panel-dialog,
+  .dialog.preferences-panel-dialog {
+    width: min(1120px, calc(100% - 40px));
+    height: min(760px, calc(100dvh - 48px));
+  }
+  .settings-panel-dialog .panel-workspace,
+  .preferences-panel-dialog .panel-workspace {
+    grid-template-columns: 226px minmax(0, 1fr);
+  }
+}
 button:hover { box-shadow:none; }
 /* Keep the user's optional background modes, without the bright halo layer. */
 .ribbon-halo { display:none; }
