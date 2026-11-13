@@ -2,6 +2,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { WatchlistCover } from "../../src/components/WatchlistCover.jsx";
+import { TrailerPreviewGroup } from "../../src/components/TrailerPreview.jsx";
 const instances = [];
 window.YT = {Player: class {
   constructor(frame, {events}) {
@@ -28,10 +29,10 @@ const list = new URLSearchParams(location.search).has("list");
 createRoot(document.getElementById("root")).render(<main className="watchlist-page">
   <h1>Watchlist preview layout test</h1>
   <div>{Object.entries(states).map(([name,run])=><button key={name} onClick={run}>{name}</button>)}</div>
-  <div className={`watchlist-grid ${list ? "watchlist-list" : ""}`}>
+  <TrailerPreviewGroup><div className={`watchlist-grid ${list ? "watchlist-list" : ""}`}>
     {[1,2,3].map(id=><article className="saved-card" key={id}>
       <WatchlistCover priority anime={{id:990100+id,title:`Preview sample ${id}`,previewVideoId:"abcdefghijk",previewRegionChecked:true}} />
       <div className="saved-content"><h3>Preview sample {id}</h3><p>TV · 12 episodes</p><button>More details</button></div>
     </article>)}
-  </div>
+  </div></TrailerPreviewGroup>
 </main>);

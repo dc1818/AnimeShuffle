@@ -145,9 +145,7 @@ export function InlineTrailer({
           loading: "Loading YouTube player…",
           ready: "Starting preview…",
           buffering: "Buffering preview…",
-          blocked: "Your browser paused autoplay. Press Play to start.",
-          paused: "Preview paused.",
-          ended: "Preview finished.",
+          blocked: "Use the video’s play button to start.",
         }[status]);
   return (
     <div className="inline-trailer">
@@ -160,9 +158,6 @@ export function InlineTrailer({
             )}
             {message}
           </span>
-        )}
-        {["blocked", "paused", "ended"].includes(status) && (
-          <button onClick={() => player.current?.playVideo()}>Play</button>
         )}
         {(error || slow) && (
           <button onClick={() => setAttempt((n) => n + 1)}>Retry player</button>

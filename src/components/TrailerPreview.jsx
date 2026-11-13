@@ -2,17 +2,51 @@ import {
   blockTrailer,
   useBlockedTrailers,
 } from "../lib/playback-availability.js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cachedMedia, prepareMedia, observeMedia } from "../lib/media-cache.js";
 import { loadYouTubeAPI } from "../lib/youtube.js";
 import { preparedPreview } from "../lib/card-media.js";
 import { catalogPreview } from "../lib/media-data.js";
 import { InlineTrailer } from "./InlineTrailer.jsx";
 
+const PreviewGroup = createContext(null);
+
+/** One expanded preview per collection, including while metadata is loading. */
+export function TrailerPreviewGroup({ children }) {
+  const [active, setActive] = useState(null);
+  const value = useMemo(() => ({ active, setActive }), [active]);
+  return (
+    <PreviewGroup.Provider value={value}>{children}</PreviewGroup.Provider>
+  );
+}
+
 /** Keyed by anime ID: changing cards disposes its player. Closing only pauses it. */
 export function TrailerPreview({ anime, eager = true }) {
   const blocked = useBlockedTrailers();
-  const [open, setOpen] = useState(false);
+  const group = useContext(PreviewGroup);
+  const owner = useRef(Symbol("preview"));
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = group ? group.active === owner.current : localOpen;
+  function setOpen(next) {
+    if (!group) return setLocalOpen(next);
+    // Late results from a previous card must not close the new active preview.
+    group.setActive((current) =>
+      next ? owner.current : current === owner.current ? null : current,
+    );
+  }
+  const setActive = group?.setActive;
+  useEffect(() => {
+    const token = owner.current;
+    return () => setActive?.((current) => (current === token ? null : current));
+  }, [setActive]);
   const [result, setResult] = useState(
     () =>
       cachedMedia(anime.id) || catalogPreview(anime) || preparedPreview(anime),
@@ -49,8 +83,11 @@ export function TrailerPreview({ anime, eager = true }) {
     };
   }, [anime.id, eager]);
   useEffect(() => {
-    if (open) closeButton.current?.focus();
-    else if (wasOpened.current) trigger.current?.focus();
+    if (open) closeButton.current?.focus({ preventScroll: true });
+    else if (wasOpened.current && (!group || group.active === null)) {
+      wasOpened.current = false;
+      trigger.current?.focus({ preventScroll: true });
+    }
   }, [open]);
   async function play() {
     wasOpened.current = true;

@@ -14,6 +14,7 @@ document.querySelector('#run').onclick=async()=>{
   await new Promise(resolve=>frame.onload=resolve);const doc=frame.contentDocument;
   await until(()=>doc.querySelector('.watch-preview'));
   const cover=doc.querySelector('.saved-image'),before=rect(cover);
+  const covers=[...doc.querySelectorAll('.saved-image')].map(el=>({el,before:rect(el)}));
   const neighbors=[...doc.querySelectorAll('.saved-card')].slice(1).map(el=>({el,before:rect(el),content:rect(el.querySelector('.saved-content'))}));
   doc.querySelector('.watch-preview').click();await until(()=>doc.querySelector('.inline-trailer iframe'));
   for(const state of ['Playing','Paused','Buffering','Autoplay blocked']){
@@ -23,13 +24,20 @@ document.querySelector('#run').onclick=async()=>{
    row.neighborsUnchanged=neighbors.every(({el,before,content})=>{const current=rect(el),info=rect(el.querySelector('.saved-content'));return Math.abs(current.height-before.height)<1&&Math.abs(current.width-before.width)<1&&Math.abs((info.top-current.top)-(content.top-before.top))<1&&(Math.abs(before.top-neighbors[0].before.top)>1||list||width<701||Math.abs(current.top-before.top)<1);});
    row.pass=row.videoHeight>=200&&row.videoGap>=-1&&row.spoilerGap>=-1&&!row.clipped&&footer.height>=24&&row.neighborsUnchanged;
    results.push(row);output.textContent=results.map(r=>JSON.stringify(r)).join('\n');
+   if(panel.querySelector('.inline-trailer-feedback button'))throw Error('Duplicate playback control');
+  }
+  for(const next of [1,2,0]){
+   covers[next].el.querySelector('.watch-preview').click();await delay(40);
+   if(doc.querySelectorAll('.trailer-panel:not([hidden])').length!==1||!covers[next].el.querySelector('.trailer-panel:not([hidden])'))throw Error('Multiple expanded previews');
+   if(doc.activeElement!==covers[next].el.querySelector('.trailer-toolbar button'))throw Error('Focus returned to the old card');
+   for(const [i,{el,before}] of covers.entries())if(i!==next){const box=rect(el);if(Math.abs(box.width-before.width)>1||Math.abs(box.height-before.height)>1)throw Error('Previous cover did not restore');}
   }
   doc.querySelector('.trailer-toolbar button').click();await delay(40);
   const after=rect(cover);if(Math.abs(after.width-before.width)>1||Math.abs(after.height-before.height)>1)throw Error('Cover dimensions were not restored');
   if(!doc.querySelector('.trailer-panel').hidden)throw Error('Player stayed visible');
   if(location.search.includes('baseline'))break;
  }
- output.textContent+='\n'+(results.every(r=>r.pass)?'PASS':'FAIL')+': '+results.length+' playback layouts; cover restoration checked';
+ output.textContent+='\n'+(results.every(r=>r.pass)?'PASS':'FAIL')+': '+results.length+' playback layouts; exclusive switching, focus and cover restoration checked';
  }catch(error){output.textContent+='\nERROR: '+error.message;}
  document.querySelector('#run').disabled=false;
 };

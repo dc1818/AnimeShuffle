@@ -26,6 +26,7 @@ import {
 import { Icon } from "./Icon.jsx";
 import { AnimeDetails } from "./AnimeCard.jsx";
 import { WatchlistCover } from "./WatchlistCover.jsx";
+import { TrailerPreviewGroup } from "./TrailerPreview.jsx";
 
 // Session-only UI memory, scoped to the store and account. Never exported or synced.
 const browsingSessions = new WeakMap();
@@ -39,7 +40,11 @@ export function Watchlist(props) {
     browsingSessions.set(props.store, new Map());
   const sessions = browsingSessions.get(props.store);
   if (!sessions.has(scope)) sessions.set(scope, {});
-  return <WatchlistView key={scope} {...props} memory={sessions.get(scope)} />;
+  return (
+    <TrailerPreviewGroup key={scope}>
+      <WatchlistView {...props} memory={sessions.get(scope)} />
+    </TrailerPreviewGroup>
+  );
 }
 
 /** Show site saves and MAL plans together while keeping their origin explicit. */

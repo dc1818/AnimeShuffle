@@ -99,7 +99,13 @@ test("reopening retains the paused player; delayed readiness, errors and stale m
     assert.equal(calls, 1);
     assert.equal(instance.plays, 1);
     await act(async () => instance.events.onAutoplayBlocked());
-    assert.match(document.body.textContent, /Press Play/);
+    assert.match(document.body.textContent, /Use the video’s play button/);
+    assert.equal(document.querySelector('.inline-trailer-feedback button'), null);
+    for (const data of [2, 0]) {
+      await act(async () => instance.events.onStateChange({ target: instance, data }));
+      assert.doesNotMatch(document.body.textContent, /Preview paused|Preview finished/);
+      assert.equal(document.querySelector('.inline-trailer-feedback button'), null);
+    }
     await act(async () =>
       instance.events.onStateChange({ target: instance, data: 1 }),
     );
