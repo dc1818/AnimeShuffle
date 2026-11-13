@@ -9276,6 +9276,10 @@ dialog.details-card.details-modal,
 /* A preview expands only its own card; adjacent grid items keep their height. */
 html:has(.watchlist-page) { scrollbar-gutter: stable; }
 .watchlist-page .watchlist-grid { align-items: start; }
+.watchlist-page .saved-card { min-height: var(--watchlist-card-height, 0px); }
+/* Keep this intrinsic: stretching it would make measured heights grow whenever
+   another card opens a player. Content remains complete, including long titles. */
+.watchlist-page .saved-content { align-self: start; }
 .watchlist-page .saved-card:has(.trailer-panel:not([hidden])) .saved-image {
   grid-column: 1 / -1;
   width: 100%;
@@ -9284,7 +9288,7 @@ html:has(.watchlist-page) { scrollbar-gutter: stable; }
 }
 .watchlist-page .saved-card:has(.trailer-panel:not([hidden])) .saved-content { grid-column: 1 / -1; }
 /* Let playback feedback and the spoiler notice take their own space below the
-   200px player, including wrapped text and the paused/autoplay Play control. */
+   200px player, including wrapped feedback text. */
 .watchlist-page .saved-image:has(.trailer-panel:not([hidden])) > img,
 .watchlist-page .saved-image:has(.trailer-panel:not([hidden])) > svg { display: none; }
 .watchlist-page .saved-image .trailer-panel {

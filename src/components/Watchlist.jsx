@@ -26,6 +26,7 @@ import {
 import { Icon } from "./Icon.jsx";
 import { AnimeDetails } from "./AnimeCard.jsx";
 import { WatchlistCover } from "./WatchlistCover.jsx";
+import { WatchlistGrid } from "./WatchlistGrid.jsx";
 import { TrailerPreviewGroup } from "./TrailerPreview.jsx";
 
 // Session-only UI memory, scoped to the store and account. Never exported or synced.
@@ -643,7 +644,7 @@ function WatchlistView({ state, store, onDiscover, memory }) {
           </button>
         )}
       </div>
-      <div
+      <WatchlistGrid
         className={`watchlist-grid ${layout === "list" ? "watchlist-list" : ""}`}
       >
         {items.slice(start, end).map(({ anime, addedAt, site, mal }, index) => (
@@ -740,7 +741,7 @@ function WatchlistView({ state, store, onDiscover, memory }) {
             </div>
           </article>
         ))}
-      </div>
+      </WatchlistGrid>
       <div className="watchlist-pagination watchlist-pagination-bottom">
         {end < items.length && (
           <button
