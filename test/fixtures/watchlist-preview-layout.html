@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><title>Watchlist preview layout checks</title>
+<style>body{background:#10202e;color:#edf5fc;font:16px system-ui}button{padding:12px}iframe{border:0;display:block}pre{max-height:170px;overflow:auto;white-space:pre-wrap}</style>
+<button id="run">Check preview spacing</button><pre id="results" role="status">Ready</pre><iframe title="Watchlist preview"></iframe>
+<script type="module">
+const frame=document.querySelector('iframe'), output=document.querySelector('#results');
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function until(check){for(let i=0;i<300;i++){if(check())return;await delay(20);}throw Error('UI timed out');}
+const rect=el=>el.getBoundingClientRect();
+document.querySelector('#run').onclick=async()=>{
+ document.querySelector('#run').disabled=true; output.textContent='Running…'; const results=[];
+ try{
+ for(const [width,height] of [[1920,1080],[1366,768],[768,1024],[390,844],[320,640]])for(const list of [false,true]){
+  frame.width=width;frame.height=height;frame.src='./watchlist-preview.html?'+(list?'list&':'')+'width='+width;
+  await new Promise(resolve=>frame.onload=resolve);const doc=frame.contentDocument;
+  await until(()=>doc.querySelector('.watch-preview'));
+  const cover=doc.querySelector('.saved-image'),before=rect(cover);
+  const neighbors=[...doc.querySelectorAll('.saved-card')].slice(1).map(el=>({el,before:rect(el),content:rect(el.querySelector('.saved-content'))}));
+  doc.querySelector('.watch-preview').click();await until(()=>doc.querySelector('.inline-trailer iframe'));
+  for(const state of ['Playing','Paused','Buffering','Autoplay blocked']){
+   [...doc.querySelectorAll('button')].find(b=>b.textContent===state).click();await delay(40);
+   const panel=doc.querySelector('.trailer-panel'),video=rect(panel.querySelector('iframe')),feedback=rect(panel.querySelector('.inline-trailer-feedback')),footer=rect(panel.querySelector('.trailer-footer')),bounds=rect(cover);
+   const row={width,height,list,state,videoHeight:video.height,videoGap:feedback.top-video.bottom,spoilerGap:footer.top-feedback.bottom,clipped:footer.bottom>bounds.bottom+1};
+   row.neighborsUnchanged=neighbors.every(({el,before,content})=>{const current=rect(el),info=rect(el.querySelector('.saved-content'));return Math.abs(current.height-before.height)<1&&Math.abs(current.width-before.width)<1&&Math.abs((info.top-current.top)-(content.top-before.top))<1&&(Math.abs(before.top-neighbors[0].before.top)>1||list||width<701||Math.abs(current.top-before.top)<1);});
+   row.pass=row.videoHeight>=200&&row.videoGap>=-1&&row.spoilerGap>=-1&&!row.clipped&&footer.height>=24&&row.neighborsUnchanged;
+   results.push(row);output.textContent=results.map(r=>JSON.stringify(r)).join('\n');
+  }
+  doc.querySelector('.trailer-toolbar button').click();await delay(40);
+  const after=rect(cover);if(Math.abs(after.width-before.width)>1||Math.abs(after.height-before.height)>1)throw Error('Cover dimensions were not restored');
+  if(!doc.querySelector('.trailer-panel').hidden)throw Error('Player stayed visible');
+  if(location.search.includes('baseline'))break;
+ }
+ output.textContent+='\n'+(results.every(r=>r.pass)?'PASS':'FAIL')+': '+results.length+' playback layouts; cover restoration checked';
+ }catch(error){output.textContent+='\nERROR: '+error.message;}
+ document.querySelector('#run').disabled=false;
+};
+</script>

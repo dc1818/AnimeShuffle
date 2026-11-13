@@ -9273,13 +9273,27 @@ dialog.details-card.details-modal,
 .poster-stage .artwork-preview[hidden], .saved-image .artwork-preview[hidden] { display: none; }
 .saved-image { position: relative; }
 .saved-image .artwork-play { width: 38px; height: 38px; font-size: 17px; }
+/* A preview expands only its own card; adjacent grid items keep their height. */
+html:has(.watchlist-page) { scrollbar-gutter: stable; }
+.watchlist-page .watchlist-grid { align-items: start; }
 .watchlist-page .saved-card:has(.trailer-panel:not([hidden])) .saved-image {
   grid-column: 1 / -1;
   width: 100%;
-  height: 280px;
+  height: auto;
   aspect-ratio: auto;
 }
 .watchlist-page .saved-card:has(.trailer-panel:not([hidden])) .saved-content { grid-column: 1 / -1; }
+/* Let playback feedback and the spoiler notice take their own space below the
+   200px player, including wrapped text and the paused/autoplay Play control. */
+.watchlist-page .saved-image:has(.trailer-panel:not([hidden])) > img,
+.watchlist-page .saved-image:has(.trailer-panel:not([hidden])) > svg { display: none; }
+.watchlist-page .saved-image .trailer-panel {
+  position: relative;
+  inset: auto;
+  grid-template-rows: 56px auto auto;
+}
+.watchlist-page .inline-trailer-frame { flex: none; height: 200px; }
+.watchlist-page .trailer-footer { min-height: 24px; padding: 4px 8px; text-align: center; }
 .recommendations-page .discover-links .details-toggle > span:last-child { display: inline-flex; }
 .feedback-saved-indicator {
   margin-left: auto;
