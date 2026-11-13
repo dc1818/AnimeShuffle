@@ -417,6 +417,7 @@ function ConnectedApp({ store, state }) {
                 {Object.keys(state.reactions).length} reactions
               </span>
             </div>
+            <div className="discover-stage">
             {!state.ready ||
             state.discoveryLoading ||
             (!state.current &&
@@ -433,11 +434,13 @@ function ConnectedApp({ store, state }) {
             ) : state.current ? (
               <>
                 {state.busy && !state.watchlistSaving && (
+                  <div className="discover-busy-status">
                   <LoadingIndicator
                     compact
                     label={pendingWorkLabel(state)}
                     detail="Your current pick will stay here."
                   />
+                  </div>
                 )}
                 <div
                   className={`cards-layout discover-layout ${details ? "expanded" : ""}`}
@@ -554,6 +557,7 @@ function ConnectedApp({ store, state }) {
                 )}
               </div>
             )}
+            </div>
           </section>
         )}
       </main>

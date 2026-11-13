@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Discover transition regression</title>
+<style>body{background:#10202e;color:#edf5fc;font:16px system-ui}button{padding:12px}iframe{display:block;border:0}pre{white-space:pre-wrap;max-height:160px;overflow:auto}#controls{position:sticky;top:0;background:#10202e;padding:12px;z-index:2}</style>
+<div id="controls"><button id="run">Run all four reactions at six viewport sizes</button><pre id="results" role="status">Ready</pre></div>
+<iframe title="Isolated Discover"></iframe>
+<script type="module">
+const frame = document.querySelector('iframe'), output = document.querySelector('#results');
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function until(check) {
+  for (let i = 0; i < 500; i++) { if (check()) return; await delay(20); }
+  throw Error('Timed out waiting for the next card');
+}
+const range = (rows, key) => Math.max(...rows.map(row => row[key])) - Math.min(...rows.map(row => row[key]));
+document.querySelector('#run').onclick = async () => {
+  document.querySelector('#run').disabled = true;
+  output.textContent = 'Running…';
+  const reports = [];
+  try {
+    for (const [width, height] of [[1920,1080],[1920,900],[1366,768],[768,1024],[390,844],[320,640]]) {
+      frame.width = width; frame.height = height;
+      frame.src = './index.html?case=' + width + '-' + height;
+      await new Promise(resolve => frame.onload = resolve);
+      const doc = frame.contentDocument, win = frame.contentWindow;
+      await until(() => doc.querySelector('.discover-card'));
+      for (const action of ['good','bad','watch','nope']) {
+        const button = doc.querySelector('.reaction.' + action);
+        button.scrollIntoView({block:'nearest'});
+        await delay(50);
+        const title = doc.querySelector('#anime-title').textContent;
+        const samples = [];
+        let sampling = true;
+        const sample = () => {
+          const rect = doc.querySelector('.discover-card')?.getBoundingClientRect();
+          samples.push({y:rect?.y,h:rect?.height,scroll:win.scrollY,busy:doc.querySelector('.discover-card')?.getAttribute('aria-busy') === 'true',
+            bottom:doc.querySelector('footer').getBoundingClientRect().bottom + win.scrollY,
+            media:!!doc.querySelector('.card-media-loading'),
+            search:!!doc.querySelector('[aria-label="Anime discovery"] > .loading-state, .discover-stage > .loading-state')});
+        };
+        const sampleFrame = () => { sample(); if (sampling) win.requestAnimationFrame(sampleFrame); };
+        // Mutation observations cover every React commit even when the browser
+        // throttles animation frames in the embedded test viewport.
+        const observer = new win.MutationObserver(sample);
+        observer.observe(doc.querySelector('#root'), {subtree:true,childList:true,attributes:true,characterData:true});
+        sampleFrame();
+        button.click();
+        await until(() => doc.querySelector('.discover-card[aria-busy="false"]') && doc.querySelector('#anime-title')?.textContent !== title);
+        await delay(50);
+        sampling = false;
+        observer.disconnect();
+        sample();
+        const cards = samples.filter(row => row.y !== undefined);
+        const result = {width,height,action,samples:samples.length,busyFrames:samples.filter(row=>row.busy).length,cardShift:range(cards,'y'),cardResize:range(cards,'h'),
+          scrollShift:range(samples,'scroll'),pageResize:range(samples,'bottom'),
+          mediaWait:samples.some(row=>row.media),searchWait:samples.some(row=>row.search),
+          artworkReady:!!doc.querySelector('.poster-fallback svg') || (!!doc.querySelector('.poster')?.complete && doc.querySelector('.poster').naturalWidth > 0)};
+        result.pass = samples.length > 5 && result.busyFrames > 0 && result.cardShift < 1 && result.cardResize < 1 && result.scrollShift < 1 && result.pageResize < 1 && result.artworkReady;
+        reports.push(result);
+        output.textContent = reports.map(row=>JSON.stringify(row)).join('\n');
+      }
+      if (location.search.includes('baseline')) break;
+    }
+    output.textContent += '\n' + (reports.every(row=>row.pass) ? 'PASS' : 'FAIL') + ': ' + reports.length + ' transitions';
+  } catch(error) { output.textContent += '\nERROR: ' + error.message; }
+  document.querySelector('#run').disabled = false;
+};
+</script>
