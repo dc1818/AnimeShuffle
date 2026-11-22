@@ -185,6 +185,72 @@ body {
   font-family: Shuffle, "Segoe UI", system-ui, sans-serif;
   min-height: 100vh;
 }
+.app-layout {
+  --page-canvas: #101826;
+  --card-outline: #34364d;
+  --outline-offset: clamp(12px, 1.5vw, 24px);
+  isolation: isolate;
+  min-height: 100svh;
+  background: var(--page-canvas);
+}
+/* Offset card pairs echo the wordmark's icon in the outer margins. */
+.app-layout::before,
+.app-layout::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  width: clamp(84px, 8vw, 118px);
+  aspect-ratio: 5 / 7;
+  border: 2px solid var(--card-outline);
+  border-radius: 13px;
+  background: var(--page-canvas);
+  box-shadow:
+    var(--card-offset-x) var(--outline-offset) 0 -2px var(--page-canvas),
+    var(--card-offset-x) var(--outline-offset) 0 var(--card-outline);
+}
+.app-layout::before {
+  --card-offset-x: var(--outline-offset);
+  top: clamp(92px, 9vh, 116px);
+  right: clamp(26px, 4vw, 76px);
+  transform: rotate(16deg);
+}
+.app-layout::after {
+  --card-offset-x: calc(-1 * var(--outline-offset));
+  bottom: clamp(29px, 6vh, 65px);
+  left: clamp(26px, 3.5vw, 66px);
+  transform: rotate(-18deg);
+}
+@media (max-width: 900px) {
+  .app-layout {
+    --card-outline: #282d42;
+  }
+  .app-layout::before,
+  .app-layout::after {
+    width: 72px;
+  }
+  .app-layout::before {
+    top: 108px;
+    right: 25px;
+  }
+  .app-layout::after {
+    bottom: 58px;
+    left: 25px;
+  }
+}
+@media (max-width: 560px) {
+  .app-layout::before,
+  .app-layout::after {
+    width: 52px;
+    border-radius: 9px;
+  }
+  .app-layout::before {
+    right: 20px;
+  }
+  .app-layout::after {
+    left: 20px;
+  }
+}
 button,
 input,
 a {
