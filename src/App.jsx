@@ -3,9 +3,14 @@ import { usePageNavigation } from "./lib/page-navigation.js";
 import { AndroidAppPrompt } from "./components/AndroidAppPrompt.jsx";
 import { shouldOfferAndroidApp } from "./lib/install-app.js";
 import { RecommendationExposure } from "./components/RecommendationExposure.jsx";
-import { Profile } from "./components/Profile.jsx";
 import { recommendationsUnlocked } from "./lib/recommendation-access.js";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { SupportLink } from "./components/SupportLink.jsx";
 import { Icon } from "./components/Icon.jsx";
 import { AnimeCard, AnimeDetails } from "./components/AnimeCard.jsx";
@@ -50,7 +55,9 @@ function ConnectedApp({ store, state }) {
   const [appChoiceOpen, setAppChoiceOpen] = useState(
     () => !state.session.staticMode && shouldOfferAndroidApp(),
   );
-  const [view, setView] = usePageNavigation();
+  const [dialog, setDialog] = useState(null);
+  const openSettings = useCallback(() => setDialog("settings"), []);
+  const [view, setView] = usePageNavigation(openSettings);
   const [freshnessTick, setFreshnessTick] = useState(0);
   useEffect(() => {
     if (view === "watchlist") store.visitWatchlist?.();
@@ -64,7 +71,6 @@ function ConnectedApp({ store, state }) {
   useEffect(() => {
     setDetails(false);
   }, [state.current?.id, state.discoveryLoading, view]);
-  const [dialog, setDialog] = useState(null);
   const unlocked = recommendationsUnlocked(state.reactions);
   const [unlockNotice, setUnlockNotice] = useState(false);
   useEffect(() => {
@@ -342,9 +348,14 @@ function ConnectedApp({ store, state }) {
           )}
           <button
             className="account"
-            aria-label={state.session.account ? "Open your profile" : "Sign in"}
+            aria-label={
+              state.session.account
+                ? `Open settings for ${state.session.account.name}`
+                : "Sign in"
+            }
+            aria-haspopup="dialog"
             onClick={() =>
-              state.session.account ? setView("profile") : setDialog("welcome")
+              state.session.account ? openSettings() : setDialog("welcome")
             }
           >
             <Icon name="link" />
@@ -356,7 +367,7 @@ function ConnectedApp({ store, state }) {
           <button
             className="icon-button"
             aria-label="Open settings"
-            onClick={() => setDialog("settings")}
+            onClick={openSettings}
           >
             <Icon name="settings" />
           </button>
@@ -374,16 +385,8 @@ function ConnectedApp({ store, state }) {
           </button>
         </div>
       )}
-      <main
-        className={
-          ["recommendations", "profile"].includes(view)
-            ? "wide-main"
-            : undefined
-        }
-      >
-        {view === "profile" ? (
-          <Profile state={state} onDiscover={() => setView("discover")} />
-        ) : view === "recommendations" ? (
+      <main className={view === "recommendations" ? "wide-main" : undefined}>
+        {view === "recommendations" ? (
           <Recommendations
             state={state}
             store={store}

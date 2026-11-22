@@ -115,3 +115,80 @@ test("MAL callback opens preferences for a verified account and shows failures i
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("the signed-in name and old profile links open Settings", async () => {
+  const folder = await mkdtemp(path.resolve(".react-test-"));
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "https://shuffle.example/#watchlist",
+  });
+  for (const name of [
+    "window",
+    "document",
+    "location",
+    "localStorage",
+    "sessionStorage",
+  ])
+    globalThis[name] = dom.window[name];
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  dom.window.HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  dom.window.HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
+  const root = createRoot(document.getElementById("root"));
+  try {
+    const outfile = path.join(folder, "App.mjs");
+    await build({
+      entryPoints: ["src/App.jsx"],
+      outfile,
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      jsx: "automatic",
+      packages: "external",
+    });
+    const { App } = await import(pathToFileURL(outfile));
+    const initial = createAnimeStore({ storage: localStorage }).getSnapshot();
+    const snapshot = {
+      ...initial,
+      ready: true,
+      onboardingComplete: true,
+      session: {
+        ...initial.session,
+        account: { id: "local:test", name: "Test Viewer", provider: "local" },
+      },
+    };
+    const store = {
+      subscribe: () => () => {},
+      getSnapshot: () => snapshot,
+      initialize: () => {},
+    };
+    await act(async () => root.render(React.createElement(App, { store })));
+    const accountButton = document.querySelector(
+      'button[aria-label="Open settings for Test Viewer"]',
+    );
+    assert.equal(accountButton.textContent, "Test Viewer");
+    await act(async () => accountButton.click());
+    const settings = () =>
+      document.querySelector("dialog[open] #settings-title");
+    assert.equal(settings()?.textContent, "Settings");
+    assert.equal(location.hash, "#watchlist");
+    await act(async () =>
+      document.querySelector("dialog button.primary").click(),
+    );
+    assert.equal(settings(), null);
+
+    await act(async () => {
+      location.hash = "#profile";
+      window.dispatchEvent(new window.HashChangeEvent("hashchange"));
+    });
+    assert.equal(location.hash, "#discover");
+    assert.equal(settings()?.textContent, "Settings");
+    assert.equal(document.querySelector(".profile-page"), null);
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
