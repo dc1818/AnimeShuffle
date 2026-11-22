@@ -116,7 +116,7 @@ test("MAL callback opens preferences for a verified account and shows failures i
   }
 });
 
-test("the signed-in name and old profile links open Settings", async () => {
+test("signed-in Settings opens from the name, and Help opens on the first click", async () => {
   const folder = await mkdtemp(path.resolve(".react-test-"));
   const dom = new JSDOM('<div id="root"></div>', {
     url: "https://shuffle.example/#watchlist",
@@ -174,10 +174,40 @@ test("the signed-in name and old profile links open Settings", async () => {
       document.querySelector("dialog[open] #settings-title");
     assert.equal(settings()?.textContent, "Settings");
     assert.equal(location.hash, "#watchlist");
+    const selectSection = async (name) => {
+      const button = [
+        ...document.querySelectorAll("dialog[open] .panel-navigation button"),
+      ].find((item) => item.textContent === name);
+      assert.ok(button);
+      await act(async () => button.click());
+    };
+    const assertHelpOpen = () => {
+      assert.equal(settings()?.textContent, "Settings");
+      assert.equal(
+        document.querySelector(
+          "dialog[open] .panel-navigation [aria-current=page]",
+        )?.textContent,
+        "Help",
+      );
+      assert.match(
+        document.querySelector("dialog[open] .panel-content").textContent,
+        /Keyboard shortcuts/,
+      );
+    };
+    await selectSection("Help");
+    assertHelpOpen();
+    await selectSection("Viewing preferences");
+    assert.ok(document.getElementById("preferences-title"));
+    await selectSection("Help");
+    assertHelpOpen();
     await act(async () =>
       document.querySelector("dialog button.primary").click(),
     );
     assert.equal(settings(), null);
+    assert.equal(
+      document.querySelector('.topbar [aria-label="Open settings"]'),
+      null,
+    );
 
     await act(async () => {
       location.hash = "#profile";

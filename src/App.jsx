@@ -364,13 +364,15 @@ function ConnectedApp({ store, state }) {
                 (state.session.staticMode ? "About demo" : "Sign in")}
             </span>
           </button>
-          <button
-            className="icon-button"
-            aria-label="Open settings"
-            onClick={openSettings}
-          >
-            <Icon name="settings" />
-          </button>
+          {!state.session.account && (
+            <button
+              className="icon-button"
+              aria-label="Open settings"
+              onClick={openSettings}
+            >
+              <Icon name="settings" />
+            </button>
+          )}
         </div>
       </header>
       {state.ready && state.preview && (

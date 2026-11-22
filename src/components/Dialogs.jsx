@@ -1,5 +1,5 @@
 import { SettingsPanel } from "./SettingsPanel.jsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { AccountForm, ViewingPreferences } from "./Onboarding.jsx";
 import { Icon } from "./Icon.jsx";
 
@@ -76,11 +76,9 @@ export function Dialogs({
   onNavigate,
   authError = "",
 }) {
-  const [settingsSection, setSettingsSection] = useState("account");
   const returnToSettings = (section = "account") => {
     if (section === "preferences") return;
-    setSettingsSection(section);
-    onNavigate("settings");
+    onNavigate(section === "help" ? "settings-help" : "settings");
   };
   if (!kind) return null;
   if (
@@ -270,7 +268,7 @@ export function Dialogs({
       onClose={onClose}
     >
       <SettingsPanel
-        initialSection={settingsSection}
+        initialSection={kind === "settings-help" ? "help" : "account"}
         state={state}
         store={store}
         onNavigate={onNavigate}
