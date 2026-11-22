@@ -76,8 +76,8 @@ export function Dialogs({
   onNavigate,
   authError = "",
 }) {
-  const [settingsSection, setSettingsSection] = useState("appearance");
-  const returnToSettings = (section = "appearance") => {
+  const [settingsSection, setSettingsSection] = useState("account");
+  const returnToSettings = (section = "account") => {
     if (section === "preferences") return;
     setSettingsSection(section);
     onNavigate("settings");

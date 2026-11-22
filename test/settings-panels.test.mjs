@@ -41,7 +41,6 @@ test("sectioned settings and preferences preserve state, account controls and sa
     saves = [],
     fail = false;
   const store = {
-    setSettings: (patch) => current.setSettings((p) => ({ ...p, ...patch })),
     setAutoAdd: async (v) => {
       calls.push(["autoAdd", v]);
       current.setSettings((p) => ({ ...p, autoAdd: v }));
@@ -114,36 +113,24 @@ test("sectioned settings and preferences preserve state, account controls and sa
     });
   try {
     await act(async () => root.render(React.createElement(Wrapper)));
-    assert.equal(
-      document.querySelectorAll('input[name="animated-background"]').length,
-      4,
+    assert.deepEqual(
+      [...document.querySelectorAll(".panel-mobile-select option")].map(
+        (option) => option.value,
+      ),
+      ["account", "preferences", "help"],
     );
-    await click('input[value="off"]');
-    assert.equal(current.settings.dynamic, false);
-    await click('input[value="comet"]');
-    assert.equal(current.settings.dynamic, true);
-    assert.equal(current.settings.backgroundStyle, "comet");
-    await click('input[value="liquid"]');
-    assert.equal(current.settings.backgroundStyle, "liquid");
-    const motionControl = [
-      ...document.querySelectorAll(".background-controls input"),
-    ][0];
-    const colorControl = [
-      ...document.querySelectorAll(".background-controls input"),
-    ][1];
-    await act(async () => motionControl.click());
-    assert.equal(current.settings.backgroundAnimated, false);
-    await act(async () => colorControl.click());
-    assert.equal(current.settings.backgroundMatchAnime, false);
+    assert.equal(
+      document.querySelector(".panel-navigation [aria-current=page]")
+        .textContent,
+      "Account & MyAnimeList",
+    );
+    assert.equal(document.querySelector(".background-options"), null);
     assert.equal(document.querySelector(".apk-download"), null);
     const support = document.querySelector("a.footer-support");
     assert.equal(support.href, "https://ko-fi.com/dc1818");
     assert.equal(support.querySelector("svg"), null);
     assert.equal(support.hasAttribute("target"), false);
     assert.equal(document.querySelector("#support-title"), null);
-    await change(".panel-mobile-select select", "appearance");
-    assert.ok(document.querySelector('input[value="liquid"]').checked);
-    await section("Account & MyAnimeList");
     assert.ok(
       document.querySelector('[aria-label="Auto-add watchlist to MyAnimeList"]')
         .disabled,
@@ -166,8 +153,13 @@ test("sectioned settings and preferences preserve state, account controls and sa
     await change(".panel-mobile-select select", "help");
     assert.ok(document.querySelector(".apk-download").disabled);
     assert.equal(document.querySelectorAll(".shortcut-list > div").length, 7);
-    await section("Appearance");
-    assert.ok(document.querySelector('input[value="liquid"]').checked);
+    await change(".panel-mobile-select select", "account");
+    assert.ok(
+      document.querySelector(
+        '[aria-label="Auto-add watchlist to MyAnimeList"]',
+      ),
+    );
+    assert.equal(current.settings.autoAdd, true);
     await section("Viewing preferences");
     assert.equal(
       document.querySelector(".workspace-intro h3").textContent,
@@ -225,7 +217,7 @@ test("sectioned settings and preferences preserve state, account controls and sa
     );
     await section("Viewing preferences");
     await click(".workspace-back");
-    assert.ok(document.querySelector(".background-options"));
+    assert.ok(document.querySelector(".account-identity"));
     await section("Viewing preferences");
     assert.equal(current.preferences.includeUnknown, false);
     await act(async () =>

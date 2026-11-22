@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { supportsBackgroundMotion } from "../src/lib/background-performance.js";
 import { genreGroups } from "../src/lib/genres.js";
 import {
   matchesPreferences,
@@ -9,50 +8,6 @@ import {
 import { eligibleCandidates } from "../src/lib/recommend.js";
 import { explicitAvoidancePenalty } from "../src/lib/content-avoidance.js";
 
-test("background requires a verified accelerated renderer and releases its probe", () => {
-  for (const [renderer, expected] of [
-    ["ANGLE NVIDIA", true],
-    ["Google SwiftShader", false],
-    ["llvmpipe", false],
-    ["", false],
-  ]) {
-    let released = false;
-    const doc = {
-      createElement: () => ({
-        getContext: (type, options) => {
-          assert.equal(options.failIfMajorPerformanceCaveat, true);
-          return {
-            getParameter: () => renderer,
-            getExtension: (name) =>
-              name === "WEBGL_debug_renderer_info"
-                ? { UNMASKED_RENDERER_WEBGL: 1 }
-                : {
-                    loseContext: () => {
-                      released = true;
-                    },
-                  },
-          };
-        },
-      }),
-    };
-    assert.equal(supportsBackgroundMotion(doc), expected);
-    assert.equal(released, true);
-  }
-  assert.equal(
-    supportsBackgroundMotion({
-      createElement: () => ({ getContext: () => null }),
-    }),
-    false,
-  );
-  assert.equal(
-    supportsBackgroundMotion({
-      createElement: () => {
-        throw Error("Blocked");
-      },
-    }),
-    false,
-  );
-});
 test("genre labels preserve facets without inferring parent genres; theme filters combine with genre restriction", () => {
   const anime = {
     genres: ["Action", "Mecha", "Shounen"],

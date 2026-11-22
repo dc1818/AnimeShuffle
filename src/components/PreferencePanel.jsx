@@ -27,7 +27,7 @@ export function PreferencePanel({
         {workspaceNavigation && (
           <button
             className="workspace-back"
-            onClick={() => onWorkspaceNavigate("appearance")}
+            onClick={() => onWorkspaceNavigate("account")}
           >
             ← Settings
           </button>

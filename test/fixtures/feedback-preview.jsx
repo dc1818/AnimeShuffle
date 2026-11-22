@@ -2,11 +2,6 @@ import { Dialogs } from "../../src/components/Dialogs.jsx";
 import { Recommendations } from "../../src/components/Recommendations.jsx";
 import { Watchlist } from "../../src/components/Watchlist.jsx";
 import { normalizePreferences } from "../../src/lib/preferences.js";
-import { BackgroundOptions } from "../../src/components/BackgroundOptions.jsx";
-import {
-  AmbientBackground,
-  BACKGROUND_STYLES,
-} from "../../src/components/AmbientBackground.jsx";
 // Isolated responsive fixture: sample titles, in-memory feedback, no account,
 // analytics, recommendations requests, or changes to the visitor's profile.
 import React, { useMemo, useState } from "react";
@@ -35,17 +30,14 @@ function Fixture() {
     [feedback, setFeedback] = useState(null),
     [details, setDetails] = useState(
       !location.search.includes("surface=discover") &&
-        !location.search.includes("surface=recommendations") &&
-        !location.search.includes("background-options"),
+        !location.search.includes("surface=recommendations"),
     ),
     [compact, setCompact] = useState(
       location.search.includes("surface=recommendations"),
     ),
     [displayed, setDisplayed] = useState(
       location.search.includes("category-labels") ? 6 : 1,
-    ),
-    [dynamic, setDynamic] = useState(true),
-    [backgroundStyle, setBackgroundStyle] = useState("aurora");
+    );
   const anime = {
     ...demo[0],
     title: long
@@ -109,7 +101,6 @@ function Fixture() {
   }
   return (
     <>
-      <AmbientBackground enabled={dynamic} style={backgroundStyle} />
       <header className="topbar">
         <a className="brand">Anime Shuffle</a>
         <nav>
@@ -172,43 +163,9 @@ function Fixture() {
             />
             Recommendation layout
           </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={dynamic}
-              onChange={(e) => setDynamic(e.target.checked)}
-            />
-            Dynamic background
-          </label>
-          <label>
-            Background style{" "}
-            <select
-              aria-label="Background style"
-              value={backgroundStyle}
-              onChange={(e) => setBackgroundStyle(e.target.value)}
-            >
-              {BACKGROUND_STYLES.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
           <small>Layout preview · No profile changes</small>
         </div>
       </details>
-      {location.search.includes("background-options") && (
-        <div className="background-options-fixture">
-          <BackgroundOptions
-            settings={{ dynamic, backgroundStyle }}
-            onChange={(patch) => {
-              setDynamic(patch.dynamic);
-              if (patch.backgroundStyle)
-                setBackgroundStyle(patch.backgroundStyle);
-            }}
-          />
-        </div>
-      )}
       <main>
         <div
           className={
@@ -263,7 +220,6 @@ function Fixture() {
             detailsOpen={details}
             onDetails={() => setDetails((value) => !value)}
             onWhy={() => setDetails("why")}
-            dynamic={dynamic}
           />
           {details && (
             <AnimeDetails
@@ -313,7 +269,6 @@ function ShortlistFixture() {
       id: 900000 + i,
       listStatus: { status: "completed", score: 8 },
     })),
-    settings: { dynamic: false },
     undoableIds: [],
     canUndo: false,
   }));
@@ -399,13 +354,10 @@ function PreferencesFixture() {
     }),
   );
   const [settings, setSettings] = useState({
-    dynamic: true,
-    backgroundStyle: "aurora",
     autoAdd: false,
   });
   const store = useMemo(
     () => ({
-      setSettings: (patch) => setSettings((p) => ({ ...p, ...patch })),
       setAutoAdd: async (autoAdd) => setSettings((p) => ({ ...p, autoAdd })),
       saveViewingPreferences: async (value) => setPreferences(value),
       searchAnime: async (query) =>
@@ -443,12 +395,6 @@ function PreferencesFixture() {
   };
   return (
     <>
-      <AmbientBackground
-        enabled={settings.dynamic !== false}
-        style={settings.backgroundStyle}
-        animated={settings.backgroundAnimated !== false}
-        matchAnime={settings.backgroundMatchAnime !== false}
-      />
       <div className="fixture-menu">
         <h1>Anime Shuffle</h1>
         <p>Layout preview · changes stay in memory</p>
@@ -486,7 +432,7 @@ function Board() {
           <div style={{ overflowX: "auto" }}>
             <iframe
               title={`Preview ${w}`}
-              src={`?frame=1${location.search.includes("background-options") ? "&background-options=1" : ""}${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=settings") ? "&surface=settings" : ""}${location.search.includes("surface=preferences") ? "&surface=preferences" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
+              src={`?frame=1${location.search.includes("surface=discover") ? "&surface=discover" : ""}${location.search.includes("surface=settings") ? "&surface=settings" : ""}${location.search.includes("surface=preferences") ? "&surface=preferences" : ""}${location.search.includes("surface=onboarding") ? "&surface=onboarding" : ""}${location.search.includes("surface=watchlist") ? "&surface=watchlist" : ""}${location.search.includes("surface=shortlist") ? "&surface=shortlist" : ""}${location.search.includes("genre-labels") ? "&genre-labels=1" : ""}${location.search.includes("category-labels") ? "&category-labels=1" : ""}${location.search.includes("surface=recommendations") ? "&surface=recommendations" : ""}`}
               width={w}
               height={h}
               style={{ border: "1px solid #456171" }}

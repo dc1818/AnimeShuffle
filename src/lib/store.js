@@ -130,7 +130,7 @@ export function createAnimeStore({
     undoableIds: [],
     preferences: defaultPreferences(),
     onboardingComplete: false,
-    settings: { autoAdd: false, dynamic: true, backgroundStyle: "aurora" },
+    settings: { autoAdd: false },
     syncError: "",
     storageError: "",
     malSyncProgress: null,
@@ -369,8 +369,6 @@ export function createAnimeStore({
       onboardingComplete: stored.onboardingComplete === true,
       settings: {
         autoAdd: false,
-        dynamic: true,
-        backgroundStyle: "aurora",
         ...stored.settings,
       },
     });

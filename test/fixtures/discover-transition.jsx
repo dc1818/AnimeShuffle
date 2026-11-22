@@ -35,6 +35,5 @@ const store = createAnimeStore({
 });
 await store.initialize();
 await store.savePreferences({});
-store.setSettings({ dynamic: false });
 window.transitionStore = store;
 createRoot(document.getElementById("root")).render(<App store={{...store, initialize() {}}} />);

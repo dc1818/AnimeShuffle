@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { BackgroundOptions } from "./BackgroundOptions.jsx";
 import { InstallApp } from "./InstallApp.jsx";
 import { MalWatchlistOption } from "./MalWatchlistOption.jsx";
 import { missingMalPlans } from "../lib/watchlist.js";
@@ -7,9 +6,8 @@ import { PreferencePanel } from "./PreferencePanel.jsx";
 import { Icon } from "./Icon.jsx";
 import { SupportLink } from "./SupportLink.jsx";
 export const SETTINGS_SECTIONS = [
-  { id: "appearance", label: "Appearance", icon: "screen" },
-  { id: "preferences", label: "Viewing preferences", icon: "filters" },
   { id: "account", label: "Account & MyAnimeList", icon: "users" },
+  { id: "preferences", label: "Viewing preferences", icon: "filters" },
   { id: "help", label: "Help", icon: "info" },
 ];
 function SettingsLink({ icon, title, detail, onClick, disabled }) {
@@ -34,7 +32,7 @@ export function SettingsPanel({
   store,
   onNavigate,
   onClose,
-  initialSection = "appearance",
+  initialSection = "account",
 }) {
   const [section, setSection] = useState(initialSection);
   return (
@@ -56,14 +54,6 @@ export function SettingsPanel({
         </>
       }
     >
-      {section === "appearance" && (
-        <>
-          <BackgroundOptions
-            settings={state.settings}
-            onChange={store.setSettings}
-          />
-        </>
-      )}
       {section === "account" && (
         <>
           <h3>Account & MyAnimeList</h3>

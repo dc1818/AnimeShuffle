@@ -1,7 +1,6 @@
 import { normalizeFeedback } from "../lib/reaction-feedback.js";
 import { GenreBadges } from "./GenreBadges.jsx";
 import { ReactionFeedback, reactionLabel } from "./ReactionFeedback.jsx";
-import { paletteFromPixels } from "../lib/cover-palette.js";
 import { englishTitle, primaryTitle } from "../lib/titles.js";
 import { prepareMedia } from "../lib/media-cache.js";
 import { cachedArtwork, imageSources } from "../lib/media-artwork.js";
@@ -30,15 +29,6 @@ const actions = [
   ["nope", "Won’t watch", "ban", "Not seen it, not interested"],
 ];
 
-/** Sample a small, same-origin cover rather than needing full-screen artwork. */
-function coverPalette(image) {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 24;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  context.drawImage(image, 0, 0, 24, 24);
-  return paletteFromPixels(context.getImageData(0, 0, 24, 24).data);
-}
-
 /** React owns the card markup, event handlers, loading states and cover fallback. */
 export function AnimeCard({
   anime,
@@ -52,7 +42,6 @@ export function AnimeCard({
   onReact,
   onSkip,
   onUndo,
-  dynamic,
   compact = false,
   tier,
   reason,
@@ -107,46 +96,9 @@ export function AnimeCard({
     fit();
     return () => observer.disconnect();
   });
-  const image = useRef(null);
-  const [failed, setFailed] = useState(false);
-  const [sampled, setSampled] = useState(null);
-  const coverKey = `${anime.id}:${anime.image || ""}`;
-  useEffect(() => {
-    setFailed(false);
-    // Cached images may be complete before React receives their load event.
-    if (image.current?.complete && image.current.naturalWidth) imageLoaded();
-  }, [coverKey]);
-  useEffect(() => {
-    const palette = dynamic
-      ? (sampled?.key === coverKey && sampled.palette) ||
-        anime.palette || ["25, 100, 130", "129, 43, 77"]
-      : ["20, 55, 70", "55, 38, 61"];
-    document.body.style.setProperty("--cool", palette[0]);
-    document.body.style.setProperty("--warm", palette[1]);
-    // The cover layer also follows the active card when canvas sampling is blocked.
-    document.body.style.setProperty(
-      "--anime-cover",
-      dynamic && artwork && !failed
-        ? `url(${JSON.stringify(artwork)})`
-        : "none",
-    );
-  }, [sampled, dynamic, anime.palette, coverKey, failed]);
-  useEffect(
-    () => () => {
-      // A collapsed card or another page must not keep the previous anime's theme.
-      document.body.style.removeProperty("--anime-cover");
-      document.body.style.removeProperty("--cool");
-      document.body.style.removeProperty("--warm");
-    },
-    [],
-  );
-  function imageLoaded() {
-    setFailed(false);
-    // Pixel access can fail when a browser blocks canvas; the default theme remains usable.
-    try {
-      setSampled({ key: coverKey, palette: coverPalette(image.current) });
-    } catch {}
-  }
+  const [failedArtwork, setFailedArtwork] = useState(null);
+  const coverKey = `${anime.id}:${artwork || ""}`;
+  const failed = failedArtwork === coverKey;
   return (
     <article
       className={`anime-card ${compact ? "ranked-card" : "discover-card swipe-enabled"} ${drag ? "swipe-dragging" : ""} ${drag?.leaving ? "swipe-leaving" : ""} ${tier <= 3 ? "medal-" + tier : ""}`}
@@ -189,15 +141,13 @@ export function AnimeCard({
         {artwork && !failed && (
           <img
             key={coverKey}
-            ref={image}
             className="poster"
             width="300"
             height="450"
             fetchPriority={compact ? "auto" : "high"}
             src={artwork}
             alt={`${anime.title} cover`}
-            onLoad={imageLoaded}
-            onError={() => setFailed(true)}
+            onError={() => setFailedArtwork(coverKey)}
           />
         )}
         {(failed || !artwork) && (

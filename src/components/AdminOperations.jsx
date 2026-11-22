@@ -596,12 +596,6 @@ export function AdminOperations({ section, api, currentAccount }) {
                         "Auto-add to MAL",
                         selected.account.settings.autoAdd ? "On" : "Off",
                       ],
-                      [
-                        "Dynamic theme",
-                        selected.account.settings.dynamic === false
-                          ? "Off"
-                          : "On",
-                      ],
                     ].map(([k, v]) => (
                       <div key={k}>
                         <dt>{k}</dt>

@@ -2,7 +2,7 @@
 
 Optional support is a plain text link to the owner's Ko-fi page in the app footer and Settings footer. It navigates directly in the same tab, without a heart icon or intermediate dialog. Retain keyboard focus and 44px link height. The public How it works page uses the existing navy/cyan palette and readable responsive text. No payment widgets, tracking scripts or donation prompts.
 
-Preserve the existing dark navy surfaces, blue actions, anime artwork and cover-derived Aurora backgrounds. Aurora, Liquid light and Comet drift are intentional brand exceptions to generic no-gradient guidance. Respect the animation/off preference, reduced motion and software-rendering fallback.
+Use a static dark canvas across the app. Dark navy surfaces, blue actions and anime artwork supply the contrast.
 
 Discover centers on one title and four reactions. Good/Bad means seen; Would/Won’t watch means prospective interest. Explanations and optional feedback identify the specific title. Recommendations contain only eligible unsaved, unseen, unrejected titles. Filter the displayed snapshot against current reactions, MAL list and favorites, including account-sync updates. A reaction removes the row immediately; a separate confirmation offers targeted Undo. Remaining picks retain order until Refresh picks; Undo restores an eligible title to its original place.
 
@@ -20,7 +20,7 @@ Use native dialogs with headings as accessible names, Escape/backdrop behavior a
 
 Validation: React interaction tests cover onboarding, navigation/history, disclosures and retained state. Existing component fixtures exercise phone, tablet, desktop and short viewports without changing a user profile. Source review and browser rendering are separate checks; fixtures do not establish production API speed or real cross-device synchronization.
 
-Discover's More details and Why this pick controls share a subtle outlined surface with a persistent vertical separator, independent hover/focus states and at least 44px targets. Decorative background motion pauses behind open native dialogs as well as in hidden tabs; keep the anime palette visible. Aurora SVG groups use an explicit transform box. Animate transforms and opacity rather than layout or background paint properties.
+Discover's More details and Why this pick controls share a subtle outlined surface with a persistent vertical separator, independent hover/focus states and at least 44px targets.
 
 Workflow references: the user’s web-design-workflow skill, Taste app-screen guidance and Vercel Web Interface Guidelines. Keep these subordinate to the product’s established design and behavior.
 
@@ -42,9 +42,9 @@ At 700px and below, the preferences sidebar becomes a labeled native section sel
 
 Preference refinement: Appearance uses the desktop sidebar for account navigation; the account shortcut remains available on phones. Taste uses equal-width genre controls with stable selection indicators, compact favorite rows with unobstructed artwork, and 14px supporting text. Category selection precedes its optional restriction. Keep all original genres, categories and saved preference semantics.
 
-Settings navigation places Viewing preferences immediately after Appearance. On phones, use the same destinations in a section selector instead of links inside Appearance. Appearance contains background controls only; the disabled Android APK notice belongs under Help.
+Settings opens to Account & MyAnimeList, followed by Viewing preferences and Help. On phones, use the same destinations in a section selector. The disabled Android APK notice belongs under Help.
 
-Layered navy refinement: separate dark navigation/header/footer from a slightly lighter workspace. Use restrained blue selected controls with explicit checkmarks rather than bright filled tiles throughout. Category exploration has 16px interior padding (14px phone), a separate optional/count label, readable 12px metadata, and browse rows with chevrons. Preserve the existing background previews and Aurora behavior; no decorative imagery behind form text. Settings uses a shorter desktop dialog to reduce empty space, with full-height phone scrolling.
+Layered navy refinement: separate dark navigation/header/footer from a slightly lighter workspace. Use restrained blue selected controls with explicit checkmarks rather than bright filled tiles throughout. Category exploration has 16px interior padding (14px phone), a separate optional/count label, readable 12px metadata, and browse rows with chevrons. Keep form backgrounds plain. Settings uses a shorter desktop dialog to reduce empty space, with full-height phone scrolling.
 
 Approved A category browser (supersedes earlier B): category names and chevrons are one expansion control at every depth. No Browse deeper navigation, breadcrumb replacement, or depth cap. Main group rows have the established blue fill; nested branches are plain semibold 16px rows, leaves are regular 16px checkbox rows with no caret. Native disclosure buttons and checkboxes retain keyboard operation. Dotted vertical guides connect horizontally to children and selected rows. Children are mounted only when expanded. Deep future branches can scroll horizontally within the tree region instead of shrinking text or overflowing the whole Settings dialog; current five-level hierarchy fits narrow phones with 12px indentation per level.
 

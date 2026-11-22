@@ -454,7 +454,6 @@ export function Recommendations({ state, store, onDiscover, onPreferences }) {
                           reason={pick.reason}
                           compact
                           showGenreFocus={false}
-                          dynamic={state.settings?.dynamic !== false}
                           busy={state.busy || state.recommendationsLoading}
                           detailsOpen={
                             about === pick.anime.id ? detailsTab : false

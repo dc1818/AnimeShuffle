@@ -1,6 +1,5 @@
 import { MediaReady } from "./components/MediaReady.jsx";
 import { usePageNavigation } from "./lib/page-navigation.js";
-import { AmbientBackground } from "./components/AmbientBackground.jsx";
 import { AndroidAppPrompt } from "./components/AndroidAppPrompt.jsx";
 import { shouldOfferAndroidApp } from "./lib/install-app.js";
 import { RecommendationExposure } from "./components/RecommendationExposure.jsx";
@@ -232,12 +231,6 @@ function ConnectedApp({ store, state }) {
   const savedCount = combinedWatchlist(state.reactions, state.list).length;
   return (
     <div className="app-layout" data-layout="familiar">
-      <AmbientBackground
-        enabled={state.settings.dynamic !== false}
-        style={state.settings.backgroundStyle}
-        animated={state.settings.backgroundAnimated !== false}
-        matchAnime={state.settings.backgroundMatchAnime !== false}
-      />
       {state.malSyncProgress && (
         <div className="notice" role="status">
           Adding saved shows to MAL · {state.malSyncProgress.done} of{" "}
@@ -484,7 +477,6 @@ function ConnectedApp({ store, state }) {
                       onReact={store.react}
                       onSkip={store.skip}
                       onUndo={store.undo}
-                      dynamic={state.settings.dynamic}
                     />
                   </RecommendationExposure>
                   </MediaReady>

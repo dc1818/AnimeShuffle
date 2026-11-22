@@ -323,12 +323,6 @@ export function createCloudApp(
   function cleanSettings(value = {}) {
     return {
       autoAdd: value.autoAdd === true,
-      dynamic: value.dynamic !== false,
-      backgroundStyle: ["aurora", "liquid", "comet"].includes(
-        value.backgroundStyle,
-      )
-        ? value.backgroundStyle
-        : "aurora",
       ...(value.recommendationsNotified === true
         ? { recommendationsNotified: true }
         : {}),
