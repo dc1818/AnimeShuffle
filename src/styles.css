@@ -9646,6 +9646,18 @@ button:hover { box-shadow:none; }
 [data-layout="familiar"] {
   --discover-card-height: clamp(520px, calc(100svh - 210px), 680px);
 }
+@media (min-width: 901px) {
+  .app-layout:has(.discover-stage) > footer {
+    padding-block: 4px;
+  }
+}
+/* Below the usual desktop card minimum, leave room for the header, reaction
+   count, stage spacing and footer. Very short windows can still scroll. */
+@media (min-width: 901px) and (max-height: 708px) {
+  .discover-stage {
+    --discover-card-height: clamp(400px, calc(100svh - 188px), 520px);
+  }
+}
 [data-layout="familiar"] .cards-layout.discover-layout .anime-card.discover-card {
   height:var(--discover-card-height);
 }
